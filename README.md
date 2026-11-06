@@ -1,0 +1,111 @@
+# cuda
+
+CUDA C++ kernel engineering: correctness, optimization and reproducible GPU
+benchmarks.
+
+Hand-written kernels, checked against CPU references and measured against the
+hardware's memory bandwidth limit. No wrappers around vendor libraries — the
+point is the kernel, not the call into CUB.
+
+## Status
+
+Two kernels, both implemented end to end:
+
+| Kernel | What it does | Correctness tests written | Benchmarked |
+| ------ | ------------ | ----------- | ----------- |
+| `vecadd` | `c = a + b`, grid-stride | yes, **GPU run pending** | not yet |
+| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | yes, **GPU run pending** | not yet |
+
+Both kernel tests require an NVIDIA device. No performance numbers are
+published yet: they will be added only after a run on real hardware with the
+recorded environment (see `docs/methodology.md`). A CPU-only build proves the
+tree configures and the reference maths is right; it does not verify the
+kernels.
+
+## Layout
+
+```
+include/cuda_kernels/   public launcher APIs (no CUDA types in signatures)
+src/                    kernel implementations
+kernels/                library target
+tests/                  host reference checks + GPU correctness tests
+benchmarks/             timing harness and benchmark binary
+runners/                build / test / benchmark scripts
+docs/                   hardware requirements and methodology
+```
+
+## Build
+
+CPU-only (no toolkit installed) — builds the host-side tests only:
+
+```bash
+cmake -S . -B build -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON
+cmake --build build -j
+```
+
+On a machine with `nvcc` and an NVIDIA driver:
+
+```bash
+./runners/build.sh           # or: cmake -S . -B build && cmake --build build -j
+```
+
+Target a narrower architecture set to cut build time:
+
+```bash
+CUDA_KERNELS_ARCH="86" ./runners/build.sh
+```
+
+Default is `70;75;80;86;89;90` (Volta through Hopper). Requirements are in
+[`docs/hardware.md`](docs/hardware.md).
+
+## Test
+
+```bash
+./runners/test.sh            # or: ctest --test-dir build --output-on-failure
+```
+
+`test_host` runs anywhere and checks the CPU reference implementations.
+`test_vecadd` and `test_reduce` need a GPU; without one they print
+`SKIPPED: no CUDA device` and exit 0. **A skip is not a pass.** The runner
+script prints a warning when it sees one.
+
+Covered edge cases: empty input, sub-warp sizes, block boundaries
+(255/256/257), grid-stride sizes, odd non-power-of-two lengths, all-zero and
+all-one data, large-magnitude values for float precision, and `double`
+cancellation.
+
+## Benchmark
+
+```bash
+./runners/benchmark.sh
+./build/cuda_benchmarks --help
+```
+
+The binary verifies every kernel at every size against a CPU reference and
+refuses to print timings if any case fails. Results are written as JSON with
+the device, driver, toolkit, commit and timestamp recorded. Methodology —
+events, warmup, median-of-batches, achieved vs peak bandwidth — is in
+[`docs/methodology.md`](docs/methodology.md).
+
+## CI
+
+- `cpu` — GitHub-hosted, runs on every push: CPU-only configure, build, and
+  host reference checks.
+- `gpu` — self-hosted NVIDIA Linux runner
+  (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the
+  GPU correctness tests and a benchmark. Gated on the repository variable
+  `CUDA_CI_ENABLED=true` so it is skipped, not queued, until that hardware is
+  registered. Setup in [`docs/hardware.md`](docs/hardware.md).
+
+## Roadmap
+
+Done: vector add, parallel reduction, correctness harness, benchmark harness,
+CI.
+
+Next, in order: matrix multiplication and tiling, shared-memory and occupancy
+study, profiling-driven optimization, then comparison benchmarks against
+vendor-library equivalents.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).

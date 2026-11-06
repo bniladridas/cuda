@@ -1,0 +1,84 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Host-side checks. Runs on every push and PR on a standard GitHub-hosted
+  # runner. No CUDA toolkit is installed, so the kernels are not compiled and
+  # the GPU kernels are NOT verified here. This job proves the tree configures,
+  # the host references are correct, and the CUDA test binaries are absent
+  # rather than silently passing.
+  cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (CPU only)
+        run: |
+          cmake -S . -B build-cpu \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON
+
+      - name: Build
+        run: cmake --build build-cpu -j"$(nproc)"
+
+      - name: Test (host reference only)
+        run: ctest --test-dir build-cpu --output-on-failure
+
+      - name: Assert GPU binaries were not built
+        run: |
+          if [ -e build-cpu/tests/test_vecadd ] || [ -e build-cpu/tests/test_reduce ]; then
+            echo "CUDA test binaries exist in a CPU-only build" >&2
+            exit 1
+          fi
+          echo "ok: no CUDA binaries in the CPU-only build"
+
+  # Kernel compilation, correctness and benchmarks. Requires a self-hosted
+  # NVIDIA Linux runner labelled as below. Until such a runner is registered,
+  # set the repository variable CUDA_CI_ENABLED to anything other than "true"
+  # (or leave it unset) so this job is skipped instead of queuing forever.
+  #
+  # Runner requirements, see docs/hardware.md:
+  #   - Linux x86_64, NVIDIA GPU, driver >= 525
+  #   - CUDA toolkit 12.x with nvcc on PATH
+  #   - labels: self-hosted, linux, x64, nvidia, cuda
+  gpu:
+    if: vars.CUDA_CI_ENABLED == 'true'
+    runs-on: [self-hosted, linux, x64, nvidia, cuda]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Environment report
+        run: |
+          nvidia-smi
+          nvcc --version
+          cmake --version
+
+      - name: Build
+        run: ./runners/build.sh
+        env:
+          CMAKE_ARGS: -DCMAKE_BUILD_TYPE=Release
+
+      - name: Correctness tests (GPU)
+        run: ./runners/test.sh
+
+      - name: Benchmark
+        run: ./runners/benchmark.sh
+        env:
+          BENCH_ARGS: --iterations 200 --reps 7
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmarks/results/*.json
+          if-no-files-found: warn

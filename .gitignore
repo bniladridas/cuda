@@ -1,0 +1,18 @@
+# Build output
+build/
+build-*/
+cmake-build-*/
+
+# Benchmark artefacts (committed results live in benchmarks/results/)
+benchmarks/results/*.json
+!benchmarks/results/.gitkeep
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Python cache from any tooling around results
+__pycache__/
+*.pyc
