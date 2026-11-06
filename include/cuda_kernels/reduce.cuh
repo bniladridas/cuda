@@ -8,6 +8,12 @@ namespace cuda_kernels {
 //
 // The reduction uses at most kReduceMaxBlocks partial sums, so callers can
 // allocate scratch without querying the device. See launch_reduce_scratch_elems.
+//
+// Not bit-reproducible across launch configurations. Floating-point addition is
+// not associative, and the partial-sum grouping depends on the block count and
+// chunk size, so changing either (e.g. a different GPU, a different n, or a
+// change to kReduceMaxBlocks) can change the last bits of the result. Compare
+// results within a documented tolerance, never for exact equality.
 
 // Upper bound on the number of per-block partial sums written in pass 1.
 constexpr std::size_t kReduceMaxBlocks = 4096;

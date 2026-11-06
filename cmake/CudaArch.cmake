@@ -23,9 +23,9 @@ if(CUDAToolkit_FOUND)
   message(STATUS "CUDA toolkit ${CUDAToolkit_VERSION} found; kernels will be built")
   message(STATUS "  CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 elseif(CMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit)
-  message(STATUS "CUDA toolkit lookup disabled; kernels will be stubbed out")
+  message(STATUS "CUDA toolkit lookup disabled; kernel targets will not be built")
 else()
-  message(STATUS "CUDA toolkit not found; kernels will be stubbed out "
+  message(STATUS "CUDA toolkit not found; kernel targets will not be built "
                  "(configure with -DCUDAToolkit_ROOT to enable)")
 endif()
 

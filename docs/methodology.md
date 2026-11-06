@@ -35,6 +35,21 @@ before it collects a single timing, and exits non-zero if any case is wrong.
   comparison is left to the reader with the device name recorded in every
   result file.
 
+## Reproducibility
+
+A reduction result is **not bit-reproducible across launch configurations**.
+Floating-point addition is not associative, so grouping the sum into different
+per-block partials changes the rounding, and the grouping depends on the block
+count and chunk size. The same input on a different GPU (different SM count,
+different block cap) can therefore differ in the last bits.
+
+Bit-exact reproducibility is only achievable within one fixed launch geometry on
+one device. Cross-device or cross-size comparisons must use a tolerance. The
+tests use `max(|ref|, n)` as the error scale, which does not collapse when the
+true sum is small. For sums that need bit-exactness regardless of geometry, use
+an order-preserving or compensated scheme, which this kernel deliberately does
+not implement.
+
 ## Recorded context
 
 Every JSON result carries the GPU name, compute capability, driver version,

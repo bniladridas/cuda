@@ -11,6 +11,9 @@ namespace cuda_kernels {
 namespace {
 
 constexpr int kBlockSize = 256;
+// warp_reduce uses a full-mask shuffle, which is only defined when every lane
+// of the warp is active. That requires the block to be a whole number of warps.
+static_assert(kBlockSize % 32 == 0, "block size must be a whole number of warps");
 constexpr int kWarpsPerBlock = kBlockSize / 32;
 
 // Reduces `val` across a warp and returns the warp total in lane 0.

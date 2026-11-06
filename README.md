@@ -1,42 +1,46 @@
 # cuda
 
+[![CPU checks](https://github.com/bniladridas/cuda/actions/workflows/ci.yml/badge.svg)](https://github.com/bniladridas/cuda/actions/workflows/ci.yml)
+
 CUDA C++ kernel engineering: correctness, optimization and reproducible GPU
 benchmarks.
 
 Hand-written kernels, checked against CPU references and measured against the
-hardware's memory bandwidth limit. No wrappers around vendor libraries — the
+hardware's memory bandwidth limit. No wrappers around vendor libraries: the
 point is the kernel, not the call into CUB.
+
+> The badge above reports the **CPU-only** job: configuration, host-side build
+> and reference checks. It does not indicate that the CUDA kernels have been
+> compiled or run. See [Status](#status).
 
 ## Status
 
 Two kernels, both implemented end to end:
 
-| Kernel | What it does | Correctness tests written | Benchmarked |
-| ------ | ------------ | ----------- | ----------- |
-| `vecadd` | `c = a + b`, grid-stride | yes, **GPU run pending** | not yet |
-| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | yes, **GPU run pending** | not yet |
+| Kernel | What it does | Correctness tests | Validated |
+| ------ | ------------ | ----------------- | --------- |
+| `vecadd` | `c = a + b`, grid-stride | written | **GPU run pending** |
+| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
 
-Both kernel tests require an NVIDIA device. No performance numbers are
-published yet: they will be added only after a run on real hardware with the
-recorded environment (see `docs/methodology.md`). A CPU-only build proves the
-tree configures and the reference maths is right; it does not verify the
-kernels.
+Neither kernel has been compiled with `nvcc` or executed on a device yet. No
+performance numbers are published: they will be added only after a run on real
+hardware with the recorded environment (see
+[`docs/methodology.md`](docs/methodology.md)). A CPU-only build proves the tree
+configures and the reference maths is right; it does not verify the kernels.
 
-## Layout
+## Requirements
 
-```
-include/cuda_kernels/   public launcher APIs (no CUDA types in signatures)
-src/                    kernel implementations
-kernels/                library target
-tests/                  host reference checks + GPU correctness tests
-benchmarks/             timing harness and benchmark binary
-runners/                build / test / benchmark scripts
-docs/                   hardware requirements and methodology
-```
+- CMake 3.24 or newer.
+- Host-side build: any Linux or macOS machine. No CUDA install needed.
+- Kernel build and GPU tests: NVIDIA Linux host, compute capability 7.0 or
+  newer, driver 525 or newer, CUDA toolkit 12.x with `nvcc` on `PATH`.
+
+Details, including self-hosted runner setup, are in
+[`docs/hardware.md`](docs/hardware.md).
 
 ## Build
 
-CPU-only (no toolkit installed) — builds the host-side tests only:
+CPU-only, which builds the host-side tests only:
 
 ```bash
 cmake -S . -B build -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON
@@ -46,22 +50,20 @@ cmake --build build -j
 On a machine with `nvcc` and an NVIDIA driver:
 
 ```bash
-./runners/build.sh           # or: cmake -S . -B build && cmake --build build -j
+./runners/build.sh
 ```
 
-Target a narrower architecture set to cut build time:
+Defaults to `70;75;80;86;89;90` (Volta through Hopper). Narrow it to the target
+device to cut build time, for example `86` on an A10:
 
 ```bash
 CUDA_KERNELS_ARCH="86" ./runners/build.sh
 ```
 
-Default is `70;75;80;86;89;90` (Volta through Hopper). Requirements are in
-[`docs/hardware.md`](docs/hardware.md).
-
 ## Test
 
 ```bash
-./runners/test.sh            # or: ctest --test-dir build --output-on-failure
+./runners/test.sh
 ```
 
 `test_host` runs anywhere and checks the CPU reference implementations.
@@ -83,15 +85,27 @@ cancellation.
 
 The binary verifies every kernel at every size against a CPU reference and
 refuses to print timings if any case fails. Results are written as JSON with
-the device, driver, toolkit, commit and timestamp recorded. Methodology —
-events, warmup, median-of-batches, achieved vs peak bandwidth — is in
+the device, driver, toolkit, commit and timestamp recorded. Methodology
+(events, warmup, median-of-batches, achieved vs peak bandwidth) is in
 [`docs/methodology.md`](docs/methodology.md).
+
+## Layout
+
+```
+include/cuda_kernels/   public launcher APIs (no CUDA types in signatures)
+src/                    kernel implementations
+kernels/                library target
+tests/                  host reference checks + GPU correctness tests
+benchmarks/             timing harness and benchmark binary
+runners/                build / test / benchmark scripts
+docs/                   hardware requirements and methodology
+```
 
 ## CI
 
-- `cpu` — GitHub-hosted, runs on every push: CPU-only configure, build, and
+- `cpu`: GitHub-hosted, runs on every push. CPU-only configure, build, and
   host reference checks.
-- `gpu` — self-hosted NVIDIA Linux runner
+- `gpu`: self-hosted NVIDIA Linux runner
   (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the
   GPU correctness tests and a benchmark. Gated on the repository variable
   `CUDA_CI_ENABLED=true` so it is skipped, not queued, until that hardware is
