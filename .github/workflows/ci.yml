@@ -69,6 +69,10 @@ jobs:
 
       - name: Correctness tests (GPU)
         run: ./runners/test.sh
+        env:
+          # This runner exists to validate the kernels, so a skipped GPU test
+          # is a failure here rather than a warning.
+          GPU_REQUIRED: "1"
 
       - name: Benchmark
         run: ./runners/benchmark.sh

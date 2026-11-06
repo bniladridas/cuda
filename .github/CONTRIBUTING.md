@@ -24,7 +24,9 @@ performance claims last.
 
 Include the output of the build and test commands in your pull request. On a
 machine without a device the GPU tests print `SKIPPED` and exit 0; a skip is not
-a pass, so paste the output rather than just the exit code.
+a pass, so paste the runner's output rather than just the exit code. Use
+`GPU_REQUIRED=1 ./runners/test.sh` on any machine that is supposed to have a
+device, so a missing device fails the run instead of warning.
 
 ## Tests
 
