@@ -57,7 +57,10 @@ reorders the sums. Tests compare with a relative tolerance, not for equality.
 
 ## Requirements
 
-- CMake 3.24 or newer.
+- CMake 3.24 or newer, and a C++17 compiler with `nvcc`-compatible flags:
+  GCC or Clang on Linux, Clang on macOS. The defaults build with
+  `-Wall -Wextra -Wpedantic -Werror`; pass
+  `-DCUDA_KERNELS_WERROR=OFF` if a newer compiler is stricter than these.
 - Host-side build: any Linux or macOS machine. No CUDA install needed.
 - Kernel build and GPU tests: NVIDIA Linux host, compute capability 7.0 or
   newer, driver 525 or newer, CUDA toolkit 12.x with `nvcc` on `PATH`.
