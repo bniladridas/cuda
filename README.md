@@ -186,10 +186,12 @@ docs/                   hardware requirements and methodology
   that hardware is registered; it has never run. Setup in
   [`docs/hardware.md`](docs/hardware.md).
 - `codeql`: C/C++ static analysis on the hosted runner, using CodeQL's
-  `build-mode: none` so no CUDA toolkit is needed. Known limitation: it reports
-  zero results even on deliberately planted bounds bugs, so it is not relied on
-  as a safety net. It is kept as a scheduled check for when query coverage
-  improves.
+  `build-mode: none` so no CUDA toolkit is needed. Two known limitations: it does
+  not extract `.cu` files, so `src/vecadd.cu` and `src/reduce.cu` are never
+  scanned; and it reported zero results on deliberately planted bounds bugs,
+  including one in a scanned `.cpp` file. It covers no kernel code and is not
+  relied on as a safety net. It is kept as a scheduled check for when query
+  coverage improves.
 
 ## Roadmap
 
