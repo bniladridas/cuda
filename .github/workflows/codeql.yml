@@ -39,7 +39,7 @@ jobs:
           # them, so no toolkit is required and none is installed here.
           build-mode: none
 
-      - name: Analyze
+      - name: Analyze - no build step needed with build-mode none
         # Deliberately no "perform autobuild" step: there is nothing to build.
         uses: github/codeql-action/analyze@v4
         with:

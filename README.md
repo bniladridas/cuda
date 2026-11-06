@@ -179,6 +179,11 @@ docs/                   hardware requirements and methodology
   repository variable `CUDA_CI_ENABLED=true` so it is skipped, not queued, until
   that hardware is registered; it has never run. Setup in
   [`docs/hardware.md`](docs/hardware.md).
+- `codeql`: C/C++ static analysis on the hosted runner, using CodeQL's
+  `build-mode: none` so no CUDA toolkit is needed. Known limitation: it reports
+  zero results even on deliberately planted bounds bugs, so it is not relied on
+  as a safety net. It is kept as a scheduled check for when query coverage
+  improves.
 
 ## Roadmap
 
