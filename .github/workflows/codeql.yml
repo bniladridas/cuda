@@ -34,9 +34,10 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          # The kernels need nvcc, which this runner does not have. build-mode
-          # none extracts compilation units from source instead of compiling
-          # them, so no toolkit is required and none is installed here.
+          # build-mode none infers compilation units from source file
+          # extensions, neither compiling nor observing a build, so no CUDA
+          # toolkit is installed here. .cu is not one of the extensions CodeQL
+          # extracts, so src/vecadd.cu and src/reduce.cu are not analysed.
           build-mode: none
 
       - name: Analyze - no build step needed with build-mode none
