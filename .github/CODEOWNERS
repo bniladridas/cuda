@@ -1,0 +1,31 @@
+# Reviewers for this repository.
+#
+# GitHub reads this file from .github/. Syntax is the documented CODEOWNERS
+# format: a pattern followed by one or more GitHub users or teams.
+#
+# The last matching pattern wins, so list broader rules first.
+# Every rule names the same account because it is the only one with access.
+# When a second maintainer is added, split the rules by area.
+
+# Default: everything not matched below.
+*                               @bniladridas
+
+# CUDA kernels and their public API. Changes here cannot be validated without
+# an NVIDIA host, so review is the last line of defence for anything that was
+# not compiled with nvcc.
+/kernels/                       @bniladridas
+/src/                           @bniladridas
+/include/                       @bniladridas
+
+# Correctness tests and the benchmark harness. A change to a tolerance or to a
+# measurement method alters every published comparison, so it gets the same
+# review as the kernels.
+/tests/                         @bniladridas
+/benchmarks/                    @bniladridas
+
+# Build configuration decides which architectures are compiled, and CI decides
+# what is allowed to merge.
+/CMakeLists.txt                 @bniladridas
+/cmake/                         @bniladridas
+/runners/                       @bniladridas
+/.github/                       @bniladridas
