@@ -59,6 +59,9 @@ The job is gated on `CUDA_CI_ENABLED` so that, before a runner exists, it is
 skipped rather than left queuing on every push. Leave the variable unset until
 hardware is in place.
 
+The job runs the tests with `GPU_REQUIRED=1`. If the runner cannot see a device,
+`runners/test.sh` fails instead of reporting skipped tests as a pass.
+
 ## Reproducibility notes
 
 Benchmark numbers depend on the exact GPU, driver, toolkit and clock state.

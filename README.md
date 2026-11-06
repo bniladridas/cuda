@@ -112,9 +112,11 @@ docs/                   hardware requirements and methodology
   host reference checks.
 - `gpu`: self-hosted NVIDIA Linux runner
   (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the
-  GPU correctness tests and a benchmark. Gated on the repository variable
-  `CUDA_CI_ENABLED=true` so it is skipped, not queued, until that hardware is
-  registered. Setup in [`docs/hardware.md`](docs/hardware.md).
+  GPU correctness tests and a benchmark. The test step sets `GPU_REQUIRED=1`, so
+  a runner without a working device fails instead of skipping. Gated on the
+  repository variable `CUDA_CI_ENABLED=true` so it is skipped, not queued, until
+  that hardware is registered; it has never run. Setup in
+  [`docs/hardware.md`](docs/hardware.md).
 
 ## Roadmap
 
