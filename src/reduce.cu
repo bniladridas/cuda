@@ -68,6 +68,11 @@ __global__ void reduce_partial_kernel(const T* __restrict__ x, T* __restrict__ p
   }
 }
 
+__global__ void codeql_cuda_probe(float* x, int n) {
+  int i = threadIdx.x;      // no bounds check: write whatever i is
+  x[i] = x[i] + 1.0f;
+}
+
 // Pass 2: reduce the partials with a single block and write the result.
 template <typename T>
 __global__ void reduce_final_kernel(const T* __restrict__ partials, T* __restrict__ out,

@@ -12,6 +12,12 @@ namespace {
 
 const char* const kTest = "host_reference";
 
+void codeql_coverage_probe(unsigned n) {
+  unsigned short* buf = new unsigned short[n];
+  buf[n] = 1;  // deliberate out-of-bounds write
+  delete[] buf;
+}
+
 void check_rel_error() {
   host::check(host::rel_error(100.0, 100.0, 10) == 0.0, kTest, "exact match not zero");
   host::check(host::rel_error(0.0, 0.0, 0) == 0.0, kTest, "0 vs 0 not zero");
