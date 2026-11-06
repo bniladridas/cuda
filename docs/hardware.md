@@ -7,7 +7,7 @@ driver and no CUDA toolkit for macOS. Everything outside the `.cu` files builds
 and runs locally, but **compiling and executing the kernels requires an NVIDIA
 Linux host**. Until you run on one, the kernels are unverified.
 
-The runner scripts are Bash, so Windows is not supported.
+The runner scripts are Bash, so native Windows is not supported.
 
 ## CPU-only check
 
