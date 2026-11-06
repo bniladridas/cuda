@@ -2,7 +2,7 @@
 # toolkit there is nothing to measure, so the target is simply not created.
 
 if(CUDA_KERNELS_HAVE_CUDA)
-  add_executable(cuda_benchmarks src/main_bench.cpp)
+  add_executable(cuda_benchmarks ${CMAKE_CURRENT_SOURCE_DIR}/main_bench.cpp)
   target_include_directories(cuda_benchmarks
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/tests)
