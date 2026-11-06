@@ -94,6 +94,18 @@ the device, driver, toolkit, commit and timestamp recorded. Methodology
 (events, warmup, median-of-batches, achieved vs peak bandwidth) is in
 [`docs/methodology.md`](docs/methodology.md).
 
+Once a result file exists, plot it against the device's spec-sheet peak:
+
+```bash
+PEAK_GBPS=600 ./runners/plot.sh   # writes benchmarks/results/<result>.png
+```
+
+`runners/plot.sh` uses the newest file in `benchmarks/results/` and needs
+matplotlib (`pip install matplotlib`); it is not a build dependency. With no
+result file or no `PEAK_GBPS` it exits 2 and draws nothing. The script has been
+exercised against hand-made fixtures only: **no chart here has been produced
+from a real device yet.**
+
 ## Layout
 
 ```
