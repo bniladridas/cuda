@@ -8,7 +8,7 @@ performance claims last.
 
 - **Kernel changes need a GPU.** `src/vecadd.cu` and `src/reduce.cu` cannot be
   compiled or run without an NVIDIA Linux host (compute capability 7.0 or
-  newer, CUDA toolkit 12.x). See [hardware](../docs/hardware.md).
+  newer, CUDA toolkit 12.x). See [hardware](docs/hardware.md).
 - **A change you could not compile is not a finished change.** Say which GPU,
   driver and toolkit you validated on. Anything not built with `nvcc` is
   treated as unverified, however simple it looks.
@@ -47,7 +47,7 @@ Any claim of a speedup needs:
 - a comparison against the same kernel on the same device, or against the
   device's peak memory bandwidth.
 
-Requirements for a valid measurement are in [methodology](../docs/methodology.md).
+Requirements for a valid measurement are in [methodology](docs/methodology.md).
 Timings from a build whose correctness gate failed are not results.
 
 ## Reducing results are not bit-reproducible
