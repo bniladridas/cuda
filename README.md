@@ -58,33 +58,33 @@ reorders the sums. Tests compare with a relative tolerance, not for equality.
 ## Requirements
 
 - CMake 3.24 or newer, and a C++17 compiler with `nvcc`-compatible flags:
-  GCC or Clang on Linux, Clang on macOS. The defaults build with
-  `-Wall -Wextra -Wpedantic -Werror`; pass
-  `-DCUDA_KERNELS_WERROR=OFF` if a newer compiler is stricter than these.
+  GCC or Clang. The defaults build with `-Wall -Wextra -Wpedantic -Werror`;
+  pass `-DCUDA_KERNELS_WERROR=OFF` if a newer compiler is stricter than these.
 - Host-side build: any Linux or macOS machine. No CUDA install needed.
 - Kernel build and GPU tests: NVIDIA Linux host, compute capability 7.0 or
   newer, driver 525 or newer, CUDA toolkit 12.x with `nvcc` on `PATH`.
+- Bash. The build, test and benchmark scripts are shell scripts, so native
+  Windows is not supported. macOS can run the host checks but not the kernels:
+  there is no CUDA toolchain for it.
 
 Details, including self-hosted runner setup, are in
 [`docs/hardware.md`](docs/hardware.md).
 
 ## Build
 
-CPU-only, which builds the host-side tests only:
-
-```bash
-cmake -S . -B build -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON
-cmake --build build -j
-```
-
-On a machine with `nvcc` and an NVIDIA driver:
+`./runners/build.sh` works on any Linux or macOS machine. Without a CUDA
+toolkit it builds the host-side tests only and says so; the kernels are simply
+not compiled. With `nvcc` present it compiles the kernels too. It configures as
+`Release`, and honours an explicit `CMAKE_BUILD_TYPE` passed through
+`CMAKE_ARGS`.
 
 ```bash
 ./runners/build.sh
 ```
 
-Defaults to `70;75;80;86;89;90` (Volta through Hopper). Narrow it to the target
-device to cut build time, for example `86` on an A10:
+The kernel architecture list is separate. It defaults to `70;75;80;86;89;90`
+(Volta through Hopper). Narrow it to the target device to cut build time, for
+example `86` on an A10:
 
 ```bash
 CUDA_KERNELS_ARCH="86" ./runners/build.sh
@@ -105,6 +105,12 @@ anything actually failed.
 
 Set `GPU_REQUIRED=1` to make a skip a failure. CI uses it on the GPU runner,
 which is supposed to have a device.
+
+If a GPU test aborts with "no kernel image is available for execution on the
+device", the build does not contain code for that GPU's architecture. The
+default list is `70;75;80;86;89;90`; rebuild with the target's value, for
+example `CUDA_KERNELS_ARCH="86" ./runners/build.sh`, then run the tests against
+the same `BUILD_DIR`.
 
 Covered edge cases: empty input, sub-warp sizes, block boundaries
 (255/256/257), grid-stride sizes, odd non-power-of-two lengths, all-zero and
