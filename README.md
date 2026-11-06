@@ -106,6 +106,11 @@ result file or no `PEAK_GBPS` it exits 2 and draws nothing. The script has been
 exercised against hand-made fixtures only: **no chart here has been produced
 from a real device yet.**
 
+There is intentionally no bandwidth chart in this README. The first one will
+be added together with the JSON result it was drawn from, so the image can be
+traced to a recorded run. Until then, the Status table says `GPU run pending`
+and that is the accurate description.
+
 ## Layout
 
 ```
