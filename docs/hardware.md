@@ -15,15 +15,18 @@ Host-side code, CMake configuration and the reference implementations build and
 run without any CUDA install:
 
 ```bash
-BUILD_DIR=build-cpu ./runners/build.sh
+CMAKE_ARGS="-DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON" \
+  BUILD_DIR=build-cpu ./runners/build.sh
 BUILD_DIR=build-cpu ./runners/test.sh
 ```
 
 `runners/build.sh` leaves the kernels unbuilt when it finds no toolkit and says
-so. `runners/test.sh` runs the host reference checks and reports any GPU test it
-could not run as a skip rather than a pass. Use the same `BUILD_DIR` for both,
-separate from the GPU build so the two configurations do not overwrite each
-other.
+so, but it does not stop the lookup on a host that has one. The
+`CUDA_DISABLE_FIND_PACKAGE_CUDAToolkit` argument keeps this check free of
+`nvcc` even there. `runners/test.sh` runs the host reference checks and reports
+any GPU test it could not run as a skip rather than a pass. Use the same
+`BUILD_DIR` for both, separate from the GPU build so the two configurations do
+not overwrite each other.
 
 This does not compile `src/*.cu` and does not run any GPU kernel. It validates
 the build configuration and the reference maths only.
