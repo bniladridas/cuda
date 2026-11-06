@@ -4,8 +4,8 @@
 
 if(CUDA_KERNELS_HAVE_CUDA)
   add_library(cudakernels STATIC
-    src/vecadd.cu
-    src/reduce.cu)
+    ${PROJECT_SOURCE_DIR}/src/vecadd.cu
+    ${PROJECT_SOURCE_DIR}/src/reduce.cu)
   target_include_directories(cudakernels
     PUBLIC ${PROJECT_SOURCE_DIR}/include
     PRIVATE ${PROJECT_SOURCE_DIR}/src)
