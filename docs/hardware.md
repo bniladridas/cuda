@@ -7,16 +7,23 @@ driver and no CUDA toolkit for macOS. Everything outside the `.cu` files builds
 and runs locally, but **compiling and executing the kernels requires an NVIDIA
 Linux host**. Until you run on one, the kernels are unverified.
 
+The runner scripts are Bash, so Windows is not supported.
+
 ## CPU-only check
 
 Host-side code, CMake configuration and the reference implementations build and
 run without any CUDA install:
 
 ```bash
-cmake -S . -B build-cpu -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON
-cmake --build build-cpu
-ctest --test-dir build-cpu --output-on-failure
+BUILD_DIR=build-cpu ./runners/build.sh
+BUILD_DIR=build-cpu ./runners/test.sh
 ```
+
+`runners/build.sh` leaves the kernels unbuilt when it finds no toolkit and says
+so. `runners/test.sh` runs the host reference checks and reports any GPU test it
+could not run as a skip rather than a pass. Use the same `BUILD_DIR` for both,
+separate from the GPU build so the two configurations do not overwrite each
+other.
 
 This does not compile `src/*.cu` and does not run any GPU kernel. It validates
 the build configuration and the reference maths only.
@@ -28,13 +35,14 @@ the build configuration and the reference maths only.
 | GPU | NVIDIA, compute capability >= 7.0 (Volta or newer) | Default arch list is `70;75;80;86;89;90`. T4 (7.5) and A10 (8.6) are the cheapest common cloud options. |
 | Driver | >= 525.60.13 (Linux) for CUDA 12.0+ | Must match the toolkit's maximum supported version. |
 | CUDA toolkit | 12.x, `nvcc` on `PATH` | 12.4 or newer recommended for Hopper support. |
-| OS | Linux x86_64 | CUDA is not available for macOS. |
+| OS | Linux x86_64 | The runner scripts need Bash. CUDA is not available for macOS. |
 | CMake | >= 3.24 | Needed for `CUDAToolkit` package and `CUDA_ARCHITECTURES` handling. |
 | Disk | ~2 GB for toolkit plus build output | Multi-arch builds produce SASS for each listed `sm_XX`. |
 
 Cheaper alternatives if you do not own a GPU: a rented cloud instance
-(A10/T4/L4 class), Colab's free T4 tier for spot checks, or a used RTX 3060
-(compute 8.6). None of these are assumed by the repository.
+(A10/T4/L4 class), Colab's free T4 tier for spot checks (T4 is compute 7.5, so
+it runs the default architecture list), or a used RTX 3060 (compute 8.6). None
+of these are assumed by the repository.
 
 ## Self-hosted CI runner
 

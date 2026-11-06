@@ -6,13 +6,34 @@
 #   BUILD_DIR             build directory (default: build)
 #   CUDA_KERNELS_ARCH     semicolon-separated sm_XX list (default set in CMake)
 #   CMAKE_ARGS            extra configure arguments, word-split
+#
+# Configures as Release unless the caller chose otherwise. Benchmark numbers
+# from an unoptimized build are meaningless, and this is the documented build
+# and benchmark path. An explicit CMAKE_BUILD_TYPE, via CMAKE_ARGS or carried
+# in an existing build directory's cache, is left alone.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT/build}"
+# Intentional word splitting: CMAKE_ARGS is a list of arguments.
+# shellcheck disable=SC2206
+CMAKE_ARGS=(${CMAKE_ARGS:-})
 
-# shellcheck disable=SC2086
-cmake -S "$ROOT" -B "$BUILD_DIR" ${CMAKE_ARGS:-}
+has_build_type=0
+for arg in "${CMAKE_ARGS[@]+"${CMAKE_ARGS[@]}"}"; do
+  case "$arg" in
+    -DCMAKE_BUILD_TYPE=*) has_build_type=1 ;;
+  esac
+done
+if [ "$has_build_type" -eq 0 ] && [ -f "$BUILD_DIR/CMakeCache.txt" ] \
+  && grep -q '^CMAKE_BUILD_TYPE:[A-Z]*=.' "$BUILD_DIR/CMakeCache.txt"; then
+  has_build_type=1
+fi
+if [ "$has_build_type" -eq 0 ]; then
+  CMAKE_ARGS+=(-DCMAKE_BUILD_TYPE=Release)
+fi
+
+cmake -S "$ROOT" -B "$BUILD_DIR" "${CMAKE_ARGS[@]}"
 cmake --build "$BUILD_DIR" -j "${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 
 echo
