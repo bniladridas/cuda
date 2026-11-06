@@ -1,6 +1,8 @@
 # cuda
 
 [![CPU checks](https://github.com/bniladridas/cuda/actions/workflows/ci.yml/badge.svg)](https://github.com/bniladridas/cuda/actions/workflows/ci.yml)
+![GPU validation: pending](https://img.shields.io/badge/GPU%20validation-pending-orange)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 CUDA C++ kernel engineering: correctness, optimization and reproducible GPU
 benchmarks.
@@ -9,9 +11,9 @@ Hand-written kernels, checked against CPU references and measured against the
 hardware's memory bandwidth limit. No wrappers around vendor libraries: the
 point is the kernel, not the call into CUB.
 
-> The badge above reports the **CPU-only** job: configuration, host-side build
-> and reference checks. It does not indicate that the CUDA kernels have been
-> compiled or run. See [Status](#status).
+> Two badges, two different claims. **CPU checks** reports the GitHub-hosted
+> job: configuration, host-side build and reference checks. **GPU validation:
+> pending** is static because no device has run this code. See [Status](#status).
 
 ## Status
 
@@ -27,6 +29,31 @@ performance numbers are published: they will be added only after a run on real
 hardware with the recorded environment (see
 [`docs/methodology.md`](docs/methodology.md)). A CPU-only build proves the tree
 configures and the reference maths is right; it does not verify the kernels.
+
+### How `reduce` works
+
+Two passes over the data, so any `n` uses at most 4096 blocks regardless of
+size. Both passes share the same block reduction: a warp shuffle tree, the 8
+warp totals in shared memory, then a second shuffle tree.
+
+```mermaid
+flowchart TB
+    subgraph P1["Pass 1: reduce_partial_kernel, one block per chunk"]
+        direction TB
+        A["Grid-stride load<br/>x[start + tid], stride 256"] --> B["Warp shuffle down<br/>offsets 16, 8, 4, 2, 1"]
+        B --> C["Lane 0 of each warp writes<br/>warp_sums[warp] in shared memory"]
+        C --> D["__syncthreads"]
+        D --> E["Warp 0 reduces the 8 warp totals<br/>lanes past 8 contribute 0"]
+        E --> F["Thread 0 writes partials[blockIdx.x]"]
+    end
+    P1 --> G["partials: at most 4096 values<br/>in caller-supplied scratch"]
+    G --> P2["Pass 2: reduce_final_kernel, one block<br/>same shuffle tree, writes out[0]"]
+```
+
+The last block extends to `n`, so the remainder left by ceil-scaled chunks is
+never stranded. The result is not bit-reproducible across launch
+configurations: float addition is not associative, so a different block count
+reorders the sums. Tests compare with a relative tolerance, not for equality.
 
 ## Requirements
 
@@ -93,6 +120,21 @@ refuses to print timings if any case fails. Results are written as JSON with
 the device, driver, toolkit, commit and timestamp recorded. Methodology
 (events, warmup, median-of-batches, achieved vs peak bandwidth) is in
 [`docs/methodology.md`](docs/methodology.md).
+
+Correctness runs before any timing. Each size is then warmed up once and
+measured with replicated batches:
+
+```mermaid
+flowchart LR
+    A["Correctness gate<br/>every kernel, every size<br/>versus CPU reference"] -->|"all pass"| B["Warmup: 20 launches<br/>discarded"]
+    A -->|"any failure"| X["exit 1, no timings<br/>printed"]
+    B --> C["7 timed batches<br/>cudaEvent around 200 launches each"]
+    C --> D["Per-launch time<br/>= batch total / 200"]
+    D --> E["Report median, min, p90<br/>of the 7 per-launch times"]
+```
+
+The median is the headline figure; min and p90 show spread. A batch is timed
+launch-to-completion, so the figure includes what a caller actually pays.
 
 Once a result file exists, plot it against the device's spec-sheet peak:
 
