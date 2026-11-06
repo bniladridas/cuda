@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           # The kernels need nvcc, which this runner does not have. build-mode
@@ -41,6 +41,6 @@ jobs:
 
       - name: Analyze
         # Deliberately no "perform autobuild" step: there is nothing to build.
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
