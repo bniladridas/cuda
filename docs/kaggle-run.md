@@ -70,8 +70,16 @@ a compile and a kernel execution before any of it counts.
    is only a warning, and a run that never touched a kernel could look clean.
 
    ```bash
-   BUILD_DIR=build-gpu GPU_REQUIRED=1 ./runners/test.sh 2>&1 | tee test-$(git rev-parse --short HEAD).log
+   set -o pipefail
+   BUILD_DIR=build-gpu GPU_REQUIRED=1 ./runners/test.sh 2>&1 \
+     | tee "test-$(git rev-parse --short HEAD).log"
    ```
+
+   `set -o pipefail` is required in the notebook cell. The pipeline's exit
+   status is `tee`'s unless pipefail is on, and `tee` succeeds as long as it can
+   write, so a failing suite would otherwise leave the cell looking successful.
+   The script's own `set -o pipefail` applies inside the script, not to a
+   pipeline the caller builds outside it.
 
    The run is only a pass if no line reads `*** SKIPPED (not a pass)`. Exit code
    0 with `vecadd` and `reduce` reported as skipped means the device was not
