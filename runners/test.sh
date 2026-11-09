@@ -32,6 +32,20 @@ trap 'rm -f "$LOG"' EXIT
 status=0
 ctest --test-dir "$BUILD_DIR" --output-on-failure 2>&1 | tee "$LOG" || status=$?
 
+# A build without a toolkit never defines the GPU test targets, so they are not
+# registered at all and the skip detection below has nothing to find. Without
+# this check a GPU_REQUIRED=1 run on such a build exits 0 having run only the
+# host tests, which is exactly the run the flag exists to reject.
+gpu_registered="$(ctest --test-dir "$BUILD_DIR" -N -L gpu 2>/dev/null \
+  | sed -n 's/^ *Test *#[0-9][0-9]*: //p' | wc -l | tr -d ' ')"
+if [ "$GPU_REQUIRED" = "1" ] && [ "$gpu_registered" -eq 0 ]; then
+  echo
+  echo "FAILED: GPU_REQUIRED=1 but no GPU tests are registered in $BUILD_DIR."
+  echo "        The kernels were not built, so nothing about them was verified."
+  echo "        Build with a CUDA toolkit before treating this run as validation."
+  exit 1
+fi
+
 skipped=()
 failed=0
 # Each test is re-run on its own and verbosely, because that is the only way

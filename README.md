@@ -130,6 +130,10 @@ the device, driver, toolkit, commit and timestamp recorded. Methodology
 (events, warmup, median-of-batches, achieved vs peak bandwidth) is in
 [`docs/methodology.md`](docs/methodology.md).
 
+Until a GPU run has been performed, there are no recorded results in this
+repository. [`docs/kaggle-run.md`](docs/kaggle-run.md) is the manual procedure
+for performing one on a free Kaggle GPU session and capturing the evidence.
+
 Correctness runs before any timing. Each size is then warmed up once and
 measured with replicated batches:
 
