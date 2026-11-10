@@ -43,9 +43,9 @@ the build configuration and the reference maths only.
 | Disk | ~2 GB for toolkit plus build output | Multi-arch builds produce SASS for each listed `sm_XX`. |
 
 Cheaper alternatives if you do not own a GPU: a rented cloud instance
-(A10/T4/L4 class), Colab's free T4 tier for spot checks (T4 is compute 7.5, so
-it runs the default architecture list), or a used RTX 3060 (compute 8.6). None
-of these are assumed by the repository.
+(A10/T4/L4 class), Kaggle's free T4 x2 notebook accelerator for spot checks
+(each T4 is compute 7.5, so it runs the default architecture list), or a used
+RTX 3060 (compute 8.6). None of these are assumed by the repository.
 
 ## Self-hosted CI runner
 

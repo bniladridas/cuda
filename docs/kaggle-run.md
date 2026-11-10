@@ -10,19 +10,20 @@ exists, kernel changes in this repository are unbuilt and unvalidated.
 
 ## What Kaggle provides
 
-Free accounts get a weekly GPU quota (roughly 30 hours) and 12-hour sessions.
-The available device has changed over time; check what the session actually
-gets rather than assuming. Both commonly offered cards are supported by the
-default architecture list in `cmake/CudaArch.cmake`:
+Kaggle retired the Tesla P100 accelerator on September 15, 2026. The current
+notebook GPU option is **2 × Tesla T4 (T4 x2)**. Each T4 has compute
+capability 7.5 and is supported by the default architecture list in
+`cmake/CudaArch.cmake`. Check the accelerator selector and your account's
+remaining GPU quota before starting a session; availability and queue times
+can vary.
 
 | Device | Compute capability | Arch |
 | ------ | ------------------ | ---- |
-| Tesla T4 | 7.5 | `75` |
-| Tesla P100 | 6.0 | **not supported** |
+| 2 × Tesla T4 | 7.5 each | `75` |
 
-If the session gives a P100, this repository will not run on it. Supporting
-compute capability 6.0 is a deliberate compatibility decision, not something to
-work around in a session. Do not add `60` to the build to make a run work.
+This repository's tests and benchmark use one visible GPU. Set
+`CUDA_VISIBLE_DEVICES=0` for those commands so the T4 x2 session is treated as
+a single-device run. Do not interpret the two cards as one larger GPU.
 
 The CUDA toolkit is not installed on the image. Installing it is a hypothesis
 about this environment, not an established fact: a session must confirm `nvcc`,
@@ -30,11 +31,17 @@ a compile and a kernel execution before any of it counts.
 
 ## Session procedure
 
+Run each shell block below in a Kaggle notebook cell using `%%bash` as the
+first line. This keeps multi-line shell commands, environment variables and
+`set -o pipefail` in the same Bash process. Do not run the lines as separate
+IPython `!` commands, because shell options do not persist between them.
+
 1. Start a notebook session, enable the GPU accelerator, and confirm the device
    before doing anything else. On this image the driver is visible through
    `nvidia-smi` even though the toolkit is absent:
 
    ```bash
+   %%bash
    nvidia-smi --query-gpu=name,compute_cap,driver_version --format=csv
    ```
 
@@ -44,16 +51,19 @@ a compile and a kernel execution before any of it counts.
    image ships with may be older than the minimum this repository documents.
 
    ```bash
-   !nvcc --version || echo "no toolkit on the image"
+   %%bash
+   nvcc --version || echo "no toolkit on the image"
    ```
 
    Only the toolkit matching the installed driver is usable. If `nvcc` reports
    a version whose release notes exclude the driver, install a different one.
+
 3. Clone the exact commit to validate and build for its architecture. Narrowing
    the list cuts build time substantially; the full default list compiles six
    architectures and is not needed when one device is the target.
 
    ```bash
+   %%bash
    git clone https://github.com/bniladridas/cuda.git
    cd cuda
    git checkout <commit>
@@ -70,8 +80,10 @@ a compile and a kernel execution before any of it counts.
    is only a warning, and a run that never touched a kernel could look clean.
 
    ```bash
+   %%bash
+   cd cuda
    set -o pipefail
-   BUILD_DIR=build-gpu GPU_REQUIRED=1 ./runners/test.sh 2>&1 \
+   CUDA_VISIBLE_DEVICES=0 BUILD_DIR=build-gpu GPU_REQUIRED=1 ./runners/test.sh 2>&1 \
      | tee "test-$(git rev-parse --short HEAD).log"
    ```
 
@@ -92,7 +104,10 @@ a compile and a kernel execution before any of it counts.
    cannot come from a broken build.
 
    ```bash
-   BUILD_DIR=build-gpu RESULTS_DIR=benchmarks/results ./runners/benchmark.sh
+   %%bash
+   cd cuda
+   CUDA_VISIBLE_DEVICES=0 BUILD_DIR=build-gpu RESULTS_DIR=benchmarks/results \
+     ./runners/benchmark.sh
    cp benchmarks/results/*.json .
    ```
 
@@ -108,8 +123,8 @@ a compile and a kernel execution before any of it counts.
 - Do not raise the iteration count to produce a bigger sample from a shared
   device. Timing on Kaggle is isolated from other sessions, but the card is a
   shared resource and background load from the host is not visible from inside.
-- Do not compare a T4 figure against a P100 or V100 figure without normalising
-  by peak bandwidth, as `methodology.md` requires.
+- Do not compare results across different GPU models without normalising by
+  peak bandwidth, as `methodology.md` requires.
 - Do not commit a notebook with a Kaggle API token, and do not automate the
   session. The procedure is manual on purpose.
 - Do not treat a compile as validation. `nvcc` succeeding says the code is
