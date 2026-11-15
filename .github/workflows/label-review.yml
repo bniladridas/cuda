@@ -1,0 +1,100 @@
+name: label-review
+
+# Proposes labels for a new issue and applies them only after the owner
+# approves. Two switches, both repository variables, because either one on its
+# own would be a way for labels to appear without review:
+#
+#   LABEL_AGENT_ENABLED=true   post a proposal comment on new issues
+#   LABEL_AGENT_APPLY=true     also apply the proposal after approval
+#
+# Set LABEL_AGENT_APPLY only after an environment named `label-review` exists
+# with a required reviewer, otherwise the apply job is not gated by anything.
+# See docs/label-review.md.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  propose:
+    if: vars.LABEL_AGENT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build the proposal
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python3 .github/scripts/label_proposal.py propose \
+            --issue "$ISSUE_NUMBER" \
+            --comment-out proposal.md \
+            --artifact proposal.json
+
+      - name: Post the proposal
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file proposal.md
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: label-proposal
+          path: proposal.json
+          retention-days: 30
+
+  apply:
+    needs: propose
+    # Deliberately a second switch. Enabling proposals must not enable writes.
+    if: vars.LABEL_AGENT_APPLY == 'true'
+    runs-on: ubuntu-latest
+    environment: label-review
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: label-proposal
+
+      - name: Revalidate the proposal against the live issue
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          labels="$(python3 .github/scripts/label_proposal.py verify \
+            --issue "$ISSUE_NUMBER" --artifact proposal.json)"
+          echo "labels=$labels" >> "$GITHUB_OUTPUT"
+
+      - name: Apply
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          LABELS: ${{ steps.check.outputs.labels }}
+        run: |
+          if [ -z "$LABELS" ]; then
+            echo "no labels to apply"
+            exit 0
+          fi
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "$LABELS"
+          printf 'Applied after approval: %s\n' "$LABELS" \
+            | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
