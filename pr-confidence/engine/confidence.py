@@ -900,7 +900,7 @@ def render_summary(result):
     if pr.get("number"):
         line = "Pull request #%d" % int(pr["number"])
         if pr.get("title"):
-            line += ": " + markdown_cell(pr["title"])
+            line += ": " + code_span(pr["title"])
         if result.get("head_sha"):
             line += " at `%s`" % result["head_sha"][:12]
         lines.append(line + ".")

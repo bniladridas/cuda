@@ -803,12 +803,19 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("The pull request has a merge conflict.", summary)
         self.assertIn("below 40", summary)
 
-    def test_summary_escapes_table_pipes(self):
+    def test_summary_keeps_pipe_titles_inside_code_spans(self):
         evidence = make_evidence()
         evidence["pr"]["title"] = "a | b"
         result = c.evaluate(evidence, make_config())
         summary = c.render_summary(result)
-        self.assertIn("a \\| b", summary)
+        self.assertIn("`a | b`", summary)
+
+    def test_summary_keeps_markdown_links_in_titles_inside_code_spans(self):
+        evidence = make_evidence()
+        evidence["pr"]["title"] = "[approved](https://attacker.example)"
+        result = c.evaluate(evidence, make_config())
+        summary = c.render_summary(result)
+        self.assertIn("`[approved](https://attacker.example)`", summary)
 
     def test_summary_keeps_backtick_paths_inside_code_spans(self):
         evidence = make_evidence()

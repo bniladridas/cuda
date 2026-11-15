@@ -204,5 +204,6 @@ blocker still passes. Keep the underlying checks required in their own right.
   number.
 - Review submissions and thread resolution do not trigger this workflow. Use
   manual dispatch after a review.
-- Pull request titles and file names are untrusted text. They appear in the job
-  summary as plain evidence; GitHub sanitizes the rendered Markdown.
+- Pull request titles, check names and file names are untrusted text. They
+  appear in the job summary as code-span evidence; GitHub sanitizes the rendered
+  Markdown.
