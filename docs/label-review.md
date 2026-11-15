@@ -118,35 +118,44 @@ or says that none were found.
 
 ## Smoke test
 
-A proposal-only run was exercised on issue #44 on 2026-11-15:
+Two proposal-only live runs were exercised on 2026-11-15.
+
+The first used issue #44:
 [Actions run 43720322872](https://github.com/bniladridas/cuda/actions/runs/43720322872).
 
 - The `review / propose` and `review / comment` jobs passed.
 - The proposal identified the `documentation` component from the issue paths.
-- The `needs-gpu` assessment remained human classification because its quoted
-  evidence was not present in the issue text. No accepted model verdict was
-  produced.
-- The `review / apply` job was skipped because `LABEL_AGENT_APPLY` remains
-  false. No labels were changed.
+- The `needs-gpu` assessment remained human classification because its
+  quoted evidence was not present in the issue text.
 
-This verifies the proposal and comment path only. It does not verify approval,
-application, rejection, or concurrent-label revalidation. Issue #44 was a
-real documentation issue, not a dedicated test fixture. The full gated test
-remains:
+The second used a dedicated temporary test issue #48:
+[Actions run 43722472795](https://github.com/bniladridas/cuda/actions/runs/43722472795).
+
+- The `review / propose` and `review / comment` jobs passed.
+- The proposal identified `kernels` from the explicit path
+  `src/vecadd.cu`.
+- The model proposed `needs-gpu` with an exact quote from the issue.
+- The `review / apply` job was skipped because `LABEL_AGENT_APPLY` remains
+  false. No labels were changed on the test issue.
+
+These runs verify proposal generation, accepted model evidence, component
+mapping, and proposal comments. They do not verify Environment approval,
+label application, rejection, or concurrent-label revalidation. The temporary
+issue #48 was closed after the proposal test.
+
+The remaining gated test requires an owner to enable
+`LABEL_AGENT_APPLY=true` after confirming the `label-review` Environment
+has a required reviewer. Then:
 
 1. Open a dedicated test issue that names `src/vecadd.cu` and says the file
-   must be compiled and run on an NVIDIA GPU. With `LABEL_AGENT_APPLY` false,
-   expect one proposal comment, a `kernels` component, and a `needs-gpu`
-   verdict supported by an exact quote. No label should be applied.
-2. Confirm the model result is accepted. Then enable apply with
-   `gh variable set LABEL_AGENT_APPLY --repo bniladridas/cuda --body true`,
-   dispatch a correction on the test issue, and approve the waiting run.
-   Expect the labels to be applied and an audit comment to appear.
+   must be compiled and run on an NVIDIA GPU.
+2. Dispatch a correction on that issue and approve the waiting run. Expect the
+   labels to be applied and an audit comment to appear.
 3. Open a second test issue and reject the waiting run. Expect no labels.
 4. Dispatch a correction on the first test issue, change a label by hand while
    the apply waits for approval, then approve and confirm revalidation fails
    without writing a label.
-5. Close both test issues.
+5. Close both test issues and set `LABEL_AGENT_APPLY=false` again.
 
 ## Turning it off
 
