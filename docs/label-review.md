@@ -118,25 +118,35 @@ or says that none were found.
 
 ## Smoke test
 
-This has not been run. The environment, both variables and the secret exist
-now, with apply disabled. No run has reached the model, so the key is
-unverified. The first pass checks the proposal with apply still off:
+A proposal-only run was exercised on issue #44 on 2026-11-15:
+[Actions run 43720322872](https://github.com/bniladridas/cuda/actions/runs/43720322872).
 
-1. Open a test issue that names `src/vecadd.cu` and says the file must be
-   compiled and run on an NVIDIA GPU.
-2. Expect exactly one proposal comment, a `kernels` component, and a
-   `needs-gpu` verdict with a quote. With `LABEL_AGENT_APPLY` false, expect no
-   label on the issue and no waiting apply job. If the model call fails, the
-   proposal marks `needs-gpu` for human classification and writes no label.
-3. Enable apply with
+- The `review / propose` and `review / comment` jobs passed.
+- The proposal identified the `documentation` component from the issue paths.
+- The `needs-gpu` assessment remained human classification because its quoted
+  evidence was not present in the issue text. No accepted model verdict was
+  produced.
+- The `review / apply` job was skipped because `LABEL_AGENT_APPLY` remains
+  false. No labels were changed.
+
+This verifies the proposal and comment path only. It does not verify approval,
+application, rejection, or concurrent-label revalidation. Issue #44 was a
+real documentation issue, not a dedicated test fixture. The full gated test
+remains:
+
+1. Open a dedicated test issue that names `src/vecadd.cu` and says the file
+   must be compiled and run on an NVIDIA GPU. With `LABEL_AGENT_APPLY` false,
+   expect one proposal comment, a `kernels` component, and a `needs-gpu`
+   verdict supported by an exact quote. No label should be applied.
+2. Confirm the model result is accepted. Then enable apply with
    `gh variable set LABEL_AGENT_APPLY --repo bniladridas/cuda --body true`,
-   dispatch a correction on the first test issue, and approve the waiting run.
+   dispatch a correction on the test issue, and approve the waiting run.
    Expect the labels to be applied and an audit comment to appear.
-4. Open a second test issue and reject the waiting run. Expect no labels.
-5. Dispatch a correction on the first test issue, remove a label by hand while
-   the apply waits for approval, then approve and confirm the run fails at
-   revalidation without writing a label.
-6. Close both test issues.
+3. Open a second test issue and reject the waiting run. Expect no labels.
+4. Dispatch a correction on the first test issue, change a label by hand while
+   the apply waits for approval, then approve and confirm revalidation fails
+   without writing a label.
+5. Close both test issues.
 
 ## Turning it off
 
