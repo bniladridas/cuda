@@ -187,6 +187,16 @@ def issue_text(issue):
     return (issue.get("title") or "") + "\n\n" + (issue.get("body") or "")
 
 
+def issue_digest(issue):
+    canonical = json.dumps(
+        {"title": issue.get("title") or "", "body": issue.get("body") or ""},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def label_state(labels):
     joined = "\n".join(sorted(labels))
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
@@ -452,6 +462,7 @@ def build_artifact(mode, issue, config, adds, removes, components, model):
         "mode": mode,
         "repo": repo_name(),
         "issue": issue["number"],
+        "issue_digest": issue_digest(issue),
         "labels": {"add": sorted(adds), "remove": sorted(removes)},
         "current_labels": sorted(issue["labels"]),
         "label_state": label_state(issue["labels"]),
@@ -476,6 +487,8 @@ def verify(artifact, issue, config, mode, tracked):
         problems.append("the artifact was not produced for this mode")
     if issue["state"] != "OPEN":
         problems.append("the issue is not open")
+    if artifact.get("issue_digest") != issue_digest(issue):
+        problems.append("the issue title or body changed after the proposal")
     configured = applicable_labels(config)
     if set(artifact.get("taxonomy") or []) != configured:
         problems.append("the label configuration changed after the proposal")

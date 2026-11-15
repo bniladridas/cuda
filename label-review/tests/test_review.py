@@ -274,6 +274,36 @@ class VerifyTests(unittest.TestCase):
         _, _, problems = review.verify(artifact, edited, CONFIG, "propose", TRACKED)
         self.assertTrue(any("evidence for `needs-gpu`" in problem for problem in problems))
 
+    def test_meaning_changing_edits_are_rejected_even_when_evidence_remains(self):
+        cases = [
+            (
+                "The kernel must run on an NVIDIA GPU.\n\nIt is fast.",
+                "The kernel must not run on an NVIDIA GPU.\n\nIt is fast.",
+            ),
+            (
+                "Kernel test\n\nThe kernel must run on an NVIDIA GPU.",
+                "Kernel test\n\nThe kernel must not run on an NVIDIA GPU.",
+            ),
+        ]
+        verdicts = {"needs-gpu": {"apply": True, "confidence": "high", "evidence": "run on an NVIDIA GPU"}}
+        for before, after in cases:
+            with self.subTest(before=before):
+                issue = make_issue(before)
+                artifact = make_artifact(issue, adds=["needs-gpu"], verdicts=verdicts)
+                changed = make_issue(after)
+                self.assertIn("run on an nvidia gpu", review.normalize(review.issue_text(changed)))
+                _, _, problems = review.verify(artifact, changed, CONFIG, "propose", TRACKED)
+                self.assertTrue(
+                    any("issue title or body changed" in problem for problem in problems)
+                )
+
+    def test_unchanged_issue_still_verifies(self):
+        issue = make_issue("The kernel must run on an NVIDIA GPU.\n\nIt is fast.")
+        verdicts = {"needs-gpu": {"apply": True, "confidence": "high", "evidence": "run on an NVIDIA GPU"}}
+        artifact = make_artifact(issue, adds=["needs-gpu"], verdicts=verdicts)
+        adds, removes, problems = review.verify(artifact, issue, CONFIG, "propose", TRACKED)
+        self.assertEqual((adds, removes, problems), (["needs-gpu"], [], []))
+
     def test_proposal_may_not_remove(self):
         issue = make_issue("Bug in `src/vecadd.cu`.")
         artifact = make_artifact(issue, adds=["kernels"], removes=[])

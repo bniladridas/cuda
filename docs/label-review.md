@@ -88,7 +88,8 @@ fails or is not configured, the label already on the issue stays.
 ## What the apply job rechecks
 
 After approval and before writing anything, it confirms that the artifact is
-for this issue and this mode, that the issue is still open, that every label is
+for this issue and this mode, that the issue is still open, that the issue title
+and body still match the digest recorded in the proposal, that every label is
 one the configuration manages, that no `human_only` label is being changed,
 that the component labels still match the issue text, that each model label
 still has a quote present in the text, and, for a correction, that the label

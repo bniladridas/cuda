@@ -30,8 +30,8 @@ label-review/
    comment draft and a proposal artifact. It has read-only issue access.
 3. A comment job posts the draft. It does not run the engine.
 4. The apply job waits for approval on the `label-review` environment. After
-   approval it re-reads the issue and the artifact, rejects anything that no
-   longer holds, and only then writes labels.
+   approval it re-reads the issue and the artifact, rejects a changed title or
+   body or any other stale evidence, and only then writes labels.
 
 The job that reads the issue text and model output cannot change labels. The
 only `gh issue edit` call is in the apply job.
@@ -198,8 +198,8 @@ python3 -m unittest discover -s label-review/tests
 The suite covers glob matching, configuration validation, path extraction
 including the bare word rule, model response validation and uncertainty, label
 diffing, human-only protection, taxonomy drift, evidence that no longer
-matches, and correction state checks. It runs offline: the model is not called
-and no GitHub request is made.
+matches, a changed issue text digest, and correction state checks. It runs
+offline: the model is not called and no GitHub request is made.
 
 The OpenRouter path itself is not covered, because a test that needs a real key
 is not a unit test. The first live run is the first real call.
