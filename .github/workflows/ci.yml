@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Merge queue checks run on a synthetic merge group commit. The cpu job is a
+  # required status check, so it has to report there as well as on pull requests.
+  merge_group:
   workflow_dispatch:
 
 concurrency:

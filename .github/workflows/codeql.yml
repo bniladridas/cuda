@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # CodeQL is intended to be a required merge queue check, so it must analyse
+  # the synthetic merge group commit rather than only the pull request head.
+  merge_group:
   schedule:
     # Weekly, so a new CodeQL release's queries reach existing code even when
     # nothing is pushed.
