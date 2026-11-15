@@ -17,7 +17,8 @@ deployment in this repository.
 | Manual dispatch with an issue number | `correct` | A correction proposal comment, then a waiting apply job |
 
 Existing issues are not processed automatically, and pull requests are not
-processed at all. A correction is only produced when someone dispatches it.
+processed at all. A correction is only produced when someone dispatches it, and
+a pull request number entered there is rejected before the issue is read.
 
 The workflow is inert until the setup below is complete. The pull request that
 adds it does not create the environment, the secret or the variables, so every

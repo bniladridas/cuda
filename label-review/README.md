@@ -177,6 +177,7 @@ Every failure below ends with no label change.
 | Missing or failing model | Labels reported as needing human classification |
 | Malformed, unquoted or low confidence verdict | That label is not proposed |
 | Issue closed between proposal and apply | Apply rejects the artifact |
+| Pull request number dispatched | Run fails before reading or labelling it |
 | Issue text edited between proposal and apply | Apply rejects the artifact |
 | Labels changed between proposal and apply | Apply rejects a correction |
 | Issue deleted or inaccessible | Run fails |
@@ -201,6 +202,9 @@ is not a unit test. The first live run is the first real call.
 
 - A new issue gets at most one review, and existing issues are not processed
   automatically.
+- Pull requests are not reviewed. The issue endpoint returns them and
+  `gh issue view` reads them as issues, so a dispatched pull request number is
+  rejected explicitly.
 - The model never chooses component labels.
 - The engine proposes less than a human sometimes would. That is visible in
   the proposal, which lists the paths it used or says that none were found.

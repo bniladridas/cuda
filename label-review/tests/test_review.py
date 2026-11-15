@@ -295,6 +295,29 @@ class VerifyTests(unittest.TestCase):
         self.assertTrue(any("does not have" in problem for problem in problems))
 
 
+class IssueTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_pull_request_number_is_rejected(self):
+        path = Path(self.tmp.name) / "pr.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "number": 32,
+                    "title": "A pull request",
+                    "state": "open",
+                    "labels": [],
+                    "pull_request": {"url": "https://example.invalid"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaises(review.EngineError):
+            review.load_issue(32, str(path))
+
+
 class EndToEndTests(unittest.TestCase):
     def setUp(self):
         os.environ["GITHUB_REPOSITORY"] = "example/repo"

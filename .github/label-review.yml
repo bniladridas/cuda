@@ -6,6 +6,9 @@ components:
   ci:
     paths:
       - .github/workflows/**
+      # The review engine is workflow tooling, and no separate tooling label
+      # exists. An issue naming one of its files is classified as ci.
+      - label-review/**
   runners:
     paths:
       - runners/**
@@ -28,6 +31,7 @@ components:
       - docs/**
       - README.md
       - .github/CONTRIBUTING.md
+      - label-review/README.md
 
 # Each label here needs a question the model can answer from the issue text. The
 # verdict is used only with a verbatim quote, and low confidence is treated as

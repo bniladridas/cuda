@@ -203,19 +203,14 @@ def load_issue(number, issue_json=None):
     if issue_json:
         data = json.loads(Path(issue_json).read_text(encoding="utf-8"))
     else:
-        raw = run(
-            [
-                "gh",
-                "issue",
-                "view",
-                str(number),
-                "--repo",
-                repo_name(),
-                "--json",
-                "number,title,body,state,labels,url",
-            ]
+        data = json.loads(run(["gh", "api", "repos/%s/issues/%d" % (repo_name(), number)]))
+    # The issue endpoint returns pull requests too, and `gh issue view` reads
+    # them as issues. A dispatched pull request number must not reach a label
+    # write, so it is rejected here rather than at the apply step.
+    if data.get("pull_request"):
+        raise EngineError(
+            "#%d is a pull request; this workflow reviews issues only" % number
         )
-        data = json.loads(raw)
     labels = sorted(
         item["name"] if isinstance(item, dict) else str(item)
         for item in data.get("labels") or []
@@ -226,7 +221,7 @@ def load_issue(number, issue_json=None):
         "body": data.get("body") or "",
         "state": (data.get("state") or "OPEN").upper(),
         "labels": labels,
-        "url": data.get("url") or "",
+        "url": data.get("html_url") or data.get("url") or "",
     }
 
 
