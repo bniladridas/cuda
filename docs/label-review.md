@@ -21,8 +21,9 @@ processed at all. A correction is only produced when someone dispatches it, and
 a pull request number entered there is rejected before the issue is read.
 
 The workflow is inert until the setup below is complete. The pull request that
-adds it does not create the environment, the secret or the variables, so every
-run currently records a skipped job.
+adds it does not create the environment, the secret or the variables; those are
+repository settings configured separately. They exist in this repository now,
+with apply disabled until the proposal-only check below passes.
 
 ## Label roles
 
@@ -116,19 +117,24 @@ or says that none were found.
 
 ## Smoke test
 
-This has not been run. No environment, secret or variable exists yet, so no run
-has reached the model. When the setup is complete, the first live check is:
+This has not been run. The environment, both variables and the secret exist
+now, with apply disabled. No run has reached the model, so the key is
+unverified. The first pass checks the proposal with apply still off:
 
 1. Open a test issue that names `src/vecadd.cu` and says the file must be
    compiled and run on an NVIDIA GPU.
 2. Expect exactly one proposal comment, a `kernels` component, and a
-   `needs-gpu` verdict with a quote. Expect no label on the issue and a waiting
-   apply job.
-3. Approve. Expect the labels to be applied and an audit comment to appear.
+   `needs-gpu` verdict with a quote. With `LABEL_AGENT_APPLY` false, expect no
+   label on the issue and no waiting apply job. If the model call fails, the
+   proposal marks `needs-gpu` for human classification and writes no label.
+3. Enable apply with
+   `gh variable set LABEL_AGENT_APPLY --repo bniladridas/cuda --body true`,
+   dispatch a correction on the first test issue, and approve the waiting run.
+   Expect the labels to be applied and an audit comment to appear.
 4. Open a second test issue and reject the waiting run. Expect no labels.
-5. Dispatch a correction on the first test issue after removing a label by
-   hand, and confirm the state check aborts the apply rather than overwriting
-   the edit.
+5. Dispatch a correction on the first test issue, remove a label by hand while
+   the apply waits for approval, then approve and confirm the run fails at
+   revalidation without writing a label.
 6. Close both test issues.
 
 ## Turning it off
