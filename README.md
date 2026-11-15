@@ -187,7 +187,8 @@ label-review/           reusable issue label review engine and tests
   tests.
 - `pr-confidence`: triggered by pull request and review activity, waits for the
   configured checks, and publishes a read-only `PR Confidence` summary in the
-  Checks UI. The engine runs from the default branch and uses no secrets. Rubric
+  Checks UI. It runs from the pull request head with a read-only token and no
+  secrets, so treat the score as advisory alongside the checks it reads. Rubric
   and setup in [`docs/pr-confidence.md`](docs/pr-confidence.md).
 - `gpu`: self-hosted NVIDIA Linux runner
   (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the

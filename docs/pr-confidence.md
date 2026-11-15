@@ -95,17 +95,18 @@ available.
 
 ## Trust model and fork safety
 
-The workflow checks out the repository's default branch and runs the engine and
-rubric from there. A pull request cannot change the code or configuration used
-to score itself.
+The check runs the engine and rubric from the pull request head. It is
+read-only and exposes no repository secrets, so pull request code cannot write
+to the repository, post comments or change the pull request. The unavoidable
+consequence is that a pull request can change the engine or workflow that scores
+it, just as it can change any other file. Treat the score as advisory, keep the
+checks it summarizes required in their own right, and review changes under
+`pr-confidence/` and `.github/workflows/` with the same care as any code.
 
 The token is limited to `contents: read`, `pull-requests: read` and
-`checks: read`. The workflow uses no repository secrets and does not pass pull
-request code or untrusted event fields into a shell without validation. Pull
-number and head SHA are passed through environment variables, checked against
-numeric and commit SHA patterns, and quoted. `persist-credentials` is off. A
-pull request from a fork receives the same read-only view; nothing is written to
-the repository or the pull request.
+`checks: read`. The workflow validates the pull number and head SHA, passes them
+through environment variables, and quotes them. `persist-credentials` is off. A
+pull request from a fork receives a read-only token and no repository secrets.
 
 ## Configuration
 
@@ -129,8 +130,10 @@ non-boolean blockers, invalid limits and path patterns that are absolute, use
 backslashes or contain `..`. Invalid configuration exits 2 and fails the check
 rather than silently scoring with defaults.
 
-A change to the configuration or engine takes effect only after it merges to the
-default branch, because that is the checked-out source.
+Because the engine runs from the pull request head, a pull request is scored by
+the version on its own branch. Configuration changes affect that branch
+immediately and reach other pull requests after they merge and those branches
+update.
 
 ## Local use
 
@@ -179,6 +182,8 @@ blocker still passes. Keep the underlying checks required in their own right.
 ## Limits
 
 - The score is evidence coverage, not correctness, security or merge readiness.
+- A pull request can alter the engine or workflow that scores it. The check is
+  an evidence aid, not an independent security control.
 - Test presence and diff size are heuristics. They do not measure test quality.
 - API lists are read up to 100 items and marked `unassessed` when truncated.
 - The run waits for checks that are configured at the time it starts. A check
