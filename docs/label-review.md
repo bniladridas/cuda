@@ -6,8 +6,8 @@ so that a label is a reviewed decision rather than a guess, and so that the
 mapping stays visible in the repository instead of living in someone's head.
 
 The engine and the reusable workflow are documented in
-[`label-review/README.md`](../label-review/README.md). This page covers the
-deployment in this repository.
+[`label-review/README.md`](https://github.com/bniladridas/cuda/blob/main/label-review/README.md).
+This page covers the deployment in this repository.
 
 ## What runs
 
