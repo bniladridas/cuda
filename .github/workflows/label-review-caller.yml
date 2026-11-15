@@ -1,0 +1,30 @@
+name: label-review
+
+# The only caller in this repository. It proposes on a newly opened issue and,
+# when dispatched by hand, proposes a correction for an existing issue. Applying
+# labels needs the `label-review` environment approval inside the reusable
+# workflow; this file cannot apply anything by itself.
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to review for label corrections
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  review:
+    uses: ./.github/workflows/label-review.yml
+    permissions:
+      contents: read
+      issues: write
+    with:
+      issue-number: ${{ github.event_name == 'workflow_dispatch' && inputs.issue || github.event.issue.number }}
+      mode: ${{ github.event_name == 'workflow_dispatch' && 'correct' || 'propose' }}
+    secrets: inherit

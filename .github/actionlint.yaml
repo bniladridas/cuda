@@ -1,0 +1,15 @@
+# The GPU runner labels are repository-specific and exist only while a
+# self-hosted NVIDIA runner is registered.
+self-hosted-runner:
+  labels:
+    - nvidia
+    - cuda
+
+# job.workflow_repository and job.workflow_sha are documented for reusable
+# workflows on GitHub.com and check out the engine at the commit that defines
+# the workflow. actionlint v1.7.12 does not know them yet:
+# https://github.com/rhysd/actionlint/issues/757
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      - 'property "workflow_(repository|sha)" is not defined in object type'

@@ -1,0 +1,186 @@
+name: label-review
+
+# Reusable workflow. A caller passes an issue number, a mode and its
+# configuration path; this workflow reads the issue, posts a proposal, and
+# applies labels only after a reviewer approves the run on the `label-review`
+# environment.
+#
+# The calling repository provides:
+#   - a configuration file, by default .github/label-review.yml
+#   - the OPENROUTER_API_KEY secret, optional when no model labels are configured
+#   - an environment named label-review with a required reviewer
+#   - LABEL_AGENT_ENABLED=true to post proposals
+#   - LABEL_AGENT_APPLY=true to also apply them after approval
+#
+# The caller must grant issues: write. The proposal job uses only issues: read;
+# the comment and apply jobs hold the write permission. No comment command
+# applies labels; the environment approval does.
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        description: Issue to review
+        required: true
+        type: number
+      mode:
+        description: propose for a new issue, correct for an existing one
+        required: false
+        default: propose
+        type: string
+      config-path:
+        description: Path to the label-review configuration in the caller
+        required: false
+        default: .github/label-review.yml
+        type: string
+    secrets:
+      OPENROUTER_API_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  # The engine runs with read-only issue access. Posting the comment is a
+  # separate job with write access, so the job that reads untrusted issue text
+  # and model output cannot change a label.
+  propose:
+    if: vars.LABEL_AGENT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Check out the calling repository
+        uses: actions/checkout@v7
+
+      # The engine comes from the commit that defines this workflow, not from
+      # the caller, so the pinned reference and the executed code agree.
+      - name: Check out the engine
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .label-review
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2 jsonschema==4.23.0
+
+      - name: Build the proposal
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          MODE: ${{ inputs.mode }}
+          CONFIG_PATH: ${{ inputs.config-path }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python3 .label-review/label-review/engine/review.py "$MODE" \
+            --issue "$ISSUE_NUMBER" \
+            --config "$CONFIG_PATH" \
+            --comment-out proposal.md \
+            --artifact proposal.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: label-proposal
+          path: |
+            proposal.json
+            proposal.md
+          retention-days: 30
+
+  # Nothing here runs the engine. It posts the comment the proposal job wrote,
+  # and it is the only write-capable job before approval.
+  comment:
+    needs: propose
+    if: vars.LABEL_AGENT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: label-proposal
+
+      - name: Post the proposal
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+        run: gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file proposal.md
+
+  apply:
+    needs: comment
+    # A second switch on purpose. Enabling proposals must not enable writes.
+    if: vars.LABEL_AGENT_APPLY == 'true'
+    runs-on: ubuntu-latest
+    environment: label-review
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out the calling repository
+        uses: actions/checkout@v7
+
+      - name: Check out the engine
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .label-review
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2 jsonschema==4.23.0
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: label-proposal
+
+      - name: Revalidate the proposal against the live issue
+        id: check
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          MODE: ${{ inputs.mode }}
+          CONFIG_PATH: ${{ inputs.config-path }}
+        run: |
+          python3 .label-review/label-review/engine/review.py verify \
+            --issue "$ISSUE_NUMBER" \
+            --mode "$MODE" \
+            --artifact proposal.json \
+            --config "$CONFIG_PATH" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Apply
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          MODE: ${{ inputs.mode }}
+          ADDITIONS: ${{ steps.check.outputs.additions }}
+          REMOVALS: ${{ steps.check.outputs.removals }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$ADDITIONS" ] && [ -z "$REMOVALS" ]; then
+            echo "no label changes to apply"
+            exit 0
+          fi
+          if [ -n "$ADDITIONS" ] && [ -n "$REMOVALS" ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --add-label "$ADDITIONS" --remove-label "$REMOVALS"
+          elif [ -n "$ADDITIONS" ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "$ADDITIONS"
+          else
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$REMOVALS"
+          fi
+          printf 'Applied after approval (mode: %s, triggered by: %s).\n\nAdded: %s\nRemoved: %s\nRun: %s\n' \
+            "$MODE" "$ACTOR" "${ADDITIONS:-none}" "${REMOVALS:-none}" "$RUN_URL" \
+            | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
