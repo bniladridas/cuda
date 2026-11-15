@@ -29,6 +29,28 @@ a pass, so paste the runner's output rather than just the exit code. Use
 `GPU_REQUIRED=1 ./runners/test.sh` on any machine that is supposed to have a
 device, so a missing device fails the run instead of warning.
 
+## Pull request title convention
+
+Use this format for every pull request title:
+
+`[scope] Short action-oriented description`
+
+Examples:
+
+- `[pr-confidence] Add a read-only PR confidence check`
+- `[label-review] Add an approval-gated label review workflow`
+- `[ci] Add merge queue validation`
+- `[benchmarks] Improve benchmark reliability`
+
+Guidelines:
+
+- Use a short, lowercase scope that identifies the area being changed.
+- Start the description with a clear action verb.
+- Use sentence case.
+- Keep titles concise and specific.
+- Apply this convention to all new pull requests and when updating existing
+  pull request titles.
+
 ## Tests
 
 Every kernel change needs an edge case that would have caught the bug if the bug
