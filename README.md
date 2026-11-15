@@ -192,6 +192,11 @@ label-review/           reusable issue label review engine and tests
   no secrets. Treat the score as advisory alongside the checks it reads. The
   check activates for later pull requests after this workflow merges. Rubric and
   setup in [`docs/pr-confidence.md`](docs/pr-confidence.md).
+- `lock-merged-pr`: runs when a pull request closes and locks the conversation
+  with reason `resolved` only when the pull request was merged. It uses
+  `pull_request_target` so the workflow comes from the base branch, needs only
+  `issues: write`, and checks out no code. Unmerged closed pull requests remain
+  unlocked.
 - `gpu`: self-hosted NVIDIA Linux runner
   (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the
   GPU correctness tests and a benchmark. The test step sets `GPU_REQUIRED=1`, so

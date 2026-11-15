@@ -1,0 +1,31 @@
+name: lock-merged-pr
+
+# pull_request_target loads this workflow from the base branch, so a pull
+# request cannot alter the code that runs with the token. The job runs only for
+# merged pull requests; unmerged closed pull requests remain unlocked. The token
+# is limited to issues: write, and no code is checked out.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  lock:
+    name: Lock merged pull request
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Lock the conversation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "No numeric pull request number in this event" >&2
+            exit 1
+          fi
+          gh api --method PUT "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/lock" \
+            -f lock_reason=resolved
