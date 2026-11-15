@@ -58,8 +58,8 @@ jobs:
       - name: Check out the engine
         uses: actions/checkout@v7
         with:
-          repository: bniladridas/cuda
-          ref: ${{ github.job_workflow_sha || github.sha }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .label-review
 
       - uses: actions/setup-python@v6
@@ -128,8 +128,8 @@ jobs:
       - name: Check out the engine
         uses: actions/checkout@v7
         with:
-          repository: bniladridas/cuda
-          ref: ${{ github.job_workflow_sha || github.sha }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .label-review
 
       - uses: actions/setup-python@v6

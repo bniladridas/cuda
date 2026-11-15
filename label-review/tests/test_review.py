@@ -180,20 +180,19 @@ class ModelTests(unittest.TestCase):
     def test_low_confidence_becomes_uncertain(self):
         verdicts, problems = review.validate_verdicts(self.raw(confidence="low"), CONFIG["model_proposed"], self.TEXT)
         model = {"status": "ok", "verdicts": verdicts, "problems": problems}
-        adds, uncertain = review.select_model_labels(CONFIG["model_proposed"], model)
-        self.assertEqual(adds, [])
-        self.assertEqual(uncertain, ["needs-gpu"])
+        adds, rejects, uncertain = review.select_model_labels(CONFIG["model_proposed"], model)
+        self.assertEqual((adds, rejects, uncertain), ([], [], ["needs-gpu"]))
 
-    def test_not_applicable_is_not_uncertain(self):
+    def test_confident_negative_is_a_reject(self):
         verdicts, problems = review.validate_verdicts(self.raw(apply=False), CONFIG["model_proposed"], self.TEXT)
         model = {"status": "ok", "verdicts": verdicts, "problems": problems}
-        adds, uncertain = review.select_model_labels(CONFIG["model_proposed"], model)
-        self.assertEqual((adds, uncertain), ([], []))
+        adds, rejects, uncertain = review.select_model_labels(CONFIG["model_proposed"], model)
+        self.assertEqual((adds, rejects, uncertain), ([], ["needs-gpu"], []))
 
     def test_failed_model_makes_every_label_uncertain(self):
         model = {"status": "failed", "detail": "timeout", "verdicts": {}, "problems": {}}
-        adds, uncertain = review.select_model_labels(CONFIG["model_proposed"], model)
-        self.assertEqual((adds, uncertain), ([], ["needs-gpu"]))
+        adds, rejects, uncertain = review.select_model_labels(CONFIG["model_proposed"], model)
+        self.assertEqual((adds, rejects, uncertain), ([], [], ["needs-gpu"]))
 
     def test_malformed_response_is_an_error(self):
         with self.assertRaises(review.EngineError):
@@ -202,14 +201,22 @@ class ModelTests(unittest.TestCase):
 
 class DiffTests(unittest.TestCase):
     def test_correction_removes_stale_taxonomy_label(self):
-        adds, removes = review.correction_diff(["needs-gpu", "bug", "cpu-verified"], [], CONFIG)
+        adds, removes = review.correction_diff(
+            ["needs-gpu", "bug", "cpu-verified"], [], CONFIG, rejected=["needs-gpu"]
+        )
         self.assertEqual(adds, [])
         self.assertEqual(removes, ["needs-gpu"])
 
+    def test_correction_preserves_uncertain_model_label(self):
+        adds, removes = review.correction_diff(["needs-gpu", "bug"], [], CONFIG)
+        self.assertEqual((adds, removes), ([], []))
+
     def test_correction_preserves_human_and_foreign_labels(self):
-        adds, removes = review.correction_diff(["needs-gpu", "bug", "cpu-verified", "documentation"], ["kernels"], CONFIG)
+        adds, removes = review.correction_diff(
+            ["needs-gpu", "bug", "cpu-verified", "documentation"], ["kernels"], CONFIG
+        )
         self.assertEqual(adds, ["kernels"])
-        self.assertEqual(removes, ["documentation", "needs-gpu"])
+        self.assertEqual(removes, ["documentation"])
 
     def test_correction_does_not_add_present_labels(self):
         adds, removes = review.correction_diff(["kernels"], ["kernels"], CONFIG)
@@ -276,9 +283,36 @@ class VerifyTests(unittest.TestCase):
 
     def test_valid_correction_verifies(self):
         issue = make_issue("The reduce kernel is slow.", labels=["needs-gpu", "bug"])
-        artifact = make_artifact(issue, adds=[], removes=["needs-gpu"], mode="correct")
+        verdicts = {
+            "needs-gpu": {
+                "apply": False,
+                "confidence": "high",
+                "evidence": "The reduce kernel is slow.",
+            }
+        }
+        artifact = make_artifact(issue, adds=[], removes=["needs-gpu"], mode="correct", verdicts=verdicts)
         adds, removes, problems = review.verify(artifact, issue, CONFIG, "correct", TRACKED)
         self.assertEqual((adds, removes, problems), ([], ["needs-gpu"], []))
+
+    def test_correction_requires_a_negative_verdict_to_remove(self):
+        issue = make_issue("The reduce kernel is slow.", labels=["needs-gpu"])
+        artifact = make_artifact(issue, adds=[], removes=["needs-gpu"], mode="correct")
+        _, _, problems = review.verify(artifact, issue, CONFIG, "correct", TRACKED)
+        self.assertTrue(any("confident negative verdict" in problem for problem in problems))
+
+    def test_correction_cannot_remove_a_supported_component(self):
+        issue = make_issue("Bug in `src/vecadd.cu`.", labels=["kernels"])
+        artifact = make_artifact(issue, adds=[], removes=["kernels"], mode="correct")
+        _, _, problems = review.verify(artifact, issue, CONFIG, "correct", TRACKED)
+        self.assertTrue(any("still supports" in problem for problem in problems))
+
+    def test_correction_with_a_present_component_verifies(self):
+        issue = make_issue("Bug in `src/vecadd.cu`.", labels=["kernels"])
+        artifact = make_artifact(
+            issue, adds=[], removes=[], components={"kernels": ["src/vecadd.cu"]}, mode="correct"
+        )
+        adds, removes, problems = review.verify(artifact, issue, CONFIG, "correct", TRACKED)
+        self.assertEqual((adds, removes, problems), ([], [], []))
 
     def test_changed_labels_abort_correction(self):
         issue = make_issue("The reduce kernel is slow.", labels=["needs-gpu", "bug"])
@@ -386,9 +420,12 @@ class EndToEndTests(unittest.TestCase):
         )
         self.assertEqual(code, 0)
         artifact = json.loads((self.dir / "artifact.json").read_text(encoding="utf-8"))
-        self.assertEqual(artifact["labels"]["remove"], ["needs-gpu"])
+        # No API key, so the model verdict is uncertain and the existing label
+        # must be preserved rather than removed.
+        self.assertEqual(artifact["labels"]["remove"], [])
         comment = (self.dir / "comment.md").read_text(encoding="utf-8")
         self.assertIn("cpu-verified", comment)
+        self.assertIn("Uncertain verdicts do not remove", comment)
         verify_args = [
             "verify",
             "--issue", "7",

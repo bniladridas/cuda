@@ -80,7 +80,9 @@ reach the write step.
    and a change made in between aborts the apply instead of overwriting it.
 
 `human_only` labels and labels outside the taxonomy are never removed, even
-when the evidence does not mention them.
+when the evidence does not mention them. A model label is removed only after a
+confident verdict that the criterion does not apply; if the model is uncertain,
+fails or is not configured, the label already on the issue stays.
 
 ## What the apply job rechecks
 

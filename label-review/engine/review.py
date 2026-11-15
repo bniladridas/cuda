@@ -283,9 +283,15 @@ def validate_verdicts(raw, criteria, text):
 
 
 def select_model_labels(criteria, model):
-    adds, uncertain = [], []
+    """Split model verdicts into add, confident reject and uncertain.
+
+    A reject is the only verdict that permits removing a model label in
+    correction mode. Uncertainty and a missing verdict both preserve whatever
+    label is already on the issue.
+    """
+    adds, rejects, uncertain = [], [], []
     if model.get("status") != "ok":
-        return [], sorted(criteria)
+        return [], [], sorted(criteria)
     problems = model.get("problems") or {}
     for label in sorted(criteria):
         verdict = (model.get("verdicts") or {}).get(label)
@@ -294,7 +300,9 @@ def select_model_labels(criteria, model):
             continue
         if verdict.get("apply"):
             adds.append(label)
-    return adds, uncertain
+        else:
+            rejects.append(label)
+    return adds, rejects, uncertain
 
 
 def model_schema(criteria):
@@ -412,22 +420,30 @@ def collect(issue, config, api_key, tracked):
     text = issue_text(issue)
     components = components_from_text(text, config, tracked)
     model = ask_model(issue, config, api_key)
-    model_add, uncertain = select_model_labels(config.get("model_proposed") or {}, model)
+    model_add, model_reject, uncertain = select_model_labels(config.get("model_proposed") or {}, model)
     return {
         "components": components,
         "model": model,
         "model_add": model_add,
+        "model_reject": model_reject,
         "uncertain": uncertain,
     }
 
 
-def correction_diff(current, target, config):
-    configured = applicable_labels(config)
+def correction_diff(current, target, config, rejected=()):
+    """Diff current labels against the evidence.
+
+    Component labels are removed when no path supports them. Model labels are
+    removed only when the model returned a confident negative verdict, so an
+    uncertain or failed assessment leaves the current label alone.
+    """
     humans = set(config.get("human_only") or [])
+    components = set(config["components"])
     current_set, target_set = set(current), set(target)
     adds = sorted(target_set - current_set)
-    removes = sorted((current_set & configured) - target_set - humans)
-    return adds, removes
+    stale_components = (current_set & components) - target_set - humans
+    stale_model = (current_set & set(rejected)) - target_set - humans
+    return adds, sorted(stale_components | stale_model)
 
 
 def build_artifact(mode, issue, config, adds, removes, components, model):
@@ -477,7 +493,7 @@ def verify(artifact, issue, config, mode, tracked):
     components = components_from_text(text, config, tracked)
     if set(components) != set(artifact.get("components") or {}):
         problems.append("the component labels no longer match the issue text")
-    if not set(components) <= adds:
+    if not set(components) - set(issue["labels"]) <= adds:
         problems.append("the artifact omits a component label the issue now matches")
     model_props = set(config.get("model_proposed") or {})
     verdicts = (artifact.get("model") or {}).get("verdicts") or {}
@@ -501,6 +517,25 @@ def verify(artifact, issue, config, mode, tracked):
         absent = removes - set(issue["labels"])
         if absent:
             problems.append("cannot remove labels the issue does not have")
+        supported = removes & set(components)
+        if supported:
+            problems.append(
+                "cannot remove labels the issue still supports: " + ", ".join(sorted(supported))
+            )
+        for label in sorted(removes & model_props):
+            verdict = verdicts.get(label)
+            if (
+                not verdict
+                or verdict.get("apply") is not False
+                or verdict.get("confidence") == "low"
+            ):
+                problems.append(
+                    "`%s` is removed without a confident negative verdict" % label
+                )
+            elif normalize(verdict.get("evidence")) not in normalize(text):
+                problems.append(
+                    "the evidence for removing `%s` is no longer in the issue" % label
+                )
     return sorted(adds), sorted(removes), problems
 
 
@@ -582,11 +617,14 @@ def correction_comment(config, components, model, model_add, uncertain, issue, a
     if criteria:
         lines.extend(["### Model assessment", ""])
         lines.extend(model_lines(criteria, model, model_add, uncertain))
+        if uncertain:
+            lines.append("Uncertain verdicts do not remove a label that is already on the issue.")
+            lines.append("")
     if adds or removes:
         lines.extend(["### Changes", "", "| Action | Label | Reason |", "| ------ | ----- | ------ |"])
         for label in removes:
             if label in criteria:
-                reason = "the issue does not support this label"
+                reason = "the model found the criterion does not apply"
             else:
                 reason = "no path in the issue maps to this label"
             lines.append("| remove | `%s` | %s |" % (label, reason))
@@ -624,7 +662,7 @@ def review_issue(mode, config, issue, api_key, tracked):
         removes = []
         comment = propose_comment(config, components, data["model"], data["model_add"], data["uncertain"])
     else:
-        adds, removes = correction_diff(issue["labels"], target, config)
+        adds, removes = correction_diff(issue["labels"], target, config, data["model_reject"])
         comment = correction_comment(
             config, components, data["model"], data["model_add"], data["uncertain"], issue, adds, removes
         )

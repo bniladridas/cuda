@@ -106,9 +106,10 @@ Dispatching the caller with an issue number produces a correction proposal
 instead of a new-issue proposal. It diffs the evidence against the current
 labels:
 
-- Labels the evidence supports are proposed for addition.
-- Labels in the configured taxonomy that the evidence contradicts are proposed
-  for removal.
+- Component labels are proposed for addition where a path supports them, and
+  for removal where no path does.
+- A model label is added on a positive verdict and removed only on a confident
+  negative verdict. An uncertain, failed or missing verdict leaves it alone.
 - `human_only` labels are never added or removed.
 - Labels outside the taxonomy are left alone.
 
@@ -147,6 +148,11 @@ jobs:
 
 Pin the reference to a full commit SHA. A moving tag defeats the point of
 pinning, and the engine runs from the commit the workflow was called at.
+
+Inside the called workflow the engine is checked out with
+`job.workflow_repository` and `job.workflow_sha`, so the executed code is the
+same commit as the `uses:` reference. Those properties are available on
+GitHub.com but not on GitHub Enterprise Server.
 
 Each consuming repository supplies:
 
