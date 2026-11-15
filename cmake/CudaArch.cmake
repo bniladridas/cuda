@@ -7,8 +7,8 @@ if(NOT CMAKE_CUDA_ARCHITECTURES)
     set(CMAKE_CUDA_ARCHITECTURES "$ENV{CUDA_KERNELS_ARCH}" CACHE STRING
       "CUDA architectures to target (semicolon-separated sm_XX values)")
   else()
-    # 70 = Volta (T4 / V100), 75 = Turing (T4 / RTX 20xx), 80/86 = Ampere
-    # (A10 / A100 / RTX 30xx), 89 = Ada (L4 / RTX 40xx), 90 = Hopper (H100).
+    # 70 = Volta (V100), 75 = Turing (T4 / RTX 20xx), 80 = Ampere (A100),
+    # 86 = Ampere (A10 / RTX 30xx), 89 = Ada (L4 / RTX 40xx), 90 = Hopper (H100).
     # 70 keeps the source buildable on older CI hardware; SASS is recompiled
     # per-arch so no performance is lost on the target device.
     set(CMAKE_CUDA_ARCHITECTURES "70;75;80;86;89;90" CACHE STRING
