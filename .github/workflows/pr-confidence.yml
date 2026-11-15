@@ -1,0 +1,100 @@
+name: pr-confidence
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - converted_to_draft
+      - edited
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to evaluate
+        required: true
+        type: number
+
+concurrency:
+  group: pr-confidence-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  confidence:
+    name: PR Confidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # The engine and rubric are read from the default branch, never from the
+      # pull request, so a pull request cannot change how it is scored.
+      - name: Check out the trusted default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: python -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2
+
+      - name: Resolve the pull request head
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "No numeric pull request number in this event" >&2
+            exit 1
+          fi
+          if [[ -z "$EVENT_HEAD" ]]; then
+            EVENT_HEAD=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)
+          fi
+          if [[ ! "$EVENT_HEAD" =~ ^[0-9a-fA-F]{7,64}$ ]]; then
+            echo "Resolved head is not a commit SHA" >&2
+            exit 1
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head=$EVENT_HEAD" >> "$GITHUB_OUTPUT"
+
+      # Pull request events start this job alongside the other checks. Waiting
+      # for the configured checks, rather than scoring immediately, avoids
+      # publishing a pending result that no later event would refresh.
+      - name: Score pull request evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.number }}
+          HEAD_SHA: ${{ steps.target.outputs.head }}
+          EVIDENCE_FILE: ${{ runner.temp }}/pr-confidence-evidence.json
+        run: |
+          python pr-confidence/engine/confidence.py \
+            --repo "$GITHUB_REPOSITORY" \
+            --pr "$PR_NUMBER" \
+            --head-sha "$HEAD_SHA" \
+            --config .github/pr-confidence.yml \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --evidence-out "$EVIDENCE_FILE" \
+            --wait \
+            --wait-timeout 600 \
+            --poll-interval 15
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-confidence-evidence
+          path: ${{ runner.temp }}/pr-confidence-evidence.json
+          if-no-files-found: warn
