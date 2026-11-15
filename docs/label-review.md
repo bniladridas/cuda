@@ -118,25 +118,44 @@ or says that none were found.
 
 ## Smoke test
 
-This has not been run. The environment, both variables and the secret exist
-now, with apply disabled. No run has reached the model, so the key is
-unverified. The first pass checks the proposal with apply still off:
+Two proposal-only live runs were exercised on 2026-11-15.
 
-1. Open a test issue that names `src/vecadd.cu` and says the file must be
-   compiled and run on an NVIDIA GPU.
-2. Expect exactly one proposal comment, a `kernels` component, and a
-   `needs-gpu` verdict with a quote. With `LABEL_AGENT_APPLY` false, expect no
-   label on the issue and no waiting apply job. If the model call fails, the
-   proposal marks `needs-gpu` for human classification and writes no label.
-3. Enable apply with
-   `gh variable set LABEL_AGENT_APPLY --repo bniladridas/cuda --body true`,
-   dispatch a correction on the first test issue, and approve the waiting run.
-   Expect the labels to be applied and an audit comment to appear.
-4. Open a second test issue and reject the waiting run. Expect no labels.
-5. Dispatch a correction on the first test issue, remove a label by hand while
-   the apply waits for approval, then approve and confirm the run fails at
-   revalidation without writing a label.
-6. Close both test issues.
+The first used issue #44:
+[Actions run 43720322872](https://github.com/bniladridas/cuda/actions/runs/43720322872).
+
+- The `review / propose` and `review / comment` jobs passed.
+- The proposal identified the `documentation` component from the issue paths.
+- The `needs-gpu` assessment remained human classification because its
+  quoted evidence was not present in the issue text.
+
+The second used a dedicated temporary test issue #48:
+[Actions run 43722472795](https://github.com/bniladridas/cuda/actions/runs/43722472795).
+
+- The `review / propose` and `review / comment` jobs passed.
+- The proposal identified `kernels` from the explicit path
+  `src/vecadd.cu`.
+- The model proposed `needs-gpu` with an exact quote from the issue.
+- The `review / apply` job was skipped because `LABEL_AGENT_APPLY` remains
+  false. No labels were changed on the test issue.
+
+These runs verify proposal generation, accepted model evidence, component
+mapping, and proposal comments. They do not verify Environment approval,
+label application, rejection, or concurrent-label revalidation. The temporary
+issue #48 was closed after the proposal test.
+
+The remaining gated test requires an owner to enable
+`LABEL_AGENT_APPLY=true` after confirming the `label-review` Environment
+has a required reviewer. Then:
+
+1. Open a dedicated test issue that names `src/vecadd.cu` and says the file
+   must be compiled and run on an NVIDIA GPU.
+2. Dispatch a correction on that issue and approve the waiting run. Expect the
+   labels to be applied and an audit comment to appear.
+3. Open a second test issue and reject the waiting run. Expect no labels.
+4. Dispatch a correction on the first test issue, change a label by hand while
+   the apply waits for approval, then approve and confirm revalidation fails
+   without writing a label.
+5. Close both test issues and set `LABEL_AGENT_APPLY=false` again.
 
 ## Turning it off
 
