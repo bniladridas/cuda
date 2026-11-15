@@ -31,9 +31,9 @@ class LockMergedPullRequestWorkflowTests(unittest.TestCase):
             "github.event.pull_request.merged == true",
         )
 
-    def test_has_only_issues_write_permission(self):
+    def test_has_only_pull_requests_write_permission(self):
         workflow = self.load_workflow()
-        self.assertEqual(workflow["permissions"], {"issues": "write"})
+        self.assertEqual(workflow["permissions"], {"pull-requests": "write"})
 
     def test_has_no_checkout_or_third_party_actions(self):
         workflow = self.load_workflow()
