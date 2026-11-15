@@ -1,0 +1,40 @@
+{
+  "scopes": [
+    {
+      "name": "automation",
+      "description": "Repository automation that is not specific to CI or a named tool."
+    },
+    {
+      "name": "benchmarks",
+      "description": "Benchmark harnesses, measurement methodology, and performance reporting."
+    },
+    {
+      "name": "build",
+      "description": "CMake, compiler configuration, and build-system changes."
+    },
+    {
+      "name": "ci",
+      "description": "Continuous integration workflows and validation pipelines."
+    },
+    {
+      "name": "docs",
+      "description": "Documentation and contributor guidance."
+    },
+    {
+      "name": "kernels",
+      "description": "CUDA kernel implementations and launch behavior."
+    },
+    {
+      "name": "label-review",
+      "description": "The issue label review engine and its reusable workflow."
+    },
+    {
+      "name": "pr-confidence",
+      "description": "The PR Confidence engine, rubric, and reporting workflow."
+    },
+    {
+      "name": "tests",
+      "description": "Test cases, fixtures, and correctness coverage."
+    }
+  ]
+}
