@@ -1,31 +1,95 @@
 # Label review
 
-A proposal workflow for new issues. It reads the issue, proposes labels, and
-applies nothing until the owner approves. It exists so that a label on a new
-issue is a reviewed decision rather than a guess, and so that the mapping stays
-visible in the repository instead of living in someone's head.
+A proposal workflow for issues. It reads an issue, proposes labels, and applies
+nothing until the owner approves the run on a protected environment. It exists
+so that a label is a reviewed decision rather than a guess, and so that the
+mapping stays visible in the repository instead of living in someone's head.
 
-## What is deterministic and what is not
+The engine and the reusable workflow are documented in
+[`label-review/README.md`](../label-review/README.md). This page covers the
+deployment in this repository.
 
-| Decision | How it is made |
-| -------- | -------------- |
-| Component labels | Lookup. Paths in backticks in the issue text are checked against `git ls-files`; only real paths count, and each maps to one label by a fixed table |
-| `needs-gpu` | A model call, which must quote evidence from the issue |
-| Anything else | Never proposed |
+## What runs
 
-The model is asked one question. It never chooses component labels, and its
-answer is only used if it is well formed, confident enough and backed by a
-quote. A refusal, a timeout, malformed JSON, low confidence or a missing API key
-all produce "needs human classification" instead of a label.
+| Trigger | Mode | Effect |
+| ------- | ---- | ------ |
+| A new issue is opened | `propose` | A proposal comment, then a waiting apply job |
+| Manual dispatch with an issue number | `correct` | A correction proposal comment, then a waiting apply job |
 
-The issue text is untrusted input to the model, and a body can contain
-instructions aimed at it. The proposal is therefore a suggestion with no write
-access, and the approval is the control that decides whether anything is
-applied.
+Existing issues are not processed automatically, and pull requests are not
+processed at all. A correction is only produced when someone dispatches it.
 
-`cpu-verified` and `gpu-verified` are never proposed by any code path. They
-record evidence that the workflow cannot see. A `verify` step rejects an
-artifact containing them, so importing one is not possible either.
+The workflow is inert until the setup below is complete. The pull request that
+adds it does not create the environment, the secret or the variables, so every
+run currently records a skipped job.
+
+## Label roles
+
+| Label | Role |
+| ----- | ---- |
+| `ci`, `runners`, `build`, `benchmark`, `tests`, `kernels`, `documentation` | Component labels, from paths in the issue |
+| `needs-gpu` | Model assessed, with a required quote from the issue |
+| `cpu-verified` | Human only. Never proposed, applied or removed by the workflow |
+| `bug`, `enhancement`, and the other default labels | Outside the taxonomy. Left untouched |
+
+`gpu-verified` does not exist in this repository, so it is not configured. A
+label that does not exist fails validation before any proposal is produced.
+
+## Setup
+
+Create these in order. The order is what keeps the gate real.
+
+1. **Environment** named `label-review` with yourself as a required reviewer
+   (Settings > Environments > New environment). This is the approval gate.
+   Without it, the apply job runs as soon as the proposal is posted.
+2. **Secret** `OPENROUTER_API_KEY`, an OpenRouter key for the free router:
+
+   ```bash
+   gh secret set OPENROUTER_API_KEY --repo bniladridas/cuda
+   ```
+
+3. **Variable** `LABEL_AGENT_ENABLED=true`. This enables proposals only.
+4. **Variable** `LABEL_AGENT_APPLY=true`. This enables the apply job.
+
+```bash
+gh variable set LABEL_AGENT_ENABLED --repo bniladridas/cuda --body true
+gh variable set LABEL_AGENT_APPLY --repo bniladridas/cuda --body true
+```
+
+If the apply variable is set before the environment exists, the apply job is not
+gated by anything. The workflow cannot detect that case, so the two-variable
+split is the safeguard: enabling proposals does not enable writes.
+
+## Approval
+
+The apply job appears as waiting for review in the Actions run. Approving it
+runs the revalidation and then the label write. Rejecting it applies nothing.
+GitHub records the approval on the run, and the workflow posts a comment
+recording the mode, the actor, the additions, the removals and the run link.
+
+No comment command applies labels. The environment approval is the only way to
+reach the write step.
+
+## Correction run
+
+1. Actions > `label-review` > Run workflow, entering the issue number.
+2. Read the proposal comment: current labels, proposed labels, each change with
+   a reason, and a short hash of the current label set.
+3. Approve or reject the waiting run. After approval the labels are read again,
+   and a change made in between aborts the apply instead of overwriting it.
+
+`human_only` labels and labels outside the taxonomy are never removed, even
+when the evidence does not mention them.
+
+## What the apply job rechecks
+
+After approval and before writing anything, it confirms that the artifact is
+for this issue and this mode, that the issue is still open, that every label is
+one the configuration manages, that no `human_only` label is being changed,
+that the component labels still match the issue text, that each model label
+still has a quote present in the text, and, for a correction, that the label
+set still matches the approved hash. Any mismatch fails the run and nothing is
+written.
 
 ## Known under-proposal
 
@@ -34,43 +98,47 @@ sometimes would:
 
 - An issue that names only symbols, such as `launch_vecadd` and
   `cudaStream_t`, names no path and gets no component label.
+- A bare word in backticks is never treated as a directory. An issue that lists
+  label names such as `runners` and `tests` does not get those components.
 - An issue about documenting `include/cuda_kernels/vecadd.cuh` is proposed as
-  `kernels` only, because the file is a kernel header; the human may also see
-  it as `documentation`.
+  `kernels` only, because the file is a kernel header; a human may also see it
+  as `documentation`.
+- Issue 31, which is about a GitHub Actions workflow, names no explicit file
+  path, so the deterministic pass proposes no component label even though a
+  human would add `ci`. Running the engine against its live text produces an
+  empty proposal and marks `needs-gpu` for human classification.
 
-Both cases are visible in the proposal comment, which lists the paths it used
+Each of these is visible in the proposal comment, which lists the paths it used
 or says that none were found.
 
-## Setup
+## Smoke test
 
-The workflow is inert until all four items exist. Create them in this order,
-because the order is what keeps the gate real.
+This has not been run. No environment, secret or variable exists yet, so no run
+has reached the model. When the setup is complete, the first live check is:
 
-1. **Environment** named `label-review` with yourself as a required reviewer.
-   This is the approval gate. Without it, the apply job runs as soon as the
-   proposal is posted.
-2. **Secret** `OPENROUTER_API_KEY`. An OpenRouter key for the free router.
-3. **Variable** `LABEL_AGENT_ENABLED=true`. This enables proposals only.
-4. **Variable** `LABEL_AGENT_APPLY=true`. This enables the apply job.
+1. Open a test issue that names `src/vecadd.cu` and says the file must be
+   compiled and run on an NVIDIA GPU.
+2. Expect exactly one proposal comment, a `kernels` component, and a
+   `needs-gpu` verdict with a quote. Expect no label on the issue and a waiting
+   apply job.
+3. Approve. Expect the labels to be applied and an audit comment to appear.
+4. Open a second test issue and reject the waiting run. Expect no labels.
+5. Dispatch a correction on the first test issue after removing a label by
+   hand, and confirm the state check aborts the apply rather than overwriting
+   the edit.
+6. Close both test issues.
 
-If step 4 is done before step 1, the apply job is not gated by anything. The
-workflow cannot detect that case, so the two-variable split is the safeguard:
-enabling proposals does not enable writes.
+## Turning it off
 
-## Model policy
+Unset `LABEL_AGENT_APPLY` first, then `LABEL_AGENT_ENABLED`. Writes stop
+before proposals do. Labels already applied stay where they are. Deleting the
+environment or the secret disables the workflow more completely.
 
-The model is `openrouter/free`, written into the workflow rather than read from
-a variable. Changing to a paid model requires a reviewed diff and nothing else,
-so the cost of the workflow is visible in version control.
+## Tests
 
-Requests set `provider.data_collection` to `deny`. If no free provider meets
-that, the request fails and the issue is marked for human classification rather
-than being sent somewhere that trains on it.
+The engine has offline tests, which also run in the CPU CI job:
 
-## What the apply job rechecks
-
-After approval and before writing anything, the apply job confirms that the
-artifact is for this issue, that every label is one this workflow may apply,
-that the issue is still open, and that the component proposal still matches the
-current issue text. An issue edited between proposal and approval fails the
-check rather than applying a stale proposal.
+```bash
+python3 -m pip install pyyaml==6.0.2 jsonschema==4.23.0
+python3 -m unittest discover -s label-review/tests
+```

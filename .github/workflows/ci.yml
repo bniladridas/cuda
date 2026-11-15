@@ -14,12 +14,17 @@ jobs:
   # Host-side checks. Runs on every push and PR on a standard GitHub-hosted
   # runner. No CUDA toolkit is installed, so the kernels are not compiled and
   # the GPU kernels are NOT verified here. This job proves the tree configures,
-  # the host references are correct, and the CUDA test binaries are absent
-  # rather than silently passing.
+  # the host references are correct, the CUDA test binaries are absent rather
+  # than silently passing, and the label-review engine passes its tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: Test the label review engine
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2 jsonschema==4.23.0
+          python3 -m unittest discover -s label-review/tests
 
       - name: Configure (CPU only)
         run: |

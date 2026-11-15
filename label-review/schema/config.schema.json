@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "label-review configuration",
+  "description": "Component path rules, model-assessed labels, and human-only labels for one repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "components"],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "components": {
+      "type": "object",
+      "description": "Label name to path patterns. A path can match more than one label.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["paths"],
+        "properties": {
+          "paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "model_proposed": {
+      "type": "object",
+      "description": "Labels the model may propose, each with the criterion it is asked about.",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "human_only": {
+      "type": "array",
+      "description": "Labels backed by evidence the workflow cannot see. Never proposed, applied or removed.",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

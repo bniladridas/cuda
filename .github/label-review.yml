@@ -1,0 +1,41 @@
+version: 1
+
+# Path rules for the component labels already in use. A path can match more
+# than one label, for example tests/CMakeLists.txt matches tests.
+components:
+  ci:
+    paths:
+      - .github/workflows/**
+  runners:
+    paths:
+      - runners/**
+  build:
+    paths:
+      - CMakeLists.txt
+      - cmake/**
+  benchmark:
+    paths:
+      - benchmarks/**
+  tests:
+    paths:
+      - tests/**
+  kernels:
+    paths:
+      - src/**
+      - include/**
+  documentation:
+    paths:
+      - docs/**
+      - README.md
+      - .github/CONTRIBUTING.md
+
+# Each label here needs a question the model can answer from the issue text. The
+# verdict is used only with a verbatim quote, and low confidence is treated as
+# no verdict.
+model_proposed:
+  needs-gpu: The change cannot be completed or verified without compiling or running CUDA code on an NVIDIA GPU.
+
+# Backed by a test log or a recorded run, which the workflow cannot see. Neither
+# the model nor the apply job may add or remove these.
+human_only:
+  - cpu-verified

@@ -176,12 +176,13 @@ tests/                  host reference checks + GPU correctness tests
 benchmarks/             timing harness and benchmark binary
 runners/                build / test / benchmark scripts
 docs/                   hardware requirements and methodology
+label-review/           reusable issue label review engine and tests
 ```
 
 ## CI
 
-- `cpu`: GitHub-hosted, runs on every push. CPU-only configure, build, and
-  host reference checks.
+- `cpu`: GitHub-hosted, runs on every push. CPU-only configure, build, host
+  reference checks, and the label-review engine tests.
 - `gpu`: self-hosted NVIDIA Linux runner
   (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the
   GPU correctness tests and a benchmark. The test step sets `GPU_REQUIRED=1`, so
