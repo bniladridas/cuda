@@ -3,13 +3,13 @@ name: lock-merged-pr
 # pull_request_target loads this workflow from the base branch, so a pull
 # request cannot alter the code that runs with the token. The job runs only for
 # merged pull requests; unmerged closed pull requests remain unlocked. The token
-# is limited to issues: write, and no code is checked out.
+# is limited to pull-requests: write, and no code is checked out.
 on:
   pull_request_target:
     types: [closed]
 
 permissions:
-  issues: write
+  pull-requests: write
 
 jobs:
   lock:
