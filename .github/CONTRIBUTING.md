@@ -31,25 +31,23 @@ device, so a missing device fails the run instead of warning.
 
 ## Pull request title convention
 
-Use this format for every pull request title:
+Use `[scope] Short action-oriented description` for every pull request title.
+Choose the most specific scope that describes the main area of the change. The
+allowed scopes and their meanings are maintained in
+[`.github/pr-scopes.json`](pr-scopes.json). Add a scope there when a new area
+of work needs one, rather than introducing an undocumented variation.
 
-`[scope] Short action-oriented description`
+Begin the description with an action verb, use sentence case, and keep the
+title concise and specific. Apply this convention to new pull requests and
+when updating existing pull request titles.
 
-Examples:
-
-- `[pr-confidence] Add a read-only PR confidence check`
-- `[label-review] Add an approval-gated label review workflow`
-- `[ci] Add merge queue validation`
-- `[benchmarks] Improve benchmark reliability`
-
-Guidelines:
-
-- Use a short, lowercase scope that identifies the area being changed.
-- Start the description with a clear action verb.
-- Use sentence case.
-- Keep titles concise and specific.
-- Apply this convention to all new pull requests and when updating existing
-  pull request titles.
+Examples include `[kernels] Add tiled matrix multiplication`,
+`[benchmarks] Improve benchmark reliability`, `[tests] Cover empty reductions`,
+`[build] Simplify CUDA architecture configuration`, `[docs] Clarify GPU
+validation requirements`, and `[ci] Run CPU validation on pull requests`.
+Use `[pr-confidence]` or `[label-review]` for changes specific to those
+systems, and `[automation]` for repository automation that does not fit a
+more specific scope.
 
 ## Tests
 
@@ -74,7 +72,7 @@ Requirements for a valid measurement are in
 [methodology](https://github.com/bniladridas/cuda/blob/main/docs/methodology.md).
 Timings from a build whose correctness gate failed are not results.
 
-## Reducing results are not bit-reproducible
+## Reduction results are not bit-reproducible
 
 Floating-point addition is not associative, so changing the block count changes
 the last bits of a sum. Do not "fix" a reduction by comparing for exact
