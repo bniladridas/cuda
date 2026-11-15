@@ -147,15 +147,18 @@ The remaining gated test requires an owner to enable
 `LABEL_AGENT_APPLY=true` after confirming the `label-review` Environment
 has a required reviewer. Then:
 
-1. Open a dedicated test issue that names `src/vecadd.cu` and says the file
-   must be compiled and run on an NVIDIA GPU.
-2. Dispatch a correction on that issue and approve the waiting run. Expect the
-   labels to be applied and an audit comment to appear.
-3. Open a second test issue and reject the waiting run. Expect no labels.
-4. Dispatch a correction on the first test issue, change a label by hand while
+1. Confirm the `label-review` Environment has a required reviewer, then
+   set `LABEL_AGENT_APPLY=true`.
+2. Open a dedicated test issue that names `src/vecadd.cu` and says the file
+   must be compiled and run on an NVIDIA GPU. The `issues: opened` event
+   should create the proposal and a waiting apply job.
+3. Approve that waiting run. Expect the labels to be applied and an audit
+   comment to appear.
+4. Open a second test issue and reject its waiting run. Expect no labels.
+5. Dispatch a correction on the first test issue, change a label by hand while
    the apply waits for approval, then approve and confirm revalidation fails
    without writing a label.
-5. Close both test issues and set `LABEL_AGENT_APPLY=false` again.
+6. Close both test issues and set `LABEL_AGENT_APPLY=false` again.
 
 ## Turning it off
 
