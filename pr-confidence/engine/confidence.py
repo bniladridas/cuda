@@ -329,7 +329,7 @@ def collect_evidence(repo, pr_number, head_sha):
     pr = {
         "number": int(pr_raw.get("number") or pr_number),
         "title": pr_raw.get("title") or "",
-        "body": pr_raw.get("body") or "",
+        "body_length": len((pr_raw.get("body") or "").strip()),
         "draft": bool(pr_raw.get("draft")),
         "state": (pr_raw.get("state") or "").lower(),
         "mergeable": pr_raw.get("mergeable"),
@@ -682,7 +682,12 @@ def evaluate(evidence, config):
         )
     categories.append(review_category)
 
-    body_chars = len((pr.get("body") or "").strip())
+    # New evidence stores only the description length. Saved evidence from
+    # before that change still carries the raw body, so read it as a fallback.
+    if pr.get("body_length") is None:
+        body_chars = len((pr.get("body") or "").strip())
+    else:
+        body_chars = int(pr["body_length"])
     items = files.get("items") or []
     changed = int(pr.get("changed_files") or len(items))
     changed_lines = int(pr.get("additions") or 0) + int(pr.get("deletions") or 0)

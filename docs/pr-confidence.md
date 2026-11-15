@@ -15,10 +15,13 @@ reads.
 - Stable check name: `PR Confidence`. The numeric score is in the summary, not
   in the name.
 - Job: `.github/workflows/pr-confidence.yml`.
-- Recompute triggers: `pull_request` opened, synchronize, reopened,
-  ready_for_review, converted_to_draft and edited; `pull_request_review`
-  submitted, edited and dismissed; manual `workflow_dispatch` with a pull
-  request number.
+- Recompute triggers: `pull_request_target` opened, synchronize, reopened,
+  ready_for_review, converted_to_draft and edited; manual `workflow_dispatch`
+  with a pull request number. Review submissions and thread resolution do not
+  trigger a run; use manual dispatch to recompute after a review.
+- The workflow, engine and rubric are loaded from the base branch. A pull
+  request that adds or changes this workflow cannot receive a result from that
+  change before it merges; the check becomes active for later pull requests.
 - Each run waits up to 600 seconds for the configured critical and security
   checks to complete, polling every 15 seconds. This avoids publishing a pending
   result that no later event would refresh.
@@ -73,8 +76,8 @@ A check that is still running is `pending`, not a failure.
 
 The engine reads only repository and GitHub metadata:
 
-- pull request title, body, draft state, mergeability, file count, additions and
-  deletions;
+- pull request title, description length, draft state, mergeability, file
+  count, additions and deletions;
 - changed files from the REST pull request files endpoint, up to 100;
 - check runs for the head SHA from the REST check-runs endpoint, up to 100;
 - `reviewDecision`, unresolved `reviewThreads` and thread URLs from GraphQL, up
@@ -95,18 +98,23 @@ available.
 
 ## Trust model and fork safety
 
-The check runs the engine and rubric from the pull request head. It is
-read-only and exposes no repository secrets, so pull request code cannot write
-to the repository, post comments or change the pull request. The unavoidable
-consequence is that a pull request can change the engine or workflow that scores
-it, just as it can change any other file. Treat the score as advisory, keep the
-checks it summarizes required in their own right, and review changes under
-`pr-confidence/` and `.github/workflows/` with the same care as any code.
+The workflow uses `pull_request_target`, so GitHub loads the workflow file,
+engine and rubric from the base branch, not from the pull request head. The
+checkout is pinned to the default branch and never checks out pull request code.
+The engine reads pull request metadata through the read-only API, with the pull
+request number and head SHA passed as validated environment variables.
 
 The token is limited to `contents: read`, `pull-requests: read` and
-`checks: read`. The workflow validates the pull number and head SHA, passes them
-through environment variables, and quotes them. `persist-credentials` is off. A
-pull request from a fork receives a read-only token and no repository secrets.
+`checks: read`. `persist-credentials` is off, no repository secrets are exposed,
+and the workflow has no write permissions. A pull request cannot change the code
+or configuration that scores it, and a pull request from a fork is scored by the
+same base code.
+
+The trade-off is bootstrap. A pull request cannot receive a live result from a
+workflow version that is not yet on the base branch, so the pull request that
+first adds or changes this workflow is scored only after that change merges. The
+check becomes active for later pull requests. The score remains advisory; keep
+the checks it summarizes required in their own right.
 
 ## Configuration
 
@@ -130,10 +138,9 @@ non-boolean blockers, invalid limits and path patterns that are absolute, use
 backslashes or contain `..`. Invalid configuration exits 2 and fails the check
 rather than silently scoring with defaults.
 
-Because the engine runs from the pull request head, a pull request is scored by
-the version on its own branch. Configuration changes affect that branch
-immediately and reach other pull requests after they merge and those branches
-update.
+Because the engine runs from the base branch, a pull request is scored by the
+version on the default branch, not by the version on its own branch. Changes to
+this file or the engine take effect after they merge.
 
 ## Local use
 
@@ -160,7 +167,9 @@ python pr-confidence/engine/confidence.py \
 
 Add `--wait` to poll the configured checks, `--summary <file>` to append the
 Markdown summary to a file, or `--evidence-out <file>` to save the collected
-evidence. A saved evidence file can be rescored without network access:
+evidence. New evidence files contain the description length, not the raw
+description; saved evidence from earlier versions remains readable. A saved
+evidence file can be rescored without network access:
 
 ```bash
 python pr-confidence/engine/confidence.py \
@@ -182,15 +191,18 @@ blocker still passes. Keep the underlying checks required in their own right.
 ## Limits
 
 - The score is evidence coverage, not correctness, security or merge readiness.
-- A pull request can alter the engine or workflow that scores it. The check is
-  an evidence aid, not an independent security control.
+- The engine and workflow are fixed by the base branch, so a pull request cannot
+  alter the score. The score is still an evidence aid, not an independent
+  security control.
+- A pull request cannot receive a result from a workflow change before that
+  change merges, because `pull_request_target` loads the base workflow.
 - Test presence and diff size are heuristics. They do not measure test quality.
 - API lists are read up to 100 items and marked `unassessed` when truncated.
 - The run waits for checks that are configured at the time it starts. A check
   rerun after `PR Confidence` has already finished does not emit a pull request
   event, so re-run the `pr-confidence` workflow manually with the pull request
   number.
-- Resolving a review thread has no supported GitHub Actions event. The result
-  refreshes on the next pull request or review event, or by manual dispatch.
-- Pull request titles, bodies and file names are untrusted text. They appear in
-  the job summary as plain evidence; GitHub sanitizes the rendered Markdown.
+- Review submissions and thread resolution do not trigger this workflow. Use
+  manual dispatch after a review.
+- Pull request titles and file names are untrusted text. They appear in the job
+  summary as plain evidence; GitHub sanitizes the rendered Markdown.

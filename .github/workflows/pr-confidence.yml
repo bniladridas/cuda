@@ -1,7 +1,11 @@
 name: pr-confidence
 
+# pull_request_target loads this workflow and the engine from the base branch,
+# so a pull request cannot alter the code that scores it. Review submissions are
+# not in the trigger list because the base-branch boundary is not verified for
+# that event; use manual dispatch to recompute after a review.
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - synchronize
@@ -9,8 +13,6 @@ on:
       - ready_for_review
       - converted_to_draft
       - edited
-  pull_request_review:
-    types: [submitted, edited, dismissed]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -54,13 +56,14 @@ jobs:
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "head=$EVENT_HEAD" >> "$GITHUB_OUTPUT"
 
-      # The engine runs from the pull request head with a read-only token and
-      # no secrets. A pull request can change the code that scores it, so this
-      # check is advisory and does not replace the checks it reads.
-      - name: Check out the pull request head
+      # The engine and rubric must come from the base branch. This step never
+      # checks out pull request code; the engine reads the pull request through
+      # the read-only API. The default branch is explicit so a manual dispatch
+      # from another ref cannot select untrusted code.
+      - name: Check out the trusted base revision
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.target.outputs.head }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Set up Python
@@ -71,9 +74,11 @@ jobs:
       - name: Install PyYAML
         run: python -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2
 
-      # Pull request events start this job alongside the other checks. Waiting
-      # for the configured checks, rather than scoring immediately, avoids
-      # publishing a pending result that no later event would refresh.
+      # The engine is the trusted base copy. PR_NUMBER and HEAD_SHA were
+      # validated above and are passed through the environment. Pull request
+      # events start this job alongside the other checks. Waiting for the
+      # configured checks, rather than scoring immediately, avoids publishing a
+      # pending result that no later event would refresh.
       - name: Score pull request evidence
         env:
           GH_TOKEN: ${{ github.token }}

@@ -14,6 +14,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import yaml
+
 TESTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_DIR.parents[1]
 ENGINE_DIR = TESTS_DIR.parent / "engine"
@@ -109,7 +111,7 @@ def make_evidence():
         "pr": {
             "number": 7,
             "title": "Add the thing",
-            "body": "This adds the thing and explains how reviewers can check it.",
+            "body_length": 60,
             "draft": False,
             "state": "open",
             "mergeable": True,
@@ -600,16 +602,30 @@ class ReviewTests(unittest.TestCase):
 class ScopeTests(unittest.TestCase):
     def test_short_description_fails_scope(self):
         evidence = make_evidence()
-        evidence["pr"]["body"] = "short"
+        evidence["pr"]["body_length"] = 5
         result = c.evaluate(evidence, make_config())
         self.assertEqual(statuses(result)["scope"], "missing")
         self.assertIn("below 40", category(result, "scope")["detail"])
 
     def test_description_boundary_passes(self):
         evidence = make_evidence()
+        evidence["pr"]["body_length"] = 40
+        result = c.evaluate(evidence, make_config())
+        self.assertEqual(statuses(result)["scope"], "pass")
+
+    def test_saved_evidence_falls_back_to_raw_body(self):
+        evidence = make_evidence()
+        evidence["pr"].pop("body_length")
         evidence["pr"]["body"] = "x" * 40
         result = c.evaluate(evidence, make_config())
         self.assertEqual(statuses(result)["scope"], "pass")
+
+    def test_body_length_takes_precedence_over_raw_body(self):
+        evidence = make_evidence()
+        evidence["pr"]["body_length"] = 5
+        evidence["pr"]["body"] = "x" * 40
+        result = c.evaluate(evidence, make_config())
+        self.assertEqual(statuses(result)["scope"], "missing")
 
     def test_file_count_above_limit_fails_scope(self):
         evidence = make_evidence()
@@ -781,7 +797,7 @@ class SummaryTests(unittest.TestCase):
     def test_summary_lists_blockers_and_gaps(self):
         evidence = make_evidence()
         evidence["pr"]["mergeable"] = False
-        evidence["pr"]["body"] = "short"
+        evidence["pr"]["body_length"] = 5
         result = c.evaluate(evidence, make_config())
         summary = c.render_summary(result)
         self.assertIn("The pull request has a merge conflict.", summary)
@@ -1126,6 +1142,27 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(evidence["checks"]["items"][0]["app"], "github-actions")
         self.assertFalse(evidence["files"]["truncated"])
 
+    def test_collected_evidence_stores_only_body_length(self):
+        commands = []
+        secret = "ghp_example_secret_value"
+        pr = {
+            "number": 7,
+            "changed_files": 0,
+            "head": {"sha": "abc123"},
+            "body": secret,
+        }
+        responses = [
+            ("pulls/7/files", []),
+            ("pulls/7", pr),
+            ("check-runs", {"total_count": 0, "check_runs": []}),
+            ("graphql", {"data": {"repository": {"pullRequest": {}}}}),
+        ]
+        with mock.patch.object(c.subprocess, "run", self.fake_run(responses, commands)):
+            evidence = c.collect_evidence("owner/repo", 7, "abc123")
+        self.assertEqual(evidence["pr"]["body_length"], len(secret))
+        self.assertNotIn("body", evidence["pr"])
+        self.assertNotIn(secret, json.dumps(evidence))
+
     def test_head_mismatch_is_recorded(self):
         commands = []
         pr = {
@@ -1241,6 +1278,55 @@ class CollectorTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(c.ConfidenceError, "invalid JSON"):
                 c.gh_json(["repos/owner/repo/pulls/7"])
+
+
+class WorkflowPolicyTests(unittest.TestCase):
+    WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "pr-confidence.yml"
+
+    def load_workflow(self):
+        with self.WORKFLOW_PATH.open(encoding="utf-8") as handle:
+            return yaml.safe_load(handle)
+
+    def checkout_steps(self, workflow):
+        steps = workflow["jobs"]["confidence"]["steps"]
+        return [
+            step
+            for step in steps
+            if str(step.get("uses") or "").startswith("actions/checkout@")
+        ]
+
+    def test_runs_from_the_trusted_base_event(self):
+        workflow = self.load_workflow()
+        triggers = workflow.get("on")
+        if triggers is None:
+            triggers = workflow.get(True)
+        self.assertIn("pull_request_target", triggers)
+        self.assertNotIn("pull_request", triggers)
+        self.assertNotIn("pull_request_review", triggers)
+        self.assertIn("workflow_dispatch", triggers)
+
+    def test_checks_out_only_the_default_branch(self):
+        workflow = self.load_workflow()
+        checkouts = self.checkout_steps(workflow)
+        self.assertEqual(len(checkouts), 1)
+        with_args = checkouts[0].get("with") or {}
+        self.assertEqual(
+            with_args.get("ref"), "${{ github.event.repository.default_branch }}"
+        )
+        self.assertEqual(with_args.get("persist-credentials"), False)
+        for step in checkouts:
+            ref = str((step.get("with") or {}).get("ref") or "")
+            self.assertNotIn("pull_request.head", ref)
+            self.assertNotIn("steps.target.outputs.head", ref)
+
+    def test_permissions_are_read_only(self):
+        workflow = self.load_workflow()
+        self.assertEqual(
+            workflow["permissions"],
+            {"contents": "read", "pull-requests": "read", "checks": "read"},
+        )
+        for permission in workflow["permissions"].values():
+            self.assertNotIn("write", permission)
 
 
 if __name__ == "__main__":
