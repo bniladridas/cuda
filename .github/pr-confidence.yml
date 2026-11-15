@@ -1,0 +1,48 @@
+# Rubric v1 inputs for pr-confidence/engine/confidence.py.
+# A check name must match the check run name reported for the pull request head.
+version: 1
+
+critical_checks:
+  - cpu
+  - CodeQL
+  - "analyze (c-cpp)"
+
+security_checks:
+  - GitGuardian Security Checks
+  - "Socket Security: Pull Request Alerts"
+
+hard_blockers:
+  failed_critical_checks: true
+  changes_requested: true
+  merge_conflict: true
+  draft: false
+  unresolved_threads: false
+  security_check_failure: false
+
+scope:
+  max_files: 30
+  max_changed_lines: 1500
+  min_body_chars: 40
+
+test_patterns:
+  - "tests/**"
+  - "**/tests/**"
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/test_*.sh"
+  - "**/*_test.sh"
+  - "**/test_*.cpp"
+  - "**/*_test.cpp"
+  - "**/*_test.cu"
+  - "**/*_test.cuh"
+
+security_sensitive_paths:
+  - ".github/workflows/**"
+  - ".github/pr-confidence.yml"
+  - "runners/**"
+  - "label-review/engine/**"
+  - "pr-confidence/engine/**"
+  - "src/**"
+  - "include/**"
+  - "cmake/**"
+  - "CMakeLists.txt"

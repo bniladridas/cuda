@@ -174,15 +174,24 @@ src/                    kernel implementations
 kernels/                library target
 tests/                  host reference checks + GPU correctness tests
 benchmarks/             timing harness and benchmark binary
+pr-confidence/          PR Confidence engine and its offline tests
 runners/                build / test / benchmark scripts
-docs/                   hardware requirements and methodology
+docs/                   hardware requirements, methodology, PR confidence and label review
 label-review/           reusable issue label review engine and tests
 ```
 
 ## CI
 
 - `cpu`: GitHub-hosted, runs on every push. CPU-only configure, build, host
-  reference checks, and the label-review engine tests.
+  reference checks, the label-review engine tests, and the PR confidence engine
+  tests.
+- `pr-confidence`: triggered by pull request activity, waits for the configured
+  checks, and publishes a read-only `PR Confidence` summary in the Checks UI. It
+  uses `pull_request_target`, so the workflow and engine come from the base
+  branch; it never checks out pull request code and uses a read-only token with
+  no secrets. Treat the score as advisory alongside the checks it reads. The
+  check activates for later pull requests after this workflow merges. Rubric and
+  setup in [`docs/pr-confidence.md`](docs/pr-confidence.md).
 - `gpu`: self-hosted NVIDIA Linux runner
   (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the
   GPU correctness tests and a benchmark. The test step sets `GPU_REQUIRED=1`, so

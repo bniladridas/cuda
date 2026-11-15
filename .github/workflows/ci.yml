@@ -16,7 +16,7 @@ jobs:
   # the GPU kernels are NOT verified here. This job proves the tree configures,
   # the host references are correct, the CUDA test binaries are absent rather
   # than silently passing, the workflow and repository YAML pass actionlint and
-  # yamllint, and the label-review engine passes its tests.
+  # yamllint, and the label-review and PR confidence engines pass their tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
@@ -36,6 +36,11 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2 jsonschema==4.23.0
           python3 -m unittest discover -s label-review/tests
+
+      - name: Test the PR confidence engine
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2
+          python3 -m unittest discover -s pr-confidence/tests
 
       - name: Configure (CPU only)
         run: |
