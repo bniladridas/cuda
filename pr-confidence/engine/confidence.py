@@ -254,7 +254,7 @@ def check_line(run):
     status = run.get("status") or "unknown"
     conclusion = run.get("conclusion") or "none"
     url = run.get("details_url") or ""
-    line = "`%s` (%s): %s/%s" % (name, app, status, conclusion)
+    line = "%s (%s): %s/%s" % (code_span(name), app, status, conclusion)
     if url:
         line += " ([details](%s))" % url
     return line
@@ -509,7 +509,7 @@ def evaluate(evidence, config):
             if run:
                 automated_evidence.append(check_line(run))
             else:
-                automated_evidence.append("`%s`: not reported for this head." % name)
+                automated_evidence.append("%s: not reported for this head." % code_span(name))
             if state == "success":
                 continue
             if state == "failure":
@@ -520,17 +520,21 @@ def evaluate(evidence, config):
                 missing.append(name)
         if failed:
             status = "blocked"
-            detail = "Critical checks did not pass: " + ", ".join("`%s`" % n for n in failed)
+            detail = "Critical checks did not pass: " + ", ".join(
+                code_span(n) for n in failed
+            )
             if config["hard_blockers"]["failed_critical_checks"]:
                 for name in failed:
-                    add_blocker("Critical check `%s` did not pass." % name)
+                    add_blocker("Critical check %s did not pass." % code_span(name))
         elif pending:
             status = "pending"
-            detail = "Critical checks are still running: " + ", ".join("`%s`" % n for n in pending)
+            detail = "Critical checks are still running: " + ", ".join(
+                code_span(n) for n in pending
+            )
         elif missing:
             status = "missing"
             detail = "Critical checks are missing or incomplete: " + ", ".join(
-                "`%s`" % n for n in missing
+                code_span(n) for n in missing
             )
         else:
             status = "pass"
@@ -550,8 +554,8 @@ def evaluate(evidence, config):
         state, _ = check_state(run)
         if state == "failure":
             notes.append(
-                "Non-critical check `%s` concluded `%s`; it is not configured as a hard blocker."
-                % (run.get("name") or "unnamed", run.get("conclusion") or "none")
+                "Non-critical check %s concluded `%s`; it is not configured as a hard blocker."
+                % (code_span(run.get("name") or "unnamed"), run.get("conclusion") or "none")
             )
 
     test_files = []
@@ -757,7 +761,7 @@ def evaluate(evidence, config):
             if run:
                 security_evidence.append(check_line(run))
             else:
-                security_evidence.append("`%s`: not reported for this head." % name)
+                security_evidence.append("%s: not reported for this head." % code_span(name))
             if state == "success":
                 continue
             if state == "failure":
@@ -775,18 +779,18 @@ def evaluate(evidence, config):
             hard = config["hard_blockers"]["security_check_failure"]
             if hard:
                 for name in failed:
-                    add_blocker("Security check `%s` did not pass." % name)
+                    add_blocker("Security check %s did not pass." % code_span(name))
             else:
                 notes.append(
                     "Security check(s) did not pass: %s. They are not configured as hard blockers."
-                    % ", ".join("`%s`" % name for name in failed)
+                    % ", ".join(code_span(name) for name in failed)
                 )
             security = category(
                 "security",
                 "Security and failure-handling evidence",
                 "blocked" if hard else "missing",
                 "Security checks did not pass: "
-                + ", ".join("`%s`" % name for name in failed),
+                + ", ".join(code_span(name) for name in failed),
                 security_evidence,
             )
         elif pending:
@@ -795,7 +799,7 @@ def evaluate(evidence, config):
                 "Security and failure-handling evidence",
                 "pending",
                 "Security checks are still running: "
-                + ", ".join("`%s`" % name for name in pending),
+                + ", ".join(code_span(name) for name in pending),
                 security_evidence,
             )
         elif missing:
@@ -804,7 +808,7 @@ def evaluate(evidence, config):
                 "Security and failure-handling evidence",
                 "missing",
                 "Security checks are missing or incomplete: "
-                + ", ".join("`%s`" % name for name in missing),
+                + ", ".join(code_span(name) for name in missing),
                 security_evidence,
             )
         elif not files.get("available") or files.get("truncated"):

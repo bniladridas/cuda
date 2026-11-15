@@ -304,6 +304,18 @@ class PathTests(unittest.TestCase):
         self.assertEqual(c.code_span("`lead"), "`` `lead ``")
         self.assertEqual(c.code_span("a\nb"), "`a b`")
 
+    def test_check_line_escapes_backticks_in_check_names(self):
+        line = c.check_line(
+            {
+                "name": "evil`check``name",
+                "app": "github-actions",
+                "status": "completed",
+                "conclusion": "failure",
+                "details_url": "",
+            }
+        )
+        self.assertIn("```evil`check``name```", line)
+
     def test_latest_check_prefers_newest_start(self):
         runs = [
             make_run("cpu", conclusion="failure", started="2026-01-01T00:00:00Z"),
@@ -804,6 +816,23 @@ class SummaryTests(unittest.TestCase):
         summary = c.render_summary(result)
         self.assertIn("``tests/test_`x`.py``", summary)
         self.assertIn("``.github/workflows/`ci`.yml``", summary)
+
+    def test_summary_escapes_backticks_in_observed_check_names(self):
+        evidence = make_evidence()
+        evidence["checks"]["items"].append(
+            make_run("evil`run``name", conclusion="failure")
+        )
+        result = c.evaluate(evidence, make_config())
+        summary = c.render_summary(result)
+        self.assertIn("```evil`run``name```", summary)
+
+    def test_summary_escapes_backticks_in_configured_check_names(self):
+        data = config_data()
+        data["critical_checks"] = ["cpu`x"]
+        evidence = make_evidence()
+        result = c.evaluate(evidence, c.validate_config(data))
+        summary = c.render_summary(result)
+        self.assertIn("``cpu`x``", summary)
 
 
 class CliTests(unittest.TestCase):
