@@ -360,7 +360,7 @@ def collect_evidence(repo, pr_number, head_sha):
                     "changes": int(item.get("changes") or 0),
                 }
             )
-        truncated = len(items) >= 100 or pr["changed_files"] > len(items)
+        truncated = len(items) > 100 or pr["changed_files"] > len(items)
         files = {"available": True, "truncated": truncated, "items": items, "error": None}
 
     checks_raw, checks_error = optional_json(
@@ -579,8 +579,9 @@ def evaluate(evidence, config):
             "tests",
             "Relevant tests and regression coverage",
             "pass",
-            "Test files changed: " + ", ".join("`%s`" % name for name in test_files[:10]),
-            ["`%s`" % name for name in test_files],
+            "Test files changed: "
+            + ", ".join(code_span(name) for name in test_files[:10]),
+            [code_span(name) for name in test_files],
         )
     elif not code_files:
         tests = category(
@@ -597,7 +598,7 @@ def evaluate(evidence, config):
             "missing",
             "Code changed without a test-file change. The diff does not show regression coverage; "
             "this is not proof that tests are inadequate.",
-            ["Changed code files: " + ", ".join("`%s`" % name for name in code_files[:10])],
+            ["Changed code files: " + ", ".join(code_span(name) for name in code_files[:10])],
         )
     categories.append(tests)
 
@@ -610,66 +611,71 @@ def evaluate(evidence, config):
             "Review data was unavailable: %s" % (review.get("error") or "unknown error"),
             [],
         )
-    elif review.get("threads_truncated"):
-        review_category = category(
-            "review",
-            "Review feedback",
-            "unassessed",
-            "More than 100 review threads were returned, so the unresolved set is incomplete.",
-            [],
-        )
     else:
         decision = (review.get("decision") or "").upper()
         unresolved = review.get("unresolved") or []
+        truncated = bool(review.get("threads_truncated"))
         review_evidence.append("Decision: `%s`." % (decision or "none"))
-        review_evidence.append("Unresolved review threads: %d." % len(unresolved))
+        if truncated:
+            review_evidence.append(
+                "Review threads were truncated at 100; the unresolved count is incomplete."
+            )
+            if unresolved:
+                review_evidence.append(
+                    "%d unresolved thread(s) are visible in the returned page." % len(unresolved)
+                )
+        else:
+            review_evidence.append("Unresolved review threads: %d." % len(unresolved))
         for thread in unresolved[:5]:
             line = "Unresolved thread"
             if thread.get("path"):
-                line += " in `%s`" % thread["path"]
+                line += " in " + code_span(thread["path"])
             if thread.get("url"):
                 line += " ([link](%s))" % thread["url"]
             if thread.get("outdated"):
                 line += " (outdated)"
             review_evidence.append(line)
-        if decision == "CHANGES_REQUESTED":
-            hard = config["hard_blockers"]["changes_requested"]
-            if hard:
-                add_blocker("The latest review requests changes.")
-            review_category = category(
-                "review",
-                "Review feedback",
-                "blocked" if hard else "missing",
-                "The latest review requests changes.",
-                review_evidence,
-            )
+
+        # The review decision is independent of thread pagination, so a
+        # truncated thread list must not hide a configured review blocker.
+        changes_hard = (
+            decision == "CHANGES_REQUESTED"
+            and config["hard_blockers"]["changes_requested"]
+        )
+        unresolved_hard = bool(unresolved) and config["hard_blockers"]["unresolved_threads"]
+        if changes_hard:
+            add_blocker("The latest review requests changes.")
+        if unresolved_hard:
+            add_blocker("%d unresolved review thread(s) remain." % len(unresolved))
+
+        if changes_hard:
+            status = "blocked"
+            detail = "The latest review requests changes."
+        elif unresolved_hard:
+            status = "blocked"
+            detail = "%d unresolved review thread(s) remain." % len(unresolved)
+        elif decision == "CHANGES_REQUESTED":
+            status = "missing"
+            detail = "The latest review requests changes."
+        elif truncated:
+            status = "unassessed"
+            detail = "More than 100 review threads were returned, so the unresolved set is incomplete."
         elif unresolved:
-            hard = config["hard_blockers"]["unresolved_threads"]
-            if hard:
-                add_blocker("%d unresolved review thread(s) remain." % len(unresolved))
-            review_category = category(
-                "review",
-                "Review feedback",
-                "blocked" if hard else "missing",
-                "%d unresolved review thread(s) remain." % len(unresolved),
-                review_evidence,
-            )
+            status = "missing"
+            detail = "%d unresolved review thread(s) remain." % len(unresolved)
         elif decision == "APPROVED":
-            review_category = category(
-                "review",
-                "Review feedback",
-                "pass",
-                "The pull request is approved with no unresolved review threads.",
-                review_evidence,
-            )
+            status = "pass"
+            detail = "The pull request is approved with no unresolved review threads."
         else:
-            review_category = category(
-                "review",
-                "Review feedback",
-                "missing",
-                "No approving review is recorded.",
-                review_evidence,
-            )
+            status = "missing"
+            detail = "No approving review is recorded."
+        review_category = category(
+            "review",
+            "Review feedback",
+            status,
+            detail,
+            review_evidence,
+        )
     categories.append(review_category)
 
     body_chars = len((pr.get("body") or "").strip())
@@ -810,7 +816,7 @@ def evaluate(evidence, config):
                 security_evidence,
             )
         else:
-            security_evidence.extend("Sensitive path: `%s`" % name for name in sensitive[:10])
+            security_evidence.extend("Sensitive path: " + code_span(name) for name in sensitive[:10])
             if sensitive and not test_files:
                 security = category(
                     "security",
@@ -855,6 +861,17 @@ def evaluate(evidence, config):
         "head_sha": evidence.get("head_sha") or "",
         "collected_at": evidence.get("collected_at") or "",
     }
+
+
+def code_span(value):
+    text = " ".join(str(value).split())
+    longest = 0
+    for match in re.finditer(r"`+", text):
+        longest = max(longest, len(match.group(0)))
+    fence = "`" * (longest + 1)
+    if text.startswith(("`", " ")) or text.endswith(("`", " ")):
+        text = " " + text + " "
+    return fence + text + fence
 
 
 def markdown_cell(value):

@@ -298,6 +298,12 @@ class PathTests(unittest.TestCase):
         self.assertFalse(c.is_docs_file("CMakeLists.txt"))
         self.assertFalse(c.is_docs_file("src/kernel.cu"))
 
+    def test_code_span_uses_a_safe_fence(self):
+        self.assertEqual(c.code_span("src/a`b.cu"), "``src/a`b.cu``")
+        self.assertEqual(c.code_span("a``b"), "```a``b```")
+        self.assertEqual(c.code_span("`lead"), "`` `lead ``")
+        self.assertEqual(c.code_span("a\nb"), "`a b`")
+
     def test_latest_check_prefers_newest_start(self):
         runs = [
             make_run("cpu", conclusion="failure", started="2026-01-01T00:00:00Z"),
@@ -552,6 +558,32 @@ class ReviewTests(unittest.TestCase):
         result = c.evaluate(evidence, make_config())
         self.assertEqual(statuses(result)["review"], "unassessed")
 
+    def test_changes_requested_blocks_when_threads_are_truncated(self):
+        evidence = make_evidence()
+        evidence["review"]["decision"] = "CHANGES_REQUESTED"
+        evidence["review"]["threads_truncated"] = True
+        result = c.evaluate(evidence, make_config())
+        self.assertEqual(statuses(result)["review"], "blocked")
+        self.assertEqual(result["blockers"], ["The latest review requests changes."])
+
+    def test_changes_requested_is_missing_when_threads_are_truncated_and_not_blocking(self):
+        evidence = make_evidence()
+        evidence["review"]["decision"] = "CHANGES_REQUESTED"
+        evidence["review"]["threads_truncated"] = True
+        result = c.evaluate(evidence, make_config(changes_requested=False))
+        self.assertEqual(statuses(result)["review"], "missing")
+        self.assertEqual(result["blockers"], [])
+
+    def test_visible_unresolved_thread_can_block_when_threads_are_truncated(self):
+        evidence = make_evidence()
+        evidence["review"]["threads_truncated"] = True
+        evidence["review"]["unresolved"] = [
+            {"path": "src/thing.cu", "url": "https://example.invalid/t", "outdated": False}
+        ]
+        result = c.evaluate(evidence, make_config(unresolved_threads=True))
+        self.assertEqual(statuses(result)["review"], "blocked")
+        self.assertEqual(result["blockers"], ["1 unresolved review thread(s) remain."])
+
 
 class ScopeTests(unittest.TestCase):
     def test_short_description_fails_scope(self):
@@ -749,6 +781,29 @@ class SummaryTests(unittest.TestCase):
         result = c.evaluate(evidence, make_config())
         summary = c.render_summary(result)
         self.assertIn("a \\| b", summary)
+
+    def test_summary_keeps_backtick_paths_inside_code_spans(self):
+        evidence = make_evidence()
+        evidence["files"]["items"] = [
+            {
+                "filename": "tests/test_`x`.py",
+                "status": "added",
+                "additions": 10,
+                "deletions": 0,
+                "changes": 10,
+            },
+            {
+                "filename": ".github/workflows/`ci`.yml",
+                "status": "modified",
+                "additions": 10,
+                "deletions": 3,
+                "changes": 13,
+            },
+        ]
+        result = c.evaluate(evidence, make_config())
+        summary = c.render_summary(result)
+        self.assertIn("``tests/test_`x`.py``", summary)
+        self.assertIn("``.github/workflows/`ci`.yml``", summary)
 
 
 class CliTests(unittest.TestCase):
@@ -1073,7 +1128,33 @@ class CollectorTests(unittest.TestCase):
             evidence = c.collect_evidence("owner/repo", 7, "abc123")
         self.assertTrue(evidence["files"]["truncated"])
 
-    def test_check_count_above_returned_marks_checks_truncated(self):
+    def test_exactly_one_hundred_changed_files_is_complete(self):
+        commands = []
+        pr = {"number": 7, "changed_files": 100, "head": {"sha": "abc123"}}
+        files = [{"filename": "f%d.txt" % index} for index in range(100)]
+        responses = [
+            ("pulls/7/files", files),
+            ("pulls/7", pr),
+            ("check-runs", {"total_count": 0, "check_runs": []}),
+            ("graphql", {"data": {"repository": {"pullRequest": {}}}}),
+        ]
+        with mock.patch.object(c.subprocess, "run", self.fake_run(responses, commands)):
+            evidence = c.collect_evidence("owner/repo", 7, "abc123")
+        self.assertFalse(evidence["files"]["truncated"])
+
+    def test_one_hundred_returned_of_one_hundred_and_one_is_truncated(self):
+        commands = []
+        pr = {"number": 7, "changed_files": 101, "head": {"sha": "abc123"}}
+        files = [{"filename": "f%d.txt" % index} for index in range(100)]
+        responses = [
+            ("pulls/7/files", files),
+            ("pulls/7", pr),
+            ("check-runs", {"total_count": 0, "check_runs": []}),
+            ("graphql", {"data": {"repository": {"pullRequest": {}}}}),
+        ]
+        with mock.patch.object(c.subprocess, "run", self.fake_run(responses, commands)):
+            evidence = c.collect_evidence("owner/repo", 7, "abc123")
+        self.assertTrue(evidence["files"]["truncated"])
         commands = []
         pr = {"number": 7, "changed_files": 0, "head": {"sha": "abc123"}}
         responses = [
