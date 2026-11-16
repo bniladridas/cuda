@@ -842,9 +842,7 @@ class SummaryTests(unittest.TestCase):
 
     def test_summary_escapes_backticks_in_observed_check_names(self):
         evidence = make_evidence()
-        evidence["checks"]["items"].append(
-            make_run("evil`run``name", conclusion="failure")
-        )
+        evidence["checks"]["items"].append(make_run("evil`run``name", conclusion="failure"))
         result = c.evaluate(evidence, make_config())
         summary = c.render_summary(result)
         self.assertIn("```evil`run``name```", summary)
@@ -895,9 +893,7 @@ class CliTests(unittest.TestCase):
         evidence = make_evidence()
         evidence["pr"]["mergeable"] = False
         with tempfile.TemporaryDirectory() as directory:
-            config_path, evidence_path, summary_path = self.write_fixture(
-                directory, evidence=evidence
-            )
+            config_path, evidence_path, summary_path = self.write_fixture(directory, evidence=evidence)
             code, stdout, _ = self.run_main(
                 [
                     "--config",
@@ -916,9 +912,7 @@ class CliTests(unittest.TestCase):
         config = config_data()
         config["version"] = 9
         with tempfile.TemporaryDirectory() as directory:
-            config_path, evidence_path, summary_path = self.write_fixture(
-                directory, config=config
-            )
+            config_path, evidence_path, summary_path = self.write_fixture(directory, config=config)
             code, _, stderr = self.run_main(
                 [
                     "--config",
@@ -1296,11 +1290,7 @@ class WorkflowPolicyTests(unittest.TestCase):
 
     def checkout_steps(self, workflow):
         steps = workflow["jobs"]["confidence"]["steps"]
-        return [
-            step
-            for step in steps
-            if str(step.get("uses") or "").startswith("actions/checkout@")
-        ]
+        return [step for step in steps if str(step.get("uses") or "").startswith("actions/checkout@")]
 
     def test_runs_from_the_trusted_base_event(self):
         workflow = self.load_workflow()
@@ -1317,9 +1307,7 @@ class WorkflowPolicyTests(unittest.TestCase):
         checkouts = self.checkout_steps(workflow)
         self.assertEqual(len(checkouts), 1)
         with_args = checkouts[0].get("with") or {}
-        self.assertEqual(
-            with_args.get("ref"), "${{ github.event.repository.default_branch }}"
-        )
+        self.assertEqual(with_args.get("ref"), "${{ github.event.repository.default_branch }}")
         self.assertEqual(with_args.get("persist-credentials"), False)
         for step in checkouts:
             ref = str((step.get("with") or {}).get("ref") or "")

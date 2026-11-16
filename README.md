@@ -186,6 +186,10 @@ label-review/           reusable issue label review engine and tests
 - `cpu`: GitHub-hosted, runs on every push. CPU-only configure, build, host
   reference checks, the label-review engine tests, and the PR confidence engine
   tests.
+- `python`: GitHub-hosted, runs Ruff lint and format checks, every Python test
+  suite present in the checkout, and coverage. Dependency versions are pinned in
+  `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
+  toolkit is required.
 - `pr-confidence`: triggered by pull request activity, waits for the configured
   checks, and publishes a read-only `PR Confidence` summary in the Checks UI. It
   uses `pull_request_target`, so the workflow and engine come from the base

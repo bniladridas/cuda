@@ -52,9 +52,7 @@ class HTTPFailure(EngineError):
 def run(cmd):
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
-        raise EngineError(
-            "command failed: %s\n%s" % (" ".join(cmd), (proc.stderr or proc.stdout).strip())
-        )
+        raise EngineError("command failed: %s\n%s" % (" ".join(cmd), (proc.stderr or proc.stdout).strip()))
     return proc.stdout
 
 
@@ -63,9 +61,7 @@ def load_config(path):
         import yaml
         import jsonschema
     except ImportError as exc:
-        raise EngineError(
-            "missing dependency (%s); install pyyaml and jsonschema" % exc.name
-        )
+        raise EngineError("missing dependency (%s); install pyyaml and jsonschema" % exc.name)
     with open(path, encoding="utf-8") as handle:
         try:
             data = yaml.safe_load(handle)
@@ -95,8 +91,7 @@ def check_config(config):
     clashes = {label: where for label, where in roles.items() if len(where) > 1}
     if clashes:
         detail = "; ".join(
-            "`%s` is listed under %s" % (label, " and ".join(where))
-            for label, where in sorted(clashes.items())
+            "`%s` is listed under %s" % (label, " and ".join(where)) for label, where in sorted(clashes.items())
         )
         raise EngineError("a label has one role: " + detail)
     for label, spec in config["components"].items():
@@ -218,13 +213,8 @@ def load_issue(number, issue_json=None):
     # them as issues. A dispatched pull request number must not reach a label
     # write, so it is rejected here rather than at the apply step.
     if data.get("pull_request"):
-        raise EngineError(
-            "#%d is a pull request; this workflow reviews issues only" % number
-        )
-    labels = sorted(
-        item["name"] if isinstance(item, dict) else str(item)
-        for item in data.get("labels") or []
-    )
+        raise EngineError("#%d is a pull request; this workflow reviews issues only" % number)
+    labels = sorted(item["name"] if isinstance(item, dict) else str(item) for item in data.get("labels") or [])
     return {
         "number": int(data["number"]),
         "title": data.get("title") or "",
@@ -249,8 +239,7 @@ def check_config_labels(config, known):
     missing = sorted(configured - known)
     if missing:
         raise EngineError(
-            "configured labels do not exist in the repository: "
-            + ", ".join("`%s`" % label for label in missing)
+            "configured labels do not exist in the repository: " + ", ".join("`%s`" % label for label in missing)
         )
 
 
@@ -364,9 +353,21 @@ def ask_model(issue, config, api_key):
     criteria = config.get("model_proposed") or {}
     name = MODEL
     if not criteria:
-        return {"name": name, "status": "skipped", "detail": "no model labels are configured", "verdicts": {}, "problems": {}}
+        return {
+            "name": name,
+            "status": "skipped",
+            "detail": "no model labels are configured",
+            "verdicts": {},
+            "problems": {},
+        }
     if not api_key:
-        return {"name": name, "status": "skipped", "detail": "OPENROUTER_API_KEY is not set", "verdicts": {}, "problems": {}}
+        return {
+            "name": name,
+            "status": "skipped",
+            "detail": "OPENROUTER_API_KEY is not set",
+            "verdicts": {},
+            "problems": {},
+        }
     text = issue_text(issue)[:MAX_ISSUE_CHARS]
     payload = {
         "model": name,
@@ -417,12 +418,24 @@ def ask_model(issue, config, api_key):
         content = ""
     start, end = content.find("{"), content.rfind("}")
     if start < 0 or end <= start:
-        return {"name": name, "status": "failed", "detail": "the response contained no JSON object", "verdicts": {}, "problems": {}}
+        return {
+            "name": name,
+            "status": "failed",
+            "detail": "the response contained no JSON object",
+            "verdicts": {},
+            "problems": {},
+        }
     try:
         parsed = json.loads(content[start : end + 1])
         verdicts, problems = validate_verdicts(parsed, criteria, text)
     except (ValueError, EngineError) as exc:
-        return {"name": name, "status": "failed", "detail": "invalid model response: %s" % exc, "verdicts": {}, "problems": {}}
+        return {
+            "name": name,
+            "status": "failed",
+            "detail": "invalid model response: %s" % exc,
+            "verdicts": {},
+            "problems": {},
+        }
     return {"name": name, "status": "ok", "detail": "", "verdicts": verdicts, "problems": problems}
 
 
@@ -532,23 +545,13 @@ def verify(artifact, issue, config, mode, tracked):
             problems.append("cannot remove labels the issue does not have")
         supported = removes & set(components)
         if supported:
-            problems.append(
-                "cannot remove labels the issue still supports: " + ", ".join(sorted(supported))
-            )
+            problems.append("cannot remove labels the issue still supports: " + ", ".join(sorted(supported)))
         for label in sorted(removes & model_props):
             verdict = verdicts.get(label)
-            if (
-                not verdict
-                or verdict.get("apply") is not False
-                or verdict.get("confidence") == "low"
-            ):
-                problems.append(
-                    "`%s` is removed without a confident negative verdict" % label
-                )
+            if not verdict or verdict.get("apply") is not False or verdict.get("confidence") == "low":
+                problems.append("`%s` is removed without a confident negative verdict" % label)
             elif normalize(verdict.get("evidence")) not in normalize(text):
-                problems.append(
-                    "the evidence for removing `%s` is no longer in the issue" % label
-                )
+                problems.append("the evidence for removing `%s` is no longer in the issue" % label)
     return sorted(adds), sorted(removes), problems
 
 
