@@ -381,19 +381,29 @@ def command_report(args):
     print("Generated landing reports for: %s" % ", ".join("#%d" % n for n in numbers))
 
 
+def environment_has_required_reviewers(environment):
+    rules = environment.get("protection_rules") or []
+    return any(
+        rule.get("type") == "required_reviewers" and bool(rule.get("reviewers"))
+        for rule in rules
+    )
+
+
+def validate_approved_report(approved, repo, issue_number):
+    if approved.get("repo") != repo or approved.get("issue", {}).get("number") != issue_number:
+        raise LandingError("approved report does not identify this repository and issue")
+    if approved.get("report_digest") != report_digest(approved):
+        raise LandingError("approved report digest is invalid")
+
+
 def command_close(args):
     try:
         approved = json.loads(Path(args.report).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise LandingError("cannot read approved report: %s" % exc) from exc
-    if approved.get("repo") != args.repo or approved.get("issue", {}).get("number") != args.issue_number:
-        raise LandingError("approved report does not identify this repository and issue")
-    if approved.get("report_digest") != report_digest(approved):
-        raise LandingError("approved report digest is invalid")
+    validate_approved_report(approved, args.repo, args.issue_number)
     environment = gh_json("repos/%s/environments/%s" % (args.repo, ENVIRONMENT_NAME))
-    rules = environment.get("protection_rules") or []
-    protected = any(rule.get("type") == "required_reviewers" and bool(rule.get("reviewers")) for rule in rules)
-    if not protected:
+    if not environment_has_required_reviewers(environment):
         raise LandingError("environment %s has no required reviewers; refusing to close issues" % ENVIRONMENT_NAME)
     current = build_report(args.repo, args.issue_number)
     if current["report_digest"] != approved["report_digest"]:
