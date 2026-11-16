@@ -66,7 +66,7 @@ command fails closed.
 
 ## Manual use
 
-Actions > `issue-landing` > Run workflow, enter an open issue number, then
+From the default branch, open Actions > `issue-landing` > Run workflow, enter an open issue number, then
 inspect the posted report. If close is enabled, approve or reject the waiting
 `issue-landing-close` job after reviewing the exact report for that run.
 
