@@ -213,14 +213,25 @@ def explicit_issue_numbers(current_repo, pull_request_number):
     return sorted(confirmed)
 
 
-def linked_pull_request_numbers(timeline):
-    """Find PRs explicitly cross-referenced from an issue timeline."""
+def linked_pull_request_numbers(timeline, current_repo):
+    """Find same-repository PRs explicitly cross-referenced from an issue timeline.
+
+    GitHub issue timelines can include cross-references to other repositories.
+    Keep the source repository attached to the reference by filtering here,
+    rather than looking up an unrelated PR with the same number locally.
+    """
     numbers = set()
     for event in timeline:
         if event.get("event") != "cross-referenced":
             continue
         issue = (event.get("source") or {}).get("issue") or {}
-        if issue.get("pull_request") and issue.get("number"):
+        source_repo = (issue.get("repository") or {}).get("full_name")
+        if (
+            issue.get("pull_request")
+            and issue.get("number")
+            and source_repo
+            and source_repo.lower() == current_repo.lower()
+        ):
             numbers.add(int(issue["number"]))
     return sorted(numbers)
 
@@ -271,7 +282,7 @@ def report_payload(repo, issue_number, allow_closed=False):
     timeline = gh_json("repos/%s/issues/%d/timeline?per_page=100" % (repo, issue_number), paginate=True)
     comments = gh_json("repos/%s/issues/%d/comments?per_page=100" % (repo, issue_number), paginate=True)
     source_comments = source_issue_comments(comments)
-    prs = [pull_request_snapshot(repo, n, default_branch) for n in linked_pull_request_numbers(timeline)]
+    prs = [pull_request_snapshot(repo, n, default_branch) for n in linked_pull_request_numbers(timeline, repo)]
     return {
         "schema_version": 1,
         "repo": repo,
@@ -354,8 +365,16 @@ def markdown_report(report):
     lines += ["", "### Relevant issue comments", ""]
     if report["issue_comments"]["evidence"]:
         for item in report["issue_comments"]["evidence"]:
-            excerpt = item["excerpt"].replace("\\", "\\\\").replace("`", "\\`").replace("|", "\\|")
-            lines.append("- [Comment by %s](%s): %s" % (item["author"], item["url"], excerpt))
+            # Keep comment content as quoted plain text. A comment may itself
+            # contain headings or Markdown tables, which must not break the
+            # surrounding landing report.
+            excerpt = re.sub(r"([\\\\`*_{}\\[\\]()#+\\-.!|>])", r"\\\\\\1", item["excerpt"])
+            lines += [
+                "**Comment by [%s](%s)**" % (item["author"], item["url"]),
+                "",
+                "> %s" % excerpt,
+                "",
+            ]
     else:
         lines.append("No comments with explicit implementation or validation language were found.")
     lines += [
