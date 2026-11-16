@@ -381,19 +381,15 @@ def command_report(args):
     print("Generated landing reports for: %s" % ", ".join("#%d" % n for n in numbers))
 
 
-def environment_has_required_reviewers(environment):
-    rules = environment.get("protection_rules") or []
-    return any(
-        rule.get("type") == "required_reviewers" and bool(rule.get("reviewers"))
-        for rule in rules
-    )
-
-
-def validate_approved_report(approved, repo, issue_number):
+def validate_approved_report(approved, repo, issue_number, approved_digest):
     if approved.get("repo") != repo or approved.get("issue", {}).get("number") != issue_number:
         raise LandingError("approved report does not identify this repository and issue")
     if approved.get("report_digest") != report_digest(approved):
         raise LandingError("approved report digest is invalid")
+    if not re.fullmatch(r"[0-9a-f]{64}", approved_digest or ""):
+        raise LandingError("an exact 64-character report digest is required for approval")
+    if approved_digest != approved.get("report_digest"):
+        raise LandingError("approval digest does not match this issue report revision")
 
 
 def command_close(args):
@@ -401,10 +397,7 @@ def command_close(args):
         approved = json.loads(Path(args.report).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise LandingError("cannot read approved report: %s" % exc) from exc
-    validate_approved_report(approved, args.repo, args.issue_number)
-    environment = gh_json("repos/%s/environments/%s" % (args.repo, ENVIRONMENT_NAME))
-    if not environment_has_required_reviewers(environment):
-        raise LandingError("environment %s has no required reviewers; refusing to close issues" % ENVIRONMENT_NAME)
+    validate_approved_report(approved, args.repo, args.issue_number, args.approved_digest)
     current = build_report(args.repo, args.issue_number)
     if current["report_digest"] != approved["report_digest"]:
         raise LandingError(
@@ -440,6 +433,7 @@ def parser():
     close.add_argument("--repo", required=True)
     close.add_argument("--issue-number", required=True, type=int)
     close.add_argument("--report", required=True)
+    close.add_argument("--approved-digest", required=True)
     close.set_defaults(function=command_close)
     return root
 
