@@ -1,0 +1,16 @@
+---
+# Pinned formatter for the C++ and CUDA sources. CI installs
+# clang-format==22.1.8; regenerate the baseline with that exact version.
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++17
+ColumnLimit: 90
+IndentWidth: 2
+PointerAlignment: Left
+DerivePointerAlignment: false
+SpacesBeforeTrailingComments: 2
+BreakTemplateDeclarations: Yes
+SortIncludes: Never
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AlignEscapedNewlines: Left
+...

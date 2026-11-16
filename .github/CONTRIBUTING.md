@@ -86,6 +86,9 @@ done
 coverage report --show-missing --omit="*/tests/*,*/test_*.py"
 ```
 
+The C++ quality workflow policy test lives in `pr-confidence/tests` and runs with
+the other Python suites.
+
 ## Performance claims
 
 Any claim of a speedup needs:
@@ -108,12 +111,40 @@ tests.
 
 ## Style
 
-- C++17, `-Wall -Wextra -Wpedantic -Werror`. A warning is a build failure.
+- C++17. Host C++ targets use `-Wall -Wextra -Wpedantic` and, by default,
+  `-Werror`; pass `-DCUDA_KERNELS_WERROR=OFF` to keep the warnings without
+  failing the build. CUDA host compilation gets `-Wall -Wextra` through
+  `-Xcompiler`; `-Wpedantic` is host-only. Details are in
+  [C++ quality](https://github.com/bniladridas/cuda/blob/main/docs/cpp-quality.md).
 - Comments explain why, not what. Non-obvious device constraints (warp-aligned
   block sizes, reduced-safe assumptions) should be a `static_assert` where
   possible rather than prose.
 - No vendor wrapper libraries in `src/`. CUB and Thrust are useful as comparison
   baselines in benchmarks, not as kernel implementations.
+
+## C++ quality
+
+The formatted set is every tracked `.cpp`, `.h`, `.cu`, and `.cuh` file. Host
+static analysis covers `tests/test_host.cpp` and the CUDA-free public headers.
+It does not cover the kernels. Install the pinned tools in a virtual environment
+if your Python environment is externally managed.
+
+```bash
+python3 -m pip install clang-format==22.1.8 clang-tidy==22.1.8
+
+git ls-files -z '*.cpp' '*.h' '*.cu' '*.cuh' |
+  xargs -0 clang-format --dry-run --Werror
+
+cmake -S . -B build-cpu -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build-cpu
+clang-tidy --config-file=.clang-tidy --warnings-as-errors='*' \
+  -p build-cpu tests/test_host.cpp
+```
+
+The pinned versions, check set, exclusions, and CUDA limitations are in
+[C++ quality](https://github.com/bniladridas/cuda/blob/main/docs/cpp-quality.md).
 
 ## Reporting a bug
 

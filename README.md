@@ -12,8 +12,9 @@ hardware's memory bandwidth limit. No wrappers around vendor libraries: the
 point is the kernel, not the call into CUB.
 
 > Two badges, two different claims. **CPU checks** reports the GitHub-hosted
-> job: configuration, host-side build and reference checks. **GPU validation:
-> pending** is static because no device has run this code. See [Status](#status).
+> job: configuration, host-side build, reference checks, formatting, and host
+> static analysis. **GPU validation: pending** is static because no device has
+> run this code. See [Status](#status).
 
 ## Status
 
@@ -58,8 +59,9 @@ reorders the sums. Tests compare with a relative tolerance, not for equality.
 ## Requirements
 
 - CMake 3.24 or newer, and a C++17 compiler with `nvcc`-compatible flags:
-  GCC or Clang. The defaults build with `-Wall -Wextra -Wpedantic -Werror`;
-  pass `-DCUDA_KERNELS_WERROR=OFF` if a newer compiler is stricter than these.
+  GCC or Clang. Host C++ targets build with `-Wall -Wextra -Wpedantic` and,
+  unless `-DCUDA_KERNELS_WERROR=OFF` is passed, `-Werror`. CUDA host compilation
+  gets `-Wall -Wextra` through `-Xcompiler`; `-Wpedantic` is host-only.
 - Host-side build: any Linux or macOS machine. No CUDA install needed.
 - Kernel build and GPU tests: NVIDIA Linux host, compute capability 7.0 or
   newer, driver 525 or newer, CUDA toolkit 12.x with `nvcc` on `PATH`.
@@ -177,15 +179,17 @@ benchmarks/             timing harness and benchmark binary
 pr-confidence/          PR Confidence engine and its offline tests
 pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
-docs/                   hardware requirements, methodology, PR confidence, label review and PR Scope Guard
+docs/                   hardware, methodology, C++ quality, PR confidence, label review and PR Scope Guard
 label-review/           reusable issue label review engine and tests
 ```
 
 ## CI
 
-- `cpu`: GitHub-hosted, runs on every push. CPU-only configure, build, host
-  reference checks, the label-review engine tests, and the PR confidence engine
-  tests.
+- `cpu`: GitHub-hosted, runs on every push. CPU-only configure and build, host
+  reference checks, clang-format over C++ and CUDA files, host-side clang-tidy,
+  the label-review engine tests, the PR confidence engine tests, and the PR
+  Scope Guard tests. CUDA sources are formatted but not compiled or analyzed
+  here.
 - `python`: GitHub-hosted, runs Ruff lint and format checks, every Python test
   suite present in the checkout, and coverage. Dependency versions are pinned in
   `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
@@ -219,8 +223,9 @@ label-review/           reusable issue label review engine and tests
   not extract `.cu` files, so `src/vecadd.cu` and `src/reduce.cu` are never
   scanned; and it reported zero results on deliberately planted bounds bugs,
   including one in a scanned `.cpp` file. It covers no kernel code and is not
-  relied on as a safety net. It is kept as a scheduled check for when query
-  coverage improves.
+  relied on as a safety net; the CPU job's host-side clang-tidy is complementary
+  and covers `tests/test_host.cpp` and the CUDA-free public headers only. CodeQL
+  is kept as a scheduled check for when query coverage improves.
 
 ## Roadmap
 

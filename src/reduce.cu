@@ -101,8 +101,8 @@ void launch_reduce_typed(const T* x, T* out, T* scratch, std::size_t n, void* st
   // lets the final block absorb the remainder.
   const std::size_t chunk = (n + blocks - 1) / blocks;
 
-  reduce_partial_kernel<T><<<static_cast<int>(blocks), kBlockSize, 0, s>>>(
-      x, scratch, n, chunk);
+  reduce_partial_kernel<T>
+      <<<static_cast<int>(blocks), kBlockSize, 0, s>>>(x, scratch, n, chunk);
   CUDA_CHECK_LAST_ERROR();
 
   reduce_final_kernel<T><<<1, kBlockSize, 0, s>>>(scratch, out, static_cast<int>(blocks));

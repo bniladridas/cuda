@@ -7,6 +7,7 @@ if(CUDA_KERNELS_HAVE_CUDA)
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src
             ${PROJECT_SOURCE_DIR}/tests)
   target_link_libraries(cuda_benchmarks PRIVATE cuda_kernels::cudakernels)
+  cuda_kernels_set_host_warnings(cuda_benchmarks)
 
   # Not a ctest test: timing is not a correctness assertion. Correctness is
   # gated inside the binary before it prints any performance figure.
