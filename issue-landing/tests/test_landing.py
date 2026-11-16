@@ -90,18 +90,25 @@ class CrossReferenceTests(unittest.TestCase):
 
     def test_comment_excerpt_cannot_break_report_markdown_tables_or_headings(self):
         report = {
-            "issue": {"number": 7, "title": "Example", "url": "https://github.com/acme/cuda/issues/7", "digest": "issue-sha"},
+            "issue": {
+                "number": 7,
+                "title": "Example",
+                "url": "https://github.com/acme/cuda/issues/7",
+                "digest": "issue-sha",
+            },
             "default_branch": {"name": "main", "sha": "abc"},
             "report_digest": "report-sha",
             "pull_requests": [],
             "issue_comments": {
                 "count": 1,
                 "digest": "comments-sha",
-                "evidence": [{
-                    "author": "reviewer",
-                    "url": "https://github.com/acme/cuda/issues/7#issuecomment-1",
-                    "excerpt": "## Heading | Column |\\n| --- | --- |",
-                }],
+                "evidence": [
+                    {
+                        "author": "reviewer",
+                        "url": "https://github.com/acme/cuda/issues/7#issuecomment-1",
+                        "excerpt": "## Heading | Column |\\n| --- | --- |",
+                    }
+                ],
             },
             "acceptance_criteria": [],
         }
