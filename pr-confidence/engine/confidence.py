@@ -121,10 +121,7 @@ def validate_config(data):
     security = string_list(data, "security_checks", 1)
     overlap = set(critical) & set(security)
     if overlap:
-        raise ConfidenceError(
-            "a check cannot be both critical and a security check: "
-            + ", ".join(sorted(overlap))
-        )
+        raise ConfidenceError("a check cannot be both critical and a security check: " + ", ".join(sorted(overlap)))
 
     blockers_value = data.get("hard_blockers")
     if blockers_value is None:
@@ -133,9 +130,7 @@ def validate_config(data):
         raise ConfidenceError("hard_blockers must be a mapping")
     unknown_blockers = set(blockers_value) - set(DEFAULT_HARD_BLOCKERS)
     if unknown_blockers:
-        raise ConfidenceError(
-            "unknown hard_blockers keys: " + ", ".join(sorted(unknown_blockers))
-        )
+        raise ConfidenceError("unknown hard_blockers keys: " + ", ".join(sorted(unknown_blockers)))
     blockers = dict(DEFAULT_HARD_BLOCKERS)
     for key, value in blockers_value.items():
         if not isinstance(value, bool):
@@ -301,15 +296,11 @@ def wait_for_checks(repo, head_sha, config, timeout, interval, clock=time.monoto
             if run is None or run.get("status") != "completed":
                 incomplete.append(name)
         if not incomplete:
-            print(
-                "%s: configured checks complete after %ds"
-                % (CHECK_NAME, int(clock() - started))
-            )
+            print("%s: configured checks complete after %ds" % (CHECK_NAME, int(clock() - started)))
             return
         if clock() >= deadline:
             print(
-                "%s: timed out after %ds waiting for: %s"
-                % (CHECK_NAME, int(clock() - started), ", ".join(incomplete))
+                "%s: timed out after %ds waiting for: %s" % (CHECK_NAME, int(clock() - started), ", ".join(incomplete))
             )
             return
         sleep(min(interval, deadline - clock()))
@@ -343,9 +334,7 @@ def collect_evidence(repo, pr_number, head_sha):
         "head_mismatch": bool(api_head and api_head != head_sha),
     }
 
-    files_raw, files_error = optional_json(
-        ["repos/%s/pulls/%d/files?per_page=100" % (repo, pr_number)]
-    )
+    files_raw, files_error = optional_json(["repos/%s/pulls/%d/files?per_page=100" % (repo, pr_number)])
     if files_raw is None:
         files = {"available": False, "truncated": False, "items": [], "error": files_error}
     else:
@@ -364,10 +353,7 @@ def collect_evidence(repo, pr_number, head_sha):
         files = {"available": True, "truncated": truncated, "items": items, "error": None}
 
     checks_raw, checks_error = optional_json(
-        [
-            "repos/%s/commits/%s/check-runs?filter=latest&per_page=100"
-            % (repo, head_sha)
-        ]
+        ["repos/%s/commits/%s/check-runs?filter=latest&per_page=100" % (repo, head_sha)]
     )
     if checks_raw is None:
         checks = {"available": False, "truncated": False, "items": [], "error": checks_error}
@@ -423,11 +409,7 @@ def collect_evidence(repo, pr_number, head_sha):
             "available": True,
             "decision": node.get("reviewDecision"),
             "unresolved": unresolved,
-            "threads_truncated": bool(
-                ((node.get("reviewThreads") or {}).get("pageInfo") or {}).get(
-                    "hasNextPage"
-                )
-            ),
+            "threads_truncated": bool(((node.get("reviewThreads") or {}).get("pageInfo") or {}).get("hasNextPage")),
             "error": None,
         }
     except (ConfidenceError, KeyError, TypeError, IndexError) as exc:
@@ -520,22 +502,16 @@ def evaluate(evidence, config):
                 missing.append(name)
         if failed:
             status = "blocked"
-            detail = "Critical checks did not pass: " + ", ".join(
-                code_span(n) for n in failed
-            )
+            detail = "Critical checks did not pass: " + ", ".join(code_span(n) for n in failed)
             if config["hard_blockers"]["failed_critical_checks"]:
                 for name in failed:
                     add_blocker("Critical check %s did not pass." % code_span(name))
         elif pending:
             status = "pending"
-            detail = "Critical checks are still running: " + ", ".join(
-                code_span(n) for n in pending
-            )
+            detail = "Critical checks are still running: " + ", ".join(code_span(n) for n in pending)
         elif missing:
             status = "missing"
-            detail = "Critical checks are missing or incomplete: " + ", ".join(
-                code_span(n) for n in missing
-            )
+            detail = "Critical checks are missing or incomplete: " + ", ".join(code_span(n) for n in missing)
         else:
             status = "pass"
             detail = "All critical checks completed successfully."
@@ -565,11 +541,7 @@ def evaluate(evidence, config):
             for item in files.get("items") or []
             if matches_any(item["filename"], config["test_patterns"])
         ]
-    code_files = [
-        item["filename"]
-        for item in files.get("items") or []
-        if not is_docs_file(item["filename"])
-    ]
+    code_files = [item["filename"] for item in files.get("items") or [] if not is_docs_file(item["filename"])]
     if not files.get("available") or files.get("truncated"):
         tests = category(
             "tests",
@@ -583,8 +555,7 @@ def evaluate(evidence, config):
             "tests",
             "Relevant tests and regression coverage",
             "pass",
-            "Test files changed: "
-            + ", ".join(code_span(name) for name in test_files[:10]),
+            "Test files changed: " + ", ".join(code_span(name) for name in test_files[:10]),
             [code_span(name) for name in test_files],
         )
     elif not code_files:
@@ -621,13 +592,9 @@ def evaluate(evidence, config):
         truncated = bool(review.get("threads_truncated"))
         review_evidence.append("Decision: `%s`." % (decision or "none"))
         if truncated:
-            review_evidence.append(
-                "Review threads were truncated at 100; the unresolved count is incomplete."
-            )
+            review_evidence.append("Review threads were truncated at 100; the unresolved count is incomplete.")
             if unresolved:
-                review_evidence.append(
-                    "%d unresolved thread(s) are visible in the returned page." % len(unresolved)
-                )
+                review_evidence.append("%d unresolved thread(s) are visible in the returned page." % len(unresolved))
         else:
             review_evidence.append("Unresolved review threads: %d." % len(unresolved))
         for thread in unresolved[:5]:
@@ -642,10 +609,7 @@ def evaluate(evidence, config):
 
         # The review decision is independent of thread pagination, so a
         # truncated thread list must not hide a configured review blocker.
-        changes_hard = (
-            decision == "CHANGES_REQUESTED"
-            and config["hard_blockers"]["changes_requested"]
-        )
+        changes_hard = decision == "CHANGES_REQUESTED" and config["hard_blockers"]["changes_requested"]
         unresolved_hard = bool(unresolved) and config["hard_blockers"]["unresolved_threads"]
         if changes_hard:
             add_blocker("The latest review requests changes.")
@@ -703,17 +667,11 @@ def evaluate(evidence, config):
         limits = config["scope"]
         problems = []
         if body_chars < limits["min_body_chars"]:
-            problems.append(
-                "the description is %d characters, below %d"
-                % (body_chars, limits["min_body_chars"])
-            )
+            problems.append("the description is %d characters, below %d" % (body_chars, limits["min_body_chars"]))
         if changed > limits["max_files"]:
             problems.append("the diff changes %d files, above %d" % (changed, limits["max_files"]))
         if changed_lines > limits["max_changed_lines"]:
-            problems.append(
-                "the diff changes %d lines, above %d"
-                % (changed_lines, limits["max_changed_lines"])
-            )
+            problems.append("the diff changes %d lines, above %d" % (changed_lines, limits["max_changed_lines"]))
         detail = "%d file(s), %d addition(s), %d deletion(s), %d description character(s)." % (
             changed,
             int(pr.get("additions") or 0),
@@ -776,9 +734,7 @@ def evaluate(evidence, config):
             else:
                 missing.append(name)
         sensitive = [
-            item["filename"]
-            for item in items
-            if matches_any(item["filename"], config["security_sensitive_paths"])
+            item["filename"] for item in items if matches_any(item["filename"], config["security_sensitive_paths"])
         ]
         if failed:
             hard = config["hard_blockers"]["security_check_failure"]
@@ -794,8 +750,7 @@ def evaluate(evidence, config):
                 "security",
                 "Security and failure-handling evidence",
                 "blocked" if hard else "missing",
-                "Security checks did not pass: "
-                + ", ".join(code_span(name) for name in failed),
+                "Security checks did not pass: " + ", ".join(code_span(name) for name in failed),
                 security_evidence,
             )
         elif pending:
@@ -803,8 +758,7 @@ def evaluate(evidence, config):
                 "security",
                 "Security and failure-handling evidence",
                 "pending",
-                "Security checks are still running: "
-                + ", ".join(code_span(name) for name in pending),
+                "Security checks are still running: " + ", ".join(code_span(name) for name in pending),
                 security_evidence,
             )
         elif missing:
@@ -812,8 +766,7 @@ def evaluate(evidence, config):
                 "security",
                 "Security and failure-handling evidence",
                 "missing",
-                "Security checks are missing or incomplete: "
-                + ", ".join(code_span(name) for name in missing),
+                "Security checks are missing or incomplete: " + ", ".join(code_span(name) for name in missing),
                 security_evidence,
             )
         elif not files.get("available") or files.get("truncated"):
@@ -935,10 +888,7 @@ def render_summary(result):
     gaps = [item for item in result["categories"] if item["status"] != "pass"]
     if gaps:
         for item in gaps:
-            lines.append(
-                "- **%s** (%s): %s"
-                % (item["title"], item["status"].replace("_", " "), item["detail"])
-            )
+            lines.append("- **%s** (%s): %s" % (item["title"], item["status"].replace("_", " "), item["detail"]))
     else:
         lines.append("None.")
     lines.append("")
@@ -1011,9 +961,7 @@ def main(argv=None):
             if not args.head_sha:
                 raise ConfidenceError("head SHA is required")
             if args.wait and (args.wait_timeout < 0 or args.poll_interval <= 0):
-                raise ConfidenceError(
-                    "wait timeout must be non-negative and poll interval must be positive"
-                )
+                raise ConfidenceError("wait timeout must be non-negative and poll interval must be positive")
             if args.wait:
                 wait_for_checks(
                     args.repo,
@@ -1031,13 +979,8 @@ def main(argv=None):
         else:
             print(summary)
         if args.evidence_out:
-            Path(args.evidence_out).write_text(
-                json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
-            )
-        print(
-            "%s: %d/5, %d hard blocker(s)"
-            % (CHECK_NAME, result["score"], len(result["blockers"]))
-        )
+            Path(args.evidence_out).write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+        print("%s: %d/5, %d hard blocker(s)" % (CHECK_NAME, result["score"], len(result["blockers"])))
         return 1 if result["blockers"] else 0
     except (ConfidenceError, OSError, ValueError, KeyError, TypeError) as exc:
         message = "Evidence collection failed: %s" % exc

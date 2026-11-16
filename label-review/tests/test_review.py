@@ -201,9 +201,7 @@ class ModelTests(unittest.TestCase):
 
 class DiffTests(unittest.TestCase):
     def test_correction_removes_stale_taxonomy_label(self):
-        adds, removes = review.correction_diff(
-            ["needs-gpu", "bug", "cpu-verified"], [], CONFIG, rejected=["needs-gpu"]
-        )
+        adds, removes = review.correction_diff(["needs-gpu", "bug", "cpu-verified"], [], CONFIG, rejected=["needs-gpu"])
         self.assertEqual(adds, [])
         self.assertEqual(removes, ["needs-gpu"])
 
@@ -293,9 +291,7 @@ class VerifyTests(unittest.TestCase):
                 changed = make_issue(after)
                 self.assertIn("run on an nvidia gpu", review.normalize(review.issue_text(changed)))
                 _, _, problems = review.verify(artifact, changed, CONFIG, "propose", TRACKED)
-                self.assertTrue(
-                    any("issue title or body changed" in problem for problem in problems)
-                )
+                self.assertTrue(any("issue title or body changed" in problem for problem in problems))
 
     def test_unchanged_issue_still_verifies(self):
         issue = make_issue("The kernel must run on an NVIDIA GPU.\n\nIt is fast.")
@@ -338,9 +334,7 @@ class VerifyTests(unittest.TestCase):
 
     def test_correction_with_a_present_component_verifies(self):
         issue = make_issue("Bug in `src/vecadd.cu`.", labels=["kernels"])
-        artifact = make_artifact(
-            issue, adds=[], removes=[], components={"kernels": ["src/vecadd.cu"]}, mode="correct"
-        )
+        artifact = make_artifact(issue, adds=[], removes=[], components={"kernels": ["src/vecadd.cu"]}, mode="correct")
         adds, removes, problems = review.verify(artifact, issue, CONFIG, "correct", TRACKED)
         self.assertEqual((adds, removes, problems), ([], [], []))
 
@@ -405,12 +399,18 @@ class EndToEndTests(unittest.TestCase):
         code = review.main(
             [
                 "propose",
-                "--issue", "7",
-                "--config", str(self.dir / "config.yml"),
-                "--comment-out", str(self.dir / "comment.md"),
-                "--artifact", str(self.dir / "artifact.json"),
-                "--issue-json", issue_json,
-                "--labels-json", str(self.dir / "labels.json"),
+                "--issue",
+                "7",
+                "--config",
+                str(self.dir / "config.yml"),
+                "--comment-out",
+                str(self.dir / "comment.md"),
+                "--artifact",
+                str(self.dir / "artifact.json"),
+                "--issue-json",
+                issue_json,
+                "--labels-json",
+                str(self.dir / "labels.json"),
             ]
         )
         self.assertEqual(code, 0)
@@ -422,13 +422,20 @@ class EndToEndTests(unittest.TestCase):
         code = review.main(
             [
                 "verify",
-                "--issue", "7",
-                "--mode", "propose",
-                "--artifact", str(self.dir / "artifact.json"),
-                "--config", str(self.dir / "config.yml"),
-                "--issue-json", issue_json,
-                "--labels-json", str(self.dir / "labels.json"),
-                "--github-output", str(self.dir / "output.txt"),
+                "--issue",
+                "7",
+                "--mode",
+                "propose",
+                "--artifact",
+                str(self.dir / "artifact.json"),
+                "--config",
+                str(self.dir / "config.yml"),
+                "--issue-json",
+                issue_json,
+                "--labels-json",
+                str(self.dir / "labels.json"),
+                "--github-output",
+                str(self.dir / "output.txt"),
             ]
         )
         self.assertEqual(code, 0)
@@ -440,12 +447,18 @@ class EndToEndTests(unittest.TestCase):
         code = review.main(
             [
                 "correct",
-                "--issue", "7",
-                "--config", str(self.dir / "config.yml"),
-                "--comment-out", str(self.dir / "comment.md"),
-                "--artifact", str(self.dir / "artifact.json"),
-                "--issue-json", issue_json,
-                "--labels-json", str(self.dir / "labels.json"),
+                "--issue",
+                "7",
+                "--config",
+                str(self.dir / "config.yml"),
+                "--comment-out",
+                str(self.dir / "comment.md"),
+                "--artifact",
+                str(self.dir / "artifact.json"),
+                "--issue-json",
+                issue_json,
+                "--labels-json",
+                str(self.dir / "labels.json"),
             ]
         )
         self.assertEqual(code, 0)
@@ -458,11 +471,16 @@ class EndToEndTests(unittest.TestCase):
         self.assertIn("Uncertain verdicts do not remove", comment)
         verify_args = [
             "verify",
-            "--issue", "7",
-            "--mode", "correct",
-            "--artifact", str(self.dir / "artifact.json"),
-            "--config", str(self.dir / "config.yml"),
-            "--labels-json", str(self.dir / "labels.json"),
+            "--issue",
+            "7",
+            "--mode",
+            "correct",
+            "--artifact",
+            str(self.dir / "artifact.json"),
+            "--config",
+            str(self.dir / "config.yml"),
+            "--labels-json",
+            str(self.dir / "labels.json"),
         ]
         self.assertEqual(review.main(verify_args + ["--issue-json", issue_json]), 0)
         edited = make_issue("The reduce kernel is slow.", labels=["needs-gpu", "bug", "cpu-verified", "enhancement"])

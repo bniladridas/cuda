@@ -117,8 +117,7 @@ def main():
     ax.set_ylabel("achieved / peak bandwidth")
     ax.set_ylim(0, top)
     ax.set_title(
-        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\n"
-        "achieved versus peak memory bandwidth",
+        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\nachieved versus peak memory bandwidth",
         fontsize=10,
     )
     fig.tight_layout()
