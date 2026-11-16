@@ -181,6 +181,7 @@ pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
 docs/                   hardware, methodology, C++ quality, PR confidence, label review and PR Scope Guard
 label-review/           reusable issue label review engine and tests
+issue-landing/          issue landing report engine and offline tests
 ```
 
 ## CI
