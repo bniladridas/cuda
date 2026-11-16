@@ -34,8 +34,10 @@ A checked checkbox is not proof, and the workflow does not use an LLM to
 interpret implementation behavior. Criteria that cannot be extracted are
 called out for manual review.
 
-The report contains a SHA-256 digest over the issue title/body digest, linked PR
-state and SHAs, criteria, and default-branch head. The digest deliberately
+The report contains a SHA-256 digest over the issue title/body digest, relevant
+issue comments, linked PR state and SHAs, criteria, and default-branch head.
+The workflow excludes its own generated report comments from this digest so
+posting the report does not invalidate the approval that follows. The digest deliberately
 excludes the report timestamp so the same evidence has a stable revision.
 
 ## Approval and close safety
