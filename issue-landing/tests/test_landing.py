@@ -219,13 +219,7 @@ class CloseApprovalTests(unittest.TestCase):
                 report=str(report_path),
                 approved_digest=approved["report_digest"],
             )
-            environment = {
-                "protection_rules": [
-                    {"type": "required_reviewers", "reviewers": [{"type": "User"}]}
-                ]
-            }
             with (
-                patch.object(landing, "gh_json", return_value=environment),
                 patch.object(landing, "build_report", return_value=current),
                 patch.object(landing, "run") as close_issue,
             ):
