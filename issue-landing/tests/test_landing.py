@@ -192,25 +192,19 @@ class CloseApprovalTests(unittest.TestCase):
 
     def test_report_identity_and_digest_must_match(self):
         report = self.make_report()
-        landing.validate_approved_report(report, "acme/cuda", 7)
+        landing.validate_approved_report(report, "acme/cuda", 7, report["report_digest"])
         with self.assertRaisesRegex(landing.LandingError, "does not identify"):
-            landing.validate_approved_report(report, "other/repo", 7)
+            landing.validate_approved_report(report, "other/repo", 7, report["report_digest"])
         tampered = dict(report, report_digest="tampered")
         with self.assertRaisesRegex(landing.LandingError, "digest is invalid"):
-            landing.validate_approved_report(tampered, "acme/cuda", 7)
+            landing.validate_approved_report(tampered, "acme/cuda", 7, report["report_digest"])
 
-    def test_environment_without_required_reviewers_fails_closed(self):
-        self.assertFalse(landing.environment_has_required_reviewers({"protection_rules": []}))
-        self.assertFalse(
-            landing.environment_has_required_reviewers(
-                {"protection_rules": [{"type": "wait_timer", "wait_timer": 0}]}
-            )
-        )
-        self.assertTrue(
-            landing.environment_has_required_reviewers(
-                {"protection_rules": [{"type": "required_reviewers", "reviewers": [{"type": "User"}]}]}
-            )
-        )
+    def test_approval_digest_must_match_exact_report_revision(self):
+        report = self.make_report()
+        with self.assertRaisesRegex(landing.LandingError, "exact 64-character"):
+            landing.validate_approved_report(report, "acme/cuda", 7, "")
+        with self.assertRaisesRegex(landing.LandingError, "does not match"):
+            landing.validate_approved_report(report, "acme/cuda", 7, "0" * 64)
 
     def test_stale_report_aborts_before_issue_close(self):
         approved = self.make_report()
@@ -219,7 +213,12 @@ class CloseApprovalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             report_path = Path(directory) / "approved.json"
             report_path.write_text(json.dumps(approved), encoding="utf-8")
-            args = SimpleNamespace(repo="acme/cuda", issue_number=7, report=str(report_path))
+            args = SimpleNamespace(
+                repo="acme/cuda",
+                issue_number=7,
+                report=str(report_path),
+                approved_digest=approved["report_digest"],
+            )
             environment = {
                 "protection_rules": [
                     {"type": "required_reviewers", "reviewers": [{"type": "User"}]}
