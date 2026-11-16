@@ -1,7 +1,10 @@
 """Offline tests for the issue landing report and approval boundary."""
 
+import json
 import sys
+import tempfile
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -172,6 +175,64 @@ class ReportDigestTests(unittest.TestCase):
         self.assertNotEqual(landing.report_digest(changed), first)
         changed = dict(self.report, pull_requests=[{"number": 4, "landed": True}])
         self.assertNotEqual(landing.report_digest(changed), first)
+
+
+class CloseApprovalTests(unittest.TestCase):
+    def make_report(self):
+        report = {
+            "repo": "acme/cuda",
+            "issue": {"number": 7, "digest": "issue-sha"},
+            "default_branch": {"name": "main", "sha": "base-sha"},
+            "pull_requests": [],
+            "acceptance_criteria": [],
+            "issue_comments": {"count": 0, "digest": "comments-sha", "evidence": []},
+        }
+        report["report_digest"] = landing.report_digest(report)
+        return report
+
+    def test_report_identity_and_digest_must_match(self):
+        report = self.make_report()
+        landing.validate_approved_report(report, "acme/cuda", 7)
+        with self.assertRaisesRegex(landing.LandingError, "does not identify"):
+            landing.validate_approved_report(report, "other/repo", 7)
+        tampered = dict(report, report_digest="tampered")
+        with self.assertRaisesRegex(landing.LandingError, "digest is invalid"):
+            landing.validate_approved_report(tampered, "acme/cuda", 7)
+
+    def test_environment_without_required_reviewers_fails_closed(self):
+        self.assertFalse(landing.environment_has_required_reviewers({"protection_rules": []}))
+        self.assertFalse(
+            landing.environment_has_required_reviewers(
+                {"protection_rules": [{"type": "wait_timer", "wait_timer": 0}]}
+            )
+        )
+        self.assertTrue(
+            landing.environment_has_required_reviewers(
+                {"protection_rules": [{"type": "required_reviewers", "reviewers": [{"type": "User"}]}]}
+            )
+        )
+
+    def test_stale_report_aborts_before_issue_close(self):
+        approved = self.make_report()
+        current = dict(approved, default_branch={"name": "main", "sha": "new-head"})
+        current["report_digest"] = landing.report_digest(current)
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "approved.json"
+            report_path.write_text(json.dumps(approved), encoding="utf-8")
+            args = SimpleNamespace(repo="acme/cuda", issue_number=7, report=str(report_path))
+            environment = {
+                "protection_rules": [
+                    {"type": "required_reviewers", "reviewers": [{"type": "User"}]}
+                ]
+            }
+            with (
+                patch.object(landing, "gh_json", return_value=environment),
+                patch.object(landing, "build_report", return_value=current),
+                patch.object(landing, "run") as close_issue,
+            ):
+                with self.assertRaisesRegex(landing.LandingError, "approved report is stale"):
+                    landing.command_close(args)
+                close_issue.assert_not_called()
 
 
 class PullRequestEvidenceTests(unittest.TestCase):
