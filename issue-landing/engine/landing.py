@@ -157,20 +157,60 @@ def relevant_comment_evidence(comments):
     return evidence
 
 
-def explicit_issue_numbers(timeline, current_repo):
-    """Find same-repository issues explicitly cross-referenced by a merged PR."""
+ISSUE_REFERENCE = re.compile(
+    r"(?<![\\w/])#(?P<number>\\d+)\\b"
+    r"|https?://github\\.com/(?P<owner>[^/\\s]+)/(?P<repo>[^/\\s#?]+)/issues/(?P<url_number>\\d+)",
+    re.I,
+)
+
+
+def issue_reference_candidates(texts, current_repo):
+    """Collect candidate issue numbers explicitly mentioned by the PR itself."""
     numbers = set()
-    for event in timeline:
-        if event.get("event") != "cross-referenced":
-            continue
-        issue = (event.get("source") or {}).get("issue") or {}
-        if not issue.get("number") or not issue.get("html_url") or issue.get("pull_request"):
-            continue
-        repository = (issue.get("repository") or {}).get("full_name")
-        if repository and repository.lower() != current_repo.lower():
-            continue
-        numbers.add(int(issue["number"]))
+    owner, name = current_repo.split("/", 1)
+    for body in texts:
+        for match in ISSUE_REFERENCE.finditer(body or ""):
+            if match.group("url_number"):
+                if (match.group("owner").lower(), match.group("repo").lower()) != (
+                    owner.lower(),
+                    name.lower(),
+                ):
+                    continue
+                numbers.add(int(match.group("url_number")))
+            else:
+                numbers.add(int(match.group("number")))
     return sorted(numbers)
+
+
+def explicit_issue_numbers(current_repo, pull_request_number):
+    """Verify PR-mentioned issue candidates against each issue's own timeline."""
+    pr = gh_json("repos/%s/pulls/%d" % (current_repo, pull_request_number))
+    comments = gh_json(
+        "repos/%s/issues/%d/comments?per_page=100" % (current_repo, pull_request_number),
+        paginate=True,
+    )
+    texts = [pr.get("body") or ""] + [comment.get("body") or "" for comment in comments]
+    candidates = issue_reference_candidates(texts, current_repo)
+    confirmed = set()
+    for issue_number in candidates:
+        timeline = gh_json(
+            "repos/%s/issues/%d/timeline?per_page=100" % (current_repo, issue_number),
+            paginate=True,
+        )
+        for event in timeline:
+            if event.get("event") != "cross-referenced":
+                continue
+            source = (event.get("source") or {}).get("issue") or {}
+            repository = (source.get("repository") or {}).get("full_name")
+            if (
+                int(source.get("number") or 0) == pull_request_number
+                and source.get("pull_request")
+                and repository
+                and repository.lower() == current_repo.lower()
+            ):
+                confirmed.add(issue_number)
+                break
+    return sorted(confirmed)
 
 
 def linked_pull_request_numbers(timeline):
