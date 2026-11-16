@@ -416,7 +416,7 @@ def command_close(args):
             "state_reason=completed",
         ]
     )
-    print("Closed issue #%d after protected-environment approval and stale-state revalidation." % args.issue_number)
+    print("Closed issue #%d after explicit digest approval and stale-state revalidation." % args.issue_number)
 
 
 def parser():
