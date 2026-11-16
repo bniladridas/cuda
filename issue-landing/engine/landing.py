@@ -311,7 +311,6 @@ def markdown_report(report):
         "| --- | --- | --- |",
     ]
     for item in report["acceptance_criteria"]:
-        evidence = ", ".join(item["evidence"]) or "Human review required"
         source = item.get("source") or "manual review"
         if item.get("url"):
             source = "[%s](%s)" % (source, item["url"])
