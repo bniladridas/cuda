@@ -2,6 +2,7 @@
   "pull_request": {
     "number": 102,
     "title": "[docs] Explain the tiled kernel",
+    "changed_files": 3,
     "head": {"sha": "cccccccccccccccccccccccccccccccccccccccc"},
     "base": {"sha": "dddddddddddddddddddddddddddddddddddddddd"}
   },

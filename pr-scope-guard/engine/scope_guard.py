@@ -285,7 +285,14 @@ def pr_fields(pr):
     for label, sha in (("head", head_sha), ("base", base_sha)):
         if not isinstance(sha, str) or not SHA_RE.match(sha):
             raise EngineError("pull request %s SHA is invalid" % label)
-    return number, title, head_sha, base_sha
+    changed_files = pr.get("changed_files")
+    if (
+        isinstance(changed_files, bool)
+        or not isinstance(changed_files, int)
+        or changed_files < 0
+    ):
+        raise EngineError("pull request changed_files count is invalid")
+    return number, title, head_sha, base_sha, changed_files
 
 
 def file_records(files, ignore_patterns, scope_patterns):
@@ -332,14 +339,26 @@ def make_finding(code, severity, message, files=None, scopes=None, scope=None):
 
 
 def analyze(repo, pr, files, registry, config):
-    number, title, head_sha, base_sha = pr_fields(pr)
+    number, title, head_sha, base_sha, expected_files = pr_fields(pr)
     scope, title_status = parse_title(title)
     if scope is not None and scope not in registry:
         title_status = "unknown"
 
     records, ignored = file_records(files, config.get("ignore", []), config["scopes"])
+    fetched_files = len(files)
+    coverage_complete = fetched_files == expected_files
     touched = sorted({name for record in records for name in record["scopes"]})
     findings = []
+
+    if not coverage_complete:
+        findings.append(
+            make_finding(
+                "coverage_incomplete",
+                "warning",
+                "Changed-file coverage is incomplete: %d fetched, %d expected. This report may not cover the whole pull request."
+                % (fetched_files, expected_files),
+            )
+        )
 
     if title_status == "missing":
         findings.append(
@@ -417,6 +436,11 @@ def analyze(repo, pr, files, registry, config):
         "base_sha": base_sha,
         "declared_scope": scope,
         "title_status": title_status,
+        "coverage": {
+            "expected_files": expected_files,
+            "fetched_files": fetched_files,
+            "complete": coverage_complete,
+        },
         "files": records,
         "findings": findings,
         "candidates": candidates,
@@ -444,10 +468,21 @@ def render_summary(result):
     else:
         lines.append("Declared scope: none (%s)" % result["title_status"])
     counts = result["counts"]
+    coverage = result["coverage"]
     lines.append(
-        "Changed files: %d, matched: %d, outside: %d, unmapped: %d, ignored: %d."
-        % (counts["files"], counts["matched"], counts["outside"], counts["unmapped"], counts["ignored"])
+        "Changed files: %d of %d fetched. Matched: %d, outside: %d, unmapped: %d, ignored: %d."
+        % (
+            coverage["fetched_files"],
+            coverage["expected_files"],
+            counts["matched"],
+            counts["outside"],
+            counts["unmapped"],
+            counts["ignored"],
+        )
     )
+    if not coverage["complete"]:
+        lines.append("")
+        lines.append("Coverage is incomplete. This is not a clean scope result.")
     lines.append("")
     lines.append("Advisory only. This report does not block the pull request.")
     lines.append("")

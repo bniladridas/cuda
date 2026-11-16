@@ -30,11 +30,14 @@ def write_json(path, data):
     path.write_text(json.dumps(data), encoding="utf-8")
 
 
-def make_fixture(number, title, files):
+def make_fixture(number, title, files, changed_files=None):
+    if changed_files is None:
+        changed_files = len(files)
     return {
         "pull_request": {
             "number": number,
             "title": title,
+            "changed_files": changed_files,
             "head": {"sha": HEAD_SHA},
             "base": {"sha": BASE_SHA},
         },
@@ -125,7 +128,13 @@ class ScopeGuardTests(unittest.TestCase):
         self.assertEqual(artifact["counts"]["files"], 2)
         self.assertEqual(artifact["counts"]["matched"], 2)
         self.assertEqual(artifact["counts"]["outside"], 0)
-        self.assertIn("No scope mismatches found.", self.summary.read_text(encoding="utf-8"))
+        self.assertEqual(
+            artifact["coverage"],
+            {"expected_files": 2, "fetched_files": 2, "complete": True},
+        )
+        summary = self.summary.read_text(encoding="utf-8")
+        self.assertIn("Changed files: 2 of 2 fetched.", summary)
+        self.assertIn("No scope mismatches found.", summary)
 
     def test_mixed_fixture(self):
         self.assertEqual(self.run_engine(MIXED_FIXTURE, pr=102), 0)
@@ -183,6 +192,69 @@ class ScopeGuardTests(unittest.TestCase):
         self.assertEqual(artifact["counts"]["files"], 1)
         self.assertEqual(artifact["findings"], [])
 
+    def test_incomplete_coverage_is_reported(self):
+        path = self.dir / "incomplete.json"
+        write_json(
+            path,
+            make_fixture(
+                101,
+                "[kernels] Add a kernel",
+                [{"filename": "src/a.cu", "status": "added"}],
+                changed_files=5,
+            ),
+        )
+        self.assertEqual(self.run_engine(path), 0)
+        artifact = self.read_artifact()
+        self.assertEqual(
+            artifact["coverage"],
+            {"expected_files": 5, "fetched_files": 1, "complete": False},
+        )
+        self.assertEqual(
+            [finding["code"] for finding in artifact["findings"]],
+            ["coverage_incomplete"],
+        )
+        summary = self.summary.read_text(encoding="utf-8")
+        self.assertIn("Changed files: 1 of 5 fetched.", summary)
+        self.assertIn("Coverage is incomplete. This is not a clean scope result.", summary)
+        self.assertNotIn("No scope mismatches found.", summary)
+
+    def test_excess_files_mark_coverage_incomplete(self):
+        path = self.dir / "excess.json"
+        write_json(
+            path,
+            make_fixture(
+                101,
+                "[kernels] Add a kernel",
+                [
+                    {"filename": "src/a.cu", "status": "added"},
+                    {"filename": "include/a.h", "status": "added"},
+                ],
+                changed_files=1,
+            ),
+        )
+        self.assertEqual(self.run_engine(path), 0)
+        artifact = self.read_artifact()
+        self.assertEqual(
+            artifact["coverage"],
+            {"expected_files": 1, "fetched_files": 2, "complete": False},
+        )
+        self.assertIn(
+            "coverage_incomplete",
+            [finding["code"] for finding in artifact["findings"]],
+        )
+
+    def test_missing_changed_files_is_rejected(self):
+        path = self.dir / "missing-count.json"
+        data = make_fixture(
+            101,
+            "[kernels] Add a kernel",
+            [{"filename": "src/a.cu", "status": "added"}],
+        )
+        del data["pull_request"]["changed_files"]
+        write_json(path, data)
+        self.assertEqual(self.run_engine(path), 1)
+        self.assertIn("changed_files count is invalid", self.stderr)
+
     def test_summary_escapes_markdown_title(self):
         path = self.dir / "markdown.json"
         write_json(
@@ -213,6 +285,7 @@ class ScopeGuardTests(unittest.TestCase):
         self.assertEqual(artifact["base_sha"], BASE_SHA)
         self.assertIn("generated_at", artifact)
         self.assertIn("files", artifact)
+        self.assertIn("coverage", artifact)
         self.assertIn("counts", artifact)
 
     def test_config_must_match_registry(self):

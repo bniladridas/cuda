@@ -16,7 +16,9 @@ pr-scope-guard/
 ## How a run works
 
 1. The title is parsed as `[scope] Description`.
-2. The pull request and its changed files are read through the GitHub API.
+2. The pull request and its changed files are read through the GitHub API. The
+   fetched count is compared with the pull request's `changed_files` count; a
+   mismatch marks the report incomplete.
 3. Every changed file is matched against the path map. A file can match more
    than one scope.
 4. The declared scope is compared with the matched files. Findings and
@@ -38,12 +40,17 @@ When adding a scope, add it to both files in the same pull request.
 
 | Code | Meaning |
 | ---- | ------- |
+| `coverage_incomplete` | The fetched file count does not match `changed_files`, so the report may be partial. |
 | `title_missing_scope` | The title does not start with `[scope]`. |
 | `title_malformed` | The title does not have a lowercase scope and a description. |
 | `unknown_scope` | The scope is not in the registry. |
 | `scope_matches_no_changed_files` | The declared scope matches no changed file. |
 | `files_outside_scope` | Some changed files match other scopes. |
 | `files_matching_no_scope` | Some changed files match no scope at all. |
+
+GitHub's changed-files endpoint returns at most 3,000 files. The guard does not
+treat a short list as a clean result: it adds `coverage_incomplete`, and the
+summary says coverage is incomplete.
 
 Candidate scopes are counts, not a verdict. A multi-area change can legitimately
 span scopes; the report names the files so the author can explain the split.

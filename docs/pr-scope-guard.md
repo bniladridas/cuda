@@ -29,10 +29,13 @@ its own check before it merges.
 
 ## Reading the report
 
-The step summary lists the declared scope, counts, findings, files outside the
-scope, files that match no scope, and candidate scopes. The JSON artifact holds
-the same evidence plus head and base SHAs. Findings are advisory: the job stays
-green unless the engine or configuration fails.
+The step summary lists the declared scope, fetched and expected file counts,
+findings, files outside the scope, files that match no scope, and candidate
+scopes. The JSON artifact holds the same evidence plus head and base SHAs and a
+`coverage` object with `expected_files`, `fetched_files` and `complete`. When the
+counts differ, the report includes `coverage_incomplete` and says it is not a
+clean scope result. Findings are advisory: the job stays green unless the engine
+or configuration fails.
 
 ## Path map
 
@@ -53,6 +56,9 @@ artifact.
 ## Limitations
 
 - The check is advisory and does not block a pull request.
+- GitHub's changed-files endpoint returns at most 3,000 files. The guard marks
+  the report incomplete when the fetched count differs from `changed_files`; it
+  does not analyse the remaining files.
 - Matching uses paths only. It cannot tell whether a file is relevant to the
   change.
 - Renames are judged by the current path; the previous path is recorded in the
@@ -66,7 +72,7 @@ artifact.
 ## Tests
 
 `pr-scope-guard/tests/test_scope_guard.py` covers parsing, glob matching,
-configuration, findings, escaping, artifacts and fixtures.
+configuration, findings, coverage, escaping, artifacts and fixtures.
 `pr-scope-guard/tests/test_workflow_policy.py` checks the read-only trigger,
 permissions, base checkout, absence of secrets and the validated engine call.
 
