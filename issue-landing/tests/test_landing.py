@@ -66,49 +66,58 @@ class CrossReferenceTests(unittest.TestCase):
         ]
         self.assertEqual(landing.linked_pull_request_numbers(timeline), [8])
 
-    def test_merged_pr_only_selects_same_repo_issue_references(self):
-        timeline = [
-            {
-                "event": "cross-referenced",
-                "source": {
-                    "issue": {
-                        "number": 12,
-                        "html_url": "https://github.com/acme/cuda/issues/12",
-                        "repository": {"full_name": "acme/cuda"},
+    def test_pr_candidates_are_verified_on_each_issue_timeline(self):
+        def fake_gh_json(path, paginate=False):
+            if path == "repos/acme/cuda/pulls/62":
+                return {"body": "Implements #12 and #13"}
+            if path == "repos/acme/cuda/issues/62/comments?per_page=100":
+                return [{"body": "Also references #12 and https://github.com/other/repo/issues/99"}]
+            if path == "repos/acme/cuda/issues/12/timeline?per_page=100":
+                return [
+                    {
+                        "event": "cross-referenced",
+                        "source": {
+                            "issue": {
+                                "number": 62,
+                                "pull_request": {"url": "pr"},
+                                "repository": {"full_name": "acme/cuda"},
+                            }
+                        },
                     }
-                },
-            },
-            {
-                "event": "cross-referenced",
-                "source": {
-                    "issue": {
-                        "number": 13,
-                        "html_url": "https://github.com/other/repo/issues/13",
-                        "repository": {"full_name": "other/repo"},
+                ]
+            if path == "repos/acme/cuda/issues/13/timeline?per_page=100":
+                return [
+                    {
+                        "event": "cross-referenced",
+                        "source": {
+                            "issue": {
+                                "number": 62,
+                                "pull_request": {"url": "pr"},
+                                "repository": {"full_name": "other/repo"},
+                            }
+                        },
                     }
-                },
-            },
-            {
-                "event": "cross-referenced",
-                "source": {
-                    "issue": {
-                        "number": 14,
-                        "html_url": "https://github.com/acme/cuda/issues/14",
-                        "pull_request": {"url": "pr"},
-                        "repository": {"full_name": "acme/cuda"},
-                    }
-                },
-            },
-        ]
-        self.assertEqual(landing.explicit_issue_numbers(timeline, "acme/cuda"), [12])
+                ]
+            raise AssertionError("unexpected GitHub API request: %s" % path)
 
-    def test_issue_references_are_deduplicated(self):
-        issue = {"number": 5, "html_url": "url", "repository": {"full_name": "acme/cuda"}}
-        timeline = [
-            {"event": "cross-referenced", "source": {"issue": issue}},
-            {"event": "cross-referenced", "source": {"issue": issue}},
-        ]
-        self.assertEqual(landing.explicit_issue_numbers(timeline, "acme/cuda"), [5])
+        with patch.object(landing, "gh_json", side_effect=fake_gh_json):
+            self.assertEqual(landing.explicit_issue_numbers("acme/cuda", 62), [12])
+
+    def test_pr_issue_candidates_are_deduplicated_and_external_urls_excluded(self):
+        self.assertEqual(
+            landing.issue_reference_candidates(
+                ["Implements #5 and #5", "See https://github.com/acme/cuda/issues/6"],
+                "acme/cuda",
+            ),
+            [5, 6],
+        )
+        self.assertEqual(
+            landing.issue_reference_candidates(
+                ["See https://github.com/other/repo/issues/7"],
+                "acme/cuda",
+            ),
+            [],
+        )
 
 
 class IssueCommentEvidenceTests(unittest.TestCase):
