@@ -314,9 +314,8 @@ def markdown_report(report):
         lines.append("No comments with explicit implementation or validation language were found.")
     lines += [
         "",
-        "**Issue comments inspected:** %d (SHA-256: `%s`)" % (
-            report["issue_comments"]["count"], report["issue_comments"]["digest"]
-        ),
+        "**Issue comments inspected:** %d (SHA-256: `%s`)"
+        % (report["issue_comments"]["count"], report["issue_comments"]["digest"]),
         "",
         "### Acceptance criteria",
         "",
