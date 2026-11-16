@@ -58,35 +58,91 @@ def issue_digest(issue):
     return sha256_text(canonical_json({"title": issue.get("title") or "", "body": issue.get("body") or ""}))
 
 
-def extract_acceptance_criteria(body):
-    """Extract list items under Acceptance Criteria; never infer completion."""
-    in_section = False
+def extract_acceptance_criteria(body, comments=None):
+    """Extract criterion lists from the issue body and comments.
+
+    This is deliberately not a semantic verifier. Every item, including a
+    checked box, remains human-review-required.
+    """
+    sources = [{"source": "issue body", "url": "", "author": "", "body": body or ""}]
+    for comment in comments or []:
+        sources.append(
+            {
+                "source": "issue comment",
+                "url": comment.get("html_url") or "",
+                "author": (comment.get("user") or {}).get("login") or "unknown",
+                "body": comment.get("body") or "",
+            }
+        )
     criteria = []
-    for line in (body or "").splitlines():
-        if re.match(r"^\s*#{1,6}\s+", line):
+    for source in sources:
+        in_section = False
+        for line in source["body"].splitlines():
+            if re.match(r"^\s*#{1,6}\s+", line):
+                if in_section:
+                    break
+                in_section = bool(CRITERIA_HEADING.match(line))
+                continue
             if in_section:
-                break
-            in_section = bool(CRITERIA_HEADING.match(line))
-            continue
-        if in_section:
-            match = LIST_ITEM.match(line)
-            if match:
-                criteria.append(
-                    {
-                        "text": match.group(1).strip(),
-                        "status": "human review required",
-                        "evidence": [],
-                    }
-                )
+                match = LIST_ITEM.match(line)
+                if match:
+                    criteria.append(
+                        {
+                            "text": match.group(1).strip(),
+                            "status": "human review required",
+                            "evidence": [],
+                            "source": source["source"],
+                            "url": source["url"],
+                            "author": source["author"],
+                        }
+                    )
     if not criteria:
         criteria.append(
             {
                 "text": "No machine-verifiable acceptance criterion was extracted. Review the issue manually.",
                 "status": "human review required",
                 "evidence": [],
+                "source": "manual review",
+                "url": "",
+                "author": "",
             }
         )
     return criteria
+
+
+def issue_comment_digest(comments):
+    records = [
+        {
+            "id": comment.get("id"),
+            "updated_at": comment.get("updated_at") or comment.get("created_at") or "",
+            "body_sha256": sha256_text(comment.get("body") or ""),
+        }
+        for comment in comments
+    ]
+    return sha256_text(canonical_json(records))
+
+
+def relevant_comment_evidence(comments):
+    """Surface comments that may contain implementation evidence without trusting them."""
+    evidence = []
+    pattern = re.compile(
+        r"\b(acceptance|implemented|merged|tested|validation|verified|evidence|commit|pull request)\b|\bPR\s*#\d+",
+        re.I,
+    )
+    for comment in comments:
+        body = re.sub(r"\s+", " ", comment.get("body") or "").strip()
+        if not body or not pattern.search(body):
+            continue
+        evidence.append(
+            {
+                "author": (comment.get("user") or {}).get("login") or "unknown",
+                "url": comment.get("html_url") or "",
+                "created_at": comment.get("created_at") or "",
+                "excerpt": body[:500],
+                "status": "human review required",
+            }
+        )
+    return evidence
 
 
 def explicit_issue_numbers(timeline, current_repo):
@@ -161,6 +217,7 @@ def report_payload(repo, issue_number, allow_closed=False):
     if issue.get("state") != "open" and not allow_closed:
         raise LandingError("issue #%d is not open; refusing to create a close report" % issue_number)
     timeline = gh_json("repos/%s/issues/%d/timeline?per_page=100" % (repo, issue_number), paginate=True)
+    comments = gh_json("repos/%s/issues/%d/comments?per_page=100" % (repo, issue_number), paginate=True)
     prs = [pull_request_snapshot(repo, n, default_branch) for n in linked_pull_request_numbers(timeline)]
     return {
         "schema_version": 1,
@@ -174,7 +231,12 @@ def report_payload(repo, issue_number, allow_closed=False):
         },
         "default_branch": {"name": default_branch, "sha": default_sha},
         "pull_requests": prs,
-        "acceptance_criteria": extract_acceptance_criteria(issue.get("body") or ""),
+        "issue_comments": {
+            "count": len(comments),
+            "digest": issue_comment_digest(comments),
+            "evidence": relevant_comment_evidence(comments),
+        },
+        "acceptance_criteria": extract_acceptance_criteria(issue.get("body") or "", comments),
     }
 
 
@@ -230,11 +292,31 @@ def markdown_report(report):
                     "landed" if pr["landed"] else "not verified as landed",
                 )
             )
-    lines += ["", "### Acceptance criteria", "", "| Criterion | Status | Evidence |", "| --- | --- | --- |"]
+    lines += ["", "### Relevant issue comments", ""]
+    if report["issue_comments"]["evidence"]:
+        for item in report["issue_comments"]["evidence"]:
+            excerpt = item["excerpt"].replace("\\", "\\\\").replace("`", "\\`").replace("|", "\\|")
+            lines.append("- [Comment by %s](%s): %s" % (item["author"], item["url"], excerpt))
+    else:
+        lines.append("No comments with explicit implementation or validation language were found.")
+    lines += [
+        "",
+        "**Issue comments inspected:** %d (SHA-256: `%s`)" % (
+            report["issue_comments"]["count"], report["issue_comments"]["digest"]
+        ),
+        "",
+        "### Acceptance criteria",
+        "",
+        "| Criterion | Status | Source |",
+        "| --- | --- | --- |",
+    ]
     for item in report["acceptance_criteria"]:
         evidence = ", ".join(item["evidence"]) or "Human review required"
+        source = item.get("source") or "manual review"
+        if item.get("url"):
+            source = "[%s](%s)" % (source, item["url"])
         lines.append(
-            "| %s | %s | %s |" % (item["text"].replace("|", "\\|"), item["status"], evidence.replace("|", "\\|"))
+            "| %s | %s | %s |" % (item["text"].replace("|", "\\|"), item["status"], source.replace("|", "\\|"))
         )
     lines += [
         "",
