@@ -1,4 +1,5 @@
 """Offline tests for the issue landing report and approval boundary."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -22,11 +23,14 @@ class CriteriaTests(unittest.TestCase):
 - Do not auto-merge.
 """
         criteria = landing.extract_acceptance_criteria(body)
-        self.assertEqual([item["text"] for item in criteria], [
-            "Merge SHA is reported.",
-            "Closing requires approval.",
-            "Stale reports fail closed.",
-        ])
+        self.assertEqual(
+            [item["text"] for item in criteria],
+            [
+                "Merge SHA is reported.",
+                "Closing requires approval.",
+                "Stale reports fail closed.",
+            ],
+        )
         self.assertTrue(all(item["status"] == "human review required" for item in criteria))
         self.assertTrue(all(item["evidence"] == [] for item in criteria))
 
@@ -47,18 +51,37 @@ class CrossReferenceTests(unittest.TestCase):
 
     def test_merged_pr_only_selects_same_repo_issue_references(self):
         timeline = [
-            {"event": "cross-referenced", "source": {"issue": {
-                "number": 12, "html_url": "https://github.com/acme/cuda/issues/12",
-                "repository": {"full_name": "acme/cuda"},
-            }}},
-            {"event": "cross-referenced", "source": {"issue": {
-                "number": 13, "html_url": "https://github.com/other/repo/issues/13",
-                "repository": {"full_name": "other/repo"},
-            }}},
-            {"event": "cross-referenced", "source": {"issue": {
-                "number": 14, "html_url": "https://github.com/acme/cuda/issues/14",
-                "pull_request": {"url": "pr"}, "repository": {"full_name": "acme/cuda"},
-            }}},
+            {
+                "event": "cross-referenced",
+                "source": {
+                    "issue": {
+                        "number": 12,
+                        "html_url": "https://github.com/acme/cuda/issues/12",
+                        "repository": {"full_name": "acme/cuda"},
+                    }
+                },
+            },
+            {
+                "event": "cross-referenced",
+                "source": {
+                    "issue": {
+                        "number": 13,
+                        "html_url": "https://github.com/other/repo/issues/13",
+                        "repository": {"full_name": "other/repo"},
+                    }
+                },
+            },
+            {
+                "event": "cross-referenced",
+                "source": {
+                    "issue": {
+                        "number": 14,
+                        "html_url": "https://github.com/acme/cuda/issues/14",
+                        "pull_request": {"url": "pr"},
+                        "repository": {"full_name": "acme/cuda"},
+                    }
+                },
+            },
         ]
         self.assertEqual(landing.explicit_issue_numbers(timeline, "acme/cuda"), [12])
 
@@ -99,9 +122,13 @@ class ReportDigestTests(unittest.TestCase):
 class PullRequestEvidenceTests(unittest.TestCase):
     def test_merged_commit_reachable_from_default_branch_is_landed(self):
         pr = {
-            "number": 4, "merged_at": "2026-01-01T00:00:00Z", "merge_commit_sha": "merge-sha",
-            "head": {"sha": "head-sha"}, "base": {"ref": "main", "sha": "base-sha"},
-            "state": "closed", "html_url": "https://github.com/acme/cuda/pull/4",
+            "number": 4,
+            "merged_at": "2026-01-01T00:00:00Z",
+            "merge_commit_sha": "merge-sha",
+            "head": {"sha": "head-sha"},
+            "base": {"ref": "main", "sha": "base-sha"},
+            "state": "closed",
+            "html_url": "https://github.com/acme/cuda/pull/4",
         }
         with patch.object(landing, "gh_json", side_effect=[pr, {"status": "ahead"}]):
             result = landing.pull_request_snapshot("acme/cuda", 4, "main")
@@ -110,8 +137,12 @@ class PullRequestEvidenceTests(unittest.TestCase):
 
     def test_merged_but_unreachable_commit_is_not_landed(self):
         pr = {
-            "number": 4, "merged_at": "2026-01-01T00:00:00Z", "merge_commit_sha": "merge-sha",
-            "head": {"sha": "head-sha"}, "base": {"ref": "main", "sha": "base-sha"}, "state": "closed",
+            "number": 4,
+            "merged_at": "2026-01-01T00:00:00Z",
+            "merge_commit_sha": "merge-sha",
+            "head": {"sha": "head-sha"},
+            "base": {"ref": "main", "sha": "base-sha"},
+            "state": "closed",
         }
         with patch.object(landing, "gh_json", side_effect=[pr, {"status": "diverged"}]):
             result = landing.pull_request_snapshot("acme/cuda", 4, "main")
@@ -119,8 +150,12 @@ class PullRequestEvidenceTests(unittest.TestCase):
 
     def test_open_pr_is_not_landed(self):
         pr = {
-            "number": 4, "merged_at": None, "merge_commit_sha": None,
-            "head": {"sha": "head-sha"}, "base": {"ref": "main", "sha": "base-sha"}, "state": "open",
+            "number": 4,
+            "merged_at": None,
+            "merge_commit_sha": None,
+            "head": {"sha": "head-sha"},
+            "base": {"ref": "main", "sha": "base-sha"},
+            "state": "open",
         }
         with patch.object(landing, "gh_json", return_value=pr):
             result = landing.pull_request_snapshot("acme/cuda", 4, "main")
