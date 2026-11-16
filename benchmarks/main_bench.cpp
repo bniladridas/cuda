@@ -31,14 +31,13 @@ struct Options {
 };
 
 void usage(const char* argv0) {
-  std::printf(
-      "usage: %s [--iterations N] [--reps R] [--warmup W] [--json]\n"
-      "\n"
-      "  --iterations  launches per timed batch (default %d)\n"
-      "  --reps        timed batches to summarise (default %d)\n"
-      "  --warmup      untimed launches before measuring (default %d)\n"
-      "  --json        emit machine-readable results instead of a table\n",
-      argv0, kDefaultIterations, kDefaultReps, kDefaultWarmup);
+  std::printf("usage: %s [--iterations N] [--reps R] [--warmup W] [--json]\n"
+              "\n"
+              "  --iterations  launches per timed batch (default %d)\n"
+              "  --reps        timed batches to summarise (default %d)\n"
+              "  --warmup      untimed launches before measuring (default %d)\n"
+              "  --json        emit machine-readable results instead of a table\n",
+              argv0, kDefaultIterations, kDefaultReps, kDefaultWarmup);
 }
 
 bool parse_options(int argc, char** argv, Options* opts) {
@@ -100,9 +99,9 @@ bool vecadd_correct(std::size_t n) {
   cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, nullptr);
 
   std::vector<float> got(n);
-  if (!bench::check_cuda(cudaMemcpy(got.data(), d_c, n * sizeof(float),
-                                    cudaMemcpyDeviceToHost),
-                         "cudaMemcpy")) {
+  if (!bench::check_cuda(
+          cudaMemcpy(got.data(), d_c, n * sizeof(float), cudaMemcpyDeviceToHost),
+          "cudaMemcpy")) {
     return false;
   }
   cudaFree(d_a);
@@ -263,9 +262,8 @@ int main(int argc, char** argv) {
     for (const Row& r : rows) {
       bench::print_stats(r.kernel, r.n, r.bytes, r.stats);
     }
-    std::printf(
-        "\nmedian is the reported figure; min is the best observed batch. See "
-        "docs/methodology.md.\n");
+    std::printf("\nmedian is the reported figure; min is the best observed batch. See "
+                "docs/methodology.md.\n");
   }
   return 0;
 }

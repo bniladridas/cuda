@@ -12,11 +12,11 @@ namespace {
 
 const char* const kTest = "reduce";
 
-#define CHECK_CUDA(expr)                                                          \
-  do {                                                                            \
-    cudaError_t err__ = (expr);                                                   \
-    host::check(err__ == cudaSuccess, kTest,                                      \
-                std::string(#expr " failed: ") + cudaGetErrorString(err__));      \
+#define CHECK_CUDA(expr)                                                     \
+  do {                                                                       \
+    cudaError_t err__ = (expr);                                              \
+    host::check(err__ == cudaSuccess, kTest,                                 \
+                std::string(#expr " failed: ") + cudaGetErrorString(err__)); \
   } while (0)
 
 // Tolerances are relative to max(|ref|, n), a scale that does not collapse when

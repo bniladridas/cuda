@@ -97,7 +97,8 @@ inline bool measure(const std::function<void()>& work, int iterations, int reps,
   out->median_ms = median(per_iter_ms);
   out->p90_ms = percentile(per_iter_ms, 0.90);
   double sum = 0.0;
-  for (double v : per_iter_ms) sum += v;
+  for (double v : per_iter_ms)
+    sum += v;
   out->mean_ms = sum / static_cast<double>(per_iter_ms.size());
   return true;
 }
