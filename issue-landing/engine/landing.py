@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Evidence-based issue landing reports with an explicitly approved close path."""
+
 import argparse
 import hashlib
 import json
@@ -70,17 +71,21 @@ def extract_acceptance_criteria(body):
         if in_section:
             match = LIST_ITEM.match(line)
             if match:
-                criteria.append({
-                    "text": match.group(1).strip(),
-                    "status": "human review required",
-                    "evidence": [],
-                })
+                criteria.append(
+                    {
+                        "text": match.group(1).strip(),
+                        "status": "human review required",
+                        "evidence": [],
+                    }
+                )
     if not criteria:
-        criteria.append({
-            "text": "No machine-verifiable acceptance criterion was extracted. Review the issue manually.",
-            "status": "human review required",
-            "evidence": [],
-        })
+        criteria.append(
+            {
+                "text": "No machine-verifiable acceptance criterion was extracted. Review the issue manually.",
+                "status": "human review required",
+                "evidence": [],
+            }
+        )
     return criteria
 
 
@@ -190,12 +195,15 @@ def markdown_report(report):
     branch = report["default_branch"]
     tick = chr(96)
     lines = [
-        "## Issue landing report", "",
+        "## Issue landing report",
+        "",
         "**Issue:** [#%d: %s](%s)" % (issue["number"], issue["title"], issue["url"]),
         "**Report digest:** %s%s%s" % (tick, report["report_digest"], tick),
         "**Issue title/body SHA-256:** %s%s%s" % (tick, issue["digest"], tick),
         "**Default branch:** %s%s%s at %s%s%s" % (tick, branch["name"], tick, tick, branch["sha"], tick),
-        "", "### Linked pull requests", "",
+        "",
+        "### Linked pull requests",
+        "",
     ]
     if not report["pull_requests"]:
         lines.append("No explicitly cross-referenced pull requests were found.")
@@ -207,23 +215,33 @@ def markdown_report(report):
         for pr in report["pull_requests"]:
             state = "draft" if pr["draft"] else pr["state"]
             lines.append(
-                "| [#%d](%s) | %s | %s%s%s | %s%s%s | %s | %s |" % (
-                    pr["number"], pr["url"], state, tick, pr["head_sha"][:12], tick,
-                    tick, pr["merge_commit_sha"][:12], tick, pr["default_branch_reachability"],
+                "| [#%d](%s) | %s | %s%s%s | %s%s%s | %s | %s |"
+                % (
+                    pr["number"],
+                    pr["url"],
+                    state,
+                    tick,
+                    pr["head_sha"][:12],
+                    tick,
+                    tick,
+                    pr["merge_commit_sha"][:12],
+                    tick,
+                    pr["default_branch_reachability"],
                     "landed" if pr["landed"] else "not verified as landed",
                 )
             )
     lines += ["", "### Acceptance criteria", "", "| Criterion | Status | Evidence |", "| --- | --- | --- |"]
     for item in report["acceptance_criteria"]:
         evidence = ", ".join(item["evidence"]) or "Human review required"
-        lines.append("| %s | %s | %s |" % (
-            item["text"].replace("|", "\\|"), item["status"], evidence.replace("|", "\\|")
-        ))
+        lines.append(
+            "| %s | %s | %s |" % (item["text"].replace("|", "\\|"), item["status"], evidence.replace("|", "\\|"))
+        )
     lines += [
         "",
         "> This report verifies GitHub state only. It does not decide whether implementation behavior satisfies an acceptance criterion. A merged PR alone is not proof of completion.",
         "",
-        "A close action, when enabled, requires separate approval on the protected %sissue-landing-close%s environment. The close job re-fetches the issue, linked PRs and default-branch head and aborts if this report is stale." % (tick, tick),
+        "A close action, when enabled, requires separate approval on the protected %sissue-landing-close%s environment. The close job re-fetches the issue, linked PRs and default-branch head and aborts if this report is stale."
+        % (tick, tick),
     ]
     return "\n".join(lines) + "\n"
 
@@ -283,10 +301,19 @@ def command_close(args):
         raise LandingError(
             "approved report is stale: issue, linked PR state, or default-branch head changed; generate a fresh report and approval"
         )
-    run([
-        "gh", "api", "--method", "PATCH", "repos/%s/issues/%d" % (args.repo, args.issue_number),
-        "-f", "state=closed", "-f", "state_reason=completed",
-    ])
+    run(
+        [
+            "gh",
+            "api",
+            "--method",
+            "PATCH",
+            "repos/%s/issues/%d" % (args.repo, args.issue_number),
+            "-f",
+            "state=closed",
+            "-f",
+            "state_reason=completed",
+        ]
+    )
     print("Closed issue #%d after protected-environment approval and stale-state revalidation." % args.issue_number)
 
 
