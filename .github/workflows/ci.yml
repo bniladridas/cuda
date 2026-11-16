@@ -126,7 +126,7 @@ jobs:
           set -euo pipefail
           coverage erase
           ran=0
-          for suite in pr-confidence label-review pr-scope-guard; do
+          for suite in pr-confidence label-review pr-scope-guard benchmarks; do
             if [ ! -d "$suite/tests" ]; then
               echo "Skipping $suite: tests directory not present"
               continue
