@@ -107,6 +107,19 @@ class CrossReferenceTests(unittest.TestCase):
 
 
 class IssueCommentEvidenceTests(unittest.TestCase):
+    def test_generated_report_comments_do_not_invalidate_approval(self):
+        comments = [
+            {
+                "user": {"login": "github-actions[bot]"},
+                "body": "## Issue landing report\\nReport digest: abc",
+            },
+            {
+                "user": {"login": "reviewer"},
+                "body": "The implementation was tested.",
+            },
+        ]
+        self.assertEqual(landing.source_issue_comments(comments), [comments[1]])
+
     def test_only_relevant_comment_language_is_surfaced_as_unverified_evidence(self):
         comments = [
             {
