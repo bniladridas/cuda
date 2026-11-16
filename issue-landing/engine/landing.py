@@ -110,6 +110,18 @@ def extract_acceptance_criteria(body, comments=None):
     return criteria
 
 
+def source_issue_comments(comments):
+    """Exclude this workflow's own report comments from approval evidence."""
+    return [
+        comment
+        for comment in comments
+        if not (
+            (comment.get("user") or {}).get("login") == "github-actions[bot]"
+            and (comment.get("body") or "").startswith("## Issue landing report")
+        )
+    ]
+
+
 def issue_comment_digest(comments):
     records = [
         {
@@ -218,6 +230,7 @@ def report_payload(repo, issue_number, allow_closed=False):
         raise LandingError("issue #%d is not open; refusing to create a close report" % issue_number)
     timeline = gh_json("repos/%s/issues/%d/timeline?per_page=100" % (repo, issue_number), paginate=True)
     comments = gh_json("repos/%s/issues/%d/comments?per_page=100" % (repo, issue_number), paginate=True)
+    source_comments = source_issue_comments(comments)
     prs = [pull_request_snapshot(repo, n, default_branch) for n in linked_pull_request_numbers(timeline)]
     return {
         "schema_version": 1,
@@ -232,11 +245,11 @@ def report_payload(repo, issue_number, allow_closed=False):
         "default_branch": {"name": default_branch, "sha": default_sha},
         "pull_requests": prs,
         "issue_comments": {
-            "count": len(comments),
-            "digest": issue_comment_digest(comments),
-            "evidence": relevant_comment_evidence(comments),
+            "count": len(source_comments),
+            "digest": issue_comment_digest(source_comments),
+            "evidence": relevant_comment_evidence(source_comments),
         },
-        "acceptance_criteria": extract_acceptance_criteria(issue.get("body") or "", comments),
+        "acceptance_criteria": extract_acceptance_criteria(issue.get("body") or "", source_comments),
     }
 
 
