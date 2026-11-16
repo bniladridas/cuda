@@ -158,8 +158,8 @@ def relevant_comment_evidence(comments):
 
 
 ISSUE_REFERENCE = re.compile(
-    r"(?<![\\w/])#(?P<number>\\d+)\\b"
-    r"|https?://github\\.com/(?P<owner>[^/\\s]+)/(?P<repo>[^/\\s#?]+)/issues/(?P<url_number>\\d+)",
+    r"(?<![\w/])#(?P<number>\d+)\b"
+    r"|https?://github\.com/(?P<owner>[^/\s]+)/(?P<repo>[^/\s#?]+)/issues/(?P<url_number>\d+)",
     re.I,
 )
 
