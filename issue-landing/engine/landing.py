@@ -403,11 +403,7 @@ def command_report(args):
         pr = gh_json("repos/%s/pulls/%d" % (args.repo, args.pull_request_number))
         if not pr.get("merged_at"):
             raise LandingError("pull request #%d is not merged" % args.pull_request_number)
-        timeline = gh_json(
-            "repos/%s/issues/%d/timeline?per_page=100" % (args.repo, args.pull_request_number),
-            paginate=True,
-        )
-        numbers = explicit_issue_numbers(timeline, args.repo)
+        numbers = explicit_issue_numbers(args.repo, args.pull_request_number)
         allow_closed = True
         if not numbers:
             Path(args.output_dir).mkdir(parents=True, exist_ok=True)
