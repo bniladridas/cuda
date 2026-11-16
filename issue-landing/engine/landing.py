@@ -372,10 +372,7 @@ def markdown_report(report):
         for item in report["issue_comments"]["evidence"]:
             # Preserve comment Markdown and line breaks, but quote every line
             # so headings, tables, and lists stay inside this excerpt.
-            quoted_excerpt = [
-                "> " + line if line else ">"
-                for line in item["excerpt"].splitlines()
-            ]
+            quoted_excerpt = ["> " + line if line else ">" for line in item["excerpt"].splitlines()]
             lines += [
                 "**Comment by [%s](%s)**" % (item["author"], item["url"]),
                 "",
