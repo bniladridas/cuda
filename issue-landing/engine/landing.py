@@ -142,15 +142,20 @@ def relevant_comment_evidence(comments):
         re.I,
     )
     for comment in comments:
-        body = re.sub(r"\s+", " ", comment.get("body") or "").strip()
+        body = (comment.get("body") or "").replace("\r\n", "\n").replace("\r", "\n").strip()
         if not body or not pattern.search(body):
             continue
+        excerpt = body[:500]
+        truncated = len(body) > 500
+        if truncated:
+            excerpt = excerpt.rstrip() + "\n\n… [excerpt truncated]"
         evidence.append(
             {
                 "author": (comment.get("user") or {}).get("login") or "unknown",
                 "url": comment.get("html_url") or "",
                 "created_at": comment.get("created_at") or "",
-                "excerpt": body[:500],
+                "excerpt": excerpt,
+                "truncated": truncated,
                 "status": "human review required",
             }
         )
@@ -365,14 +370,13 @@ def markdown_report(report):
     lines += ["", "### Relevant issue comments", ""]
     if report["issue_comments"]["evidence"]:
         for item in report["issue_comments"]["evidence"]:
-            # Keep comment content as quoted plain text. A comment may itself
-            # contain headings or Markdown tables, which must not break the
-            # surrounding landing report.
-            excerpt = item["excerpt"].replace("\\", "\\\\").replace("`", "\\`").replace("|", "\\|").replace("#", "\\#")
+            # Preserve comment Markdown and line breaks, but quote every line
+            # so headings, tables, and lists stay inside this excerpt.
+            quoted_excerpt = ["> " + line if line else ">" for line in item["excerpt"].splitlines()]
             lines += [
                 "**Comment by [%s](%s)**" % (item["author"], item["url"]),
                 "",
-                "> %s" % excerpt,
+                *quoted_excerpt,
                 "",
             ]
     else:
