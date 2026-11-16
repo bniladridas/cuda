@@ -1,0 +1,51 @@
+version: 1
+
+# The scope keys must match .github/pr-scopes.json exactly. A file can match
+# more than one scope: a tool workflow is also CI, and a tool guide is also
+# docs. Keep both files in step when a scope is added.
+ignore:
+  - "LICENSE"
+scopes:
+  automation:
+    - ".github/actionlint.yaml"
+    - ".github/CODEOWNERS"
+    - ".github/pr-scopes.json"
+    - ".yamllint.yml"
+    - ".gitignore"
+    - "gitbook-docs.yaml"
+    - "runners/**"
+  benchmarks:
+    - "benchmarks/**"
+  build:
+    - "CMakeLists.txt"
+    - "cmake/**"
+    - "**/CMakeLists.txt"
+  ci:
+    - ".github/workflows/**"
+  docs:
+    - "docs/**"
+    - "README.md"
+    - ".github/CONTRIBUTING.md"
+    - ".github/PULL_REQUEST_TEMPLATE.md"
+  kernels:
+    - "src/**"
+    - "include/**"
+    - "kernels/**"
+  label-review:
+    - "label-review/**"
+    - ".github/label-review.yml"
+    - ".github/workflows/label-review.yml"
+    - ".github/workflows/label-review-caller.yml"
+    - "docs/label-review.md"
+  pr-confidence:
+    - "pr-confidence/**"
+    - ".github/pr-confidence.yml"
+    - ".github/workflows/pr-confidence.yml"
+    - "docs/pr-confidence.md"
+  pr-scope-guard:
+    - "pr-scope-guard/**"
+    - ".github/pr-scope-guard.yml"
+    - ".github/workflows/pr-scope-guard.yml"
+    - "docs/pr-scope-guard.md"
+  tests:
+    - "tests/**"
