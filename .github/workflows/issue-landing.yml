@@ -11,12 +11,16 @@ on:
         description: Open issue number to report and optionally close after approval
         required: true
         type: number
+      approved-report-digest:
+        description: Exact SHA-256 from a previously reviewed issue landing report; leave empty for report-only
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: issue-landing-${ github.event.pull_request.number || inputs.issue-number || github.run_id }
+  group: issue-landing-${{ github.event.pull_request.number || inputs.issue-number || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -32,7 +36,7 @@ jobs:
       - name: Check out trusted default-branch code
         uses: actions/checkout@v7
         with:
-          ref: ${ github.event.repository.default_branch }
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - uses: actions/setup-python@v6
@@ -41,9 +45,9 @@ jobs:
 
       - name: Generate the read-only landing report
         env:
-          GH_TOKEN: ${ github.token }
-          ISSUE_NUMBER: ${ inputs.issue-number }
-          PR_NUMBER: ${ github.event.pull_request.number }
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             python3 issue-landing/engine/landing.py report \
@@ -74,7 +78,7 @@ jobs:
 
       - name: Post auditable reports
         env:
-          GH_TOKEN: ${ github.token }
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           found=0
@@ -90,7 +94,7 @@ jobs:
 
   close:
     needs: [report, comment]
-    if: github.event_name == 'workflow_dispatch' && vars.ISSUE_LANDING_CLOSE_ENABLED == 'true'
+    if: github.event_name == 'workflow_dispatch' && vars.ISSUE_LANDING_CLOSE_ENABLED == 'true' && inputs.approved-report-digest != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment:
@@ -103,7 +107,7 @@ jobs:
       - name: Check out trusted default-branch code
         uses: actions/checkout@v7
         with:
-          ref: ${ github.event.repository.default_branch }
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - uses: actions/setup-python@v6
@@ -117,10 +121,12 @@ jobs:
 
       - name: Revalidate the approved report and close the exact issue
         env:
-          GH_TOKEN: ${ github.token }
-          ISSUE_NUMBER: ${ inputs.issue-number }
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          APPROVED_DIGEST: ${{ inputs.approved-report-digest }}
         run: |
           python3 issue-landing/engine/landing.py close \
             --repo "$GITHUB_REPOSITORY" \
             --issue-number "$ISSUE_NUMBER" \
-            --report "reports/issue-$ISSUE_NUMBER.json"
+            --report "reports/issue-$ISSUE_NUMBER.json" \
+            --approved-digest "$APPROVED_DIGEST"
