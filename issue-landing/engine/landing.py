@@ -368,7 +368,7 @@ def markdown_report(report):
             # Keep comment content as quoted plain text. A comment may itself
             # contain headings or Markdown tables, which must not break the
             # surrounding landing report.
-            excerpt = re.sub(r"([\\\\`*_{}\\[\\]()#+\\-.!|>])", r"\\\\\\1", item["excerpt"])
+            excerpt = item["excerpt"].replace("\\", "\\\\").replace("`", "\\`").replace("|", "\\|").replace("#", "\\#")
             lines += [
                 "**Comment by [%s](%s)**" % (item["author"], item["url"]),
                 "",
