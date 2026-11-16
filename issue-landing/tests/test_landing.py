@@ -35,11 +35,13 @@ class CriteriaTests(unittest.TestCase):
         self.assertTrue(all(item["evidence"] == [] for item in criteria))
 
     def test_criteria_in_comments_are_included_with_source(self):
-        comments = [{
-            "body": "## Acceptance criteria\n- The audit comment links the report.",
-            "html_url": "https://github.com/acme/cuda/issues/7#issuecomment-9",
-            "user": {"login": "reviewer"},
-        }]
+        comments = [
+            {
+                "body": "## Acceptance criteria\n- The audit comment links the report.",
+                "html_url": "https://github.com/acme/cuda/issues/7#issuecomment-9",
+                "user": {"login": "reviewer"},
+            }
+        ]
         result = landing.extract_acceptance_criteria("## Summary", comments)
         self.assertEqual(result[0]["source"], "issue comment")
         self.assertEqual(result[0]["author"], "reviewer")
