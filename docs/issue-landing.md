@@ -43,32 +43,37 @@ excludes the report timestamp so the same evidence has a stable revision.
 ## Approval and close safety
 
 Report generation is read-only. Posting the report is a separate job with only
-`issues: write`. Closing is a third job, enabled only when the repository
+`issues: write`. Closing is a third job, disabled unless the repository
 variable `ISSUE_LANDING_CLOSE_ENABLED=true`.
 
-Before enabling close:
+The approval is bound to the exact report revision:
 
-1. Create a GitHub Environment named `issue-landing-close`.
-2. Configure at least one required reviewer for that environment.
-3. Verify the reviewer rule is active.
-4. Set `ISSUE_LANDING_CLOSE_ENABLED=true`.
+1. Dispatch the workflow with an open issue number and leave
+   `approved-report-digest` empty. The workflow posts the report and does not
+   close the issue.
+2. Review the report, including the issue comments, linked PR state, merge
+   commit reachability and every acceptance criterion.
+3. Dispatch the workflow again for the same issue and paste the exact
+   `report digest` value into `approved-report-digest`.
+4. The close job checks that the supplied digest matches the report generated
+   in that run, re-fetches the issue and linked PRs, recomputes the report
+   digest, and aborts if the issue, comments, PR state or default-branch head
+   changed. A fresh report and digest are then required.
 
-The close job waits for approval on that environment. It then checks that the
-environment still has a required-reviewer rule, validates the downloaded
-report digest, re-fetches the issue and all linked PR evidence, and recomputes
-the report digest. It aborts unless the issue is still open and the evidence is
-identical, including the default-branch head. Any change requires a fresh
-report and a new approval. The issue is closed only after these checks pass.
+The digest input is mandatory for closure and acts as the explicit human
+approval for one issue and one report revision. The close job also targets the
+`issue-landing-close` GitHub Environment. Configure at least one required
+reviewer there to add a second, independent approval before the job can run.
+Without environment protection, the exact-digest dispatch remains the required
+approval; the workflow does not claim that the Environment is protected unless
+you configure it in repository settings.
 
 If the variable is unset or false, manual dispatch only produces and posts the
-report. If the environment is missing or has no required reviewers, the close
-command fails closed.
+report. The issue is never closed by the merged-PR event.
 
 ## Manual use
 
-From the default branch, open Actions > `issue-landing` > Run workflow, enter an open issue number, then
-inspect the posted report. If close is enabled, approve or reject the waiting
-`issue-landing-close` job after reviewing the exact report for that run.
+From the default branch, open Actions > `issue-landing` > Run workflow and enter an open issue number. Leave the digest input empty to report only. To authorize closure, run it again with the exact digest from the posted report. If the Environment has required reviewers, approve or reject the waiting `issue-landing-close` job.
 
 The engine can also be tested offline:
 
