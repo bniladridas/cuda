@@ -189,7 +189,7 @@ def explicit_issue_numbers(current_repo, pull_request_number):
         "repos/%s/issues/%d/comments?per_page=100" % (current_repo, pull_request_number),
         paginate=True,
     )
-    texts = [pr.get("body") or ""] + [comment.get("body") or "" for comment in comments]
+    texts = [pr.get("title") or "", pr.get("body") or ""] + [comment.get("body") or "" for comment in comments]
     candidates = issue_reference_candidates(texts, current_repo)
     confirmed = set()
     for issue_number in candidates:
