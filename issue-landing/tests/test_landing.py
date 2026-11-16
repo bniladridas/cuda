@@ -88,7 +88,27 @@ class CrossReferenceTests(unittest.TestCase):
         ]
         self.assertEqual(landing.linked_pull_request_numbers(timeline, "ACME/CUDA"), [8])
 
-    def test_comment_excerpt_cannot_break_report_markdown_tables_or_headings(self):
+    def test_comment_excerpt_preserves_markdown_and_line_breaks_inside_blockquote(self):
+        body = (
+            "## Label proposal\n\n"
+            "### Component labels\n\n"
+            "| Label | Paths |\n"
+            "| ----- | ----- |\n"
+            "| ci | .github/workflows/check.yml |\n\n"
+            "### Model assessment\n"
+            "**needs-gpu**: Requires an NVIDIA GPU."
+        )
+        evidence = landing.relevant_comment_evidence(
+            [
+                {
+                    "body": body,
+                    "html_url": "https://github.com/acme/cuda/issues/7#issuecomment-1",
+                    "user": {"login": "reviewer"},
+                }
+            ]
+        )
+        self.assertEqual(evidence[0]["excerpt"], body)
+        self.assertFalse(evidence[0]["truncated"])
         report = {
             "issue": {
                 "number": 7,
@@ -102,20 +122,21 @@ class CrossReferenceTests(unittest.TestCase):
             "issue_comments": {
                 "count": 1,
                 "digest": "comments-sha",
-                "evidence": [
-                    {
-                        "author": "reviewer",
-                        "url": "https://github.com/acme/cuda/issues/7#issuecomment-1",
-                        "excerpt": "## Heading | Column |\\n| --- | --- |",
-                    }
-                ],
+                "evidence": evidence,
             },
             "acceptance_criteria": [],
         }
         rendered = landing.markdown_report(report)
-        self.assertIn("**Comment by [reviewer]", rendered)
-        self.assertIn(r"\#\# Heading \| Column \|", rendered)
-        self.assertNotIn("- [Comment by reviewer]", rendered)
+        self.assertIn("> ## Label proposal\n>", rendered)
+        self.assertIn("> | Label | Paths |\n> | ----- | ----- |", rendered)
+        self.assertIn("> | ci | .github/workflows/check.yml |", rendered)
+        self.assertNotIn(r"\#\# Label proposal", rendered)
+
+    def test_long_comment_excerpt_is_marked_as_truncated(self):
+        body = "The implementation was tested. " + ("details " * 100)
+        evidence = landing.relevant_comment_evidence([{"body": body}])
+        self.assertTrue(evidence[0]["truncated"])
+        self.assertTrue(evidence[0]["excerpt"].endswith("… [excerpt truncated]"))
 
     def test_pr_candidates_are_verified_on_each_issue_timeline(self):
         def fake_gh_json(path, paginate=False):
