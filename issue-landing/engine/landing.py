@@ -284,19 +284,25 @@ def markdown_report(report):
         lines.append("No explicitly cross-referenced pull requests were found.")
     else:
         lines += [
-            "| PR | State | Head | Merge commit | Default-branch reachability | Landing |",
-            "| --- | --- | --- | --- | --- | --- |",
+            "| PR | State | Head | Base branch | Base SHA | Merge commit | Default-branch reachability | Landing |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for pr in report["pull_requests"]:
             state = "draft" if pr["draft"] else pr["state"]
             lines.append(
-                "| [#%d](%s) | %s | %s%s%s | %s%s%s | %s | %s |"
+                "| [#%d](%s) | %s | %s%s%s | %s%s%s | %s%s%s | %s%s%s | %s | %s |"
                 % (
                     pr["number"],
                     pr["url"],
                     state,
                     tick,
                     pr["head_sha"][:12],
+                    tick,
+                    tick,
+                    pr["base_branch"],
+                    tick,
+                    tick,
+                    pr["base_sha"][:12],
                     tick,
                     tick,
                     pr["merge_commit_sha"][:12],
