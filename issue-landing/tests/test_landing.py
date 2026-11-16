@@ -34,6 +34,18 @@ class CriteriaTests(unittest.TestCase):
         self.assertTrue(all(item["status"] == "human review required" for item in criteria))
         self.assertTrue(all(item["evidence"] == [] for item in criteria))
 
+    def test_criteria_in_comments_are_included_with_source(self):
+        comments = [{
+            "body": "## Acceptance criteria\n- The audit comment links the report.",
+            "html_url": "https://github.com/acme/cuda/issues/7#issuecomment-9",
+            "user": {"login": "reviewer"},
+        }]
+        result = landing.extract_acceptance_criteria("## Summary", comments)
+        self.assertEqual(result[0]["source"], "issue comment")
+        self.assertEqual(result[0]["author"], "reviewer")
+        self.assertEqual(result[0]["url"], comments[0]["html_url"])
+        self.assertEqual(result[0]["status"], "human review required")
+
     def test_missing_criteria_section_requires_manual_review(self):
         result = landing.extract_acceptance_criteria("## Summary\n- Some work")
         self.assertEqual(len(result), 1)
@@ -92,6 +104,34 @@ class CrossReferenceTests(unittest.TestCase):
             {"event": "cross-referenced", "source": {"issue": issue}},
         ]
         self.assertEqual(landing.explicit_issue_numbers(timeline, "acme/cuda"), [5])
+
+
+class IssueCommentEvidenceTests(unittest.TestCase):
+    def test_only_relevant_comment_language_is_surfaced_as_unverified_evidence(self):
+        comments = [
+            {
+                "body": "The fix was implemented in commit abc and tested on CPU.",
+                "html_url": "https://github.com/acme/cuda/issues/7#issuecomment-1",
+                "created_at": "2026-01-01T00:00:00Z",
+                "user": {"login": "contributor"},
+            },
+            {
+                "body": "Thanks!",
+                "html_url": "https://github.com/acme/cuda/issues/7#issuecomment-2",
+                "user": {"login": "reviewer"},
+            },
+        ]
+        result = landing.relevant_comment_evidence(comments)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["author"], "contributor")
+        self.assertEqual(result[0]["status"], "human review required")
+        self.assertIn("tested on CPU", result[0]["excerpt"])
+
+    def test_comment_digest_changes_when_comment_body_changes(self):
+        comments = [{"id": 1, "updated_at": "2026-01-01T00:00:00Z", "body": "first"}]
+        first = landing.issue_comment_digest(comments)
+        comments[0]["body"] = "second"
+        self.assertNotEqual(landing.issue_comment_digest(comments), first)
 
 
 class ReportDigestTests(unittest.TestCase):
