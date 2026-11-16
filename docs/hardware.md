@@ -31,6 +31,11 @@ not overwrite each other.
 This does not compile `src/*.cu` and does not run any GPU kernel. It validates
 the build configuration and the reference maths only.
 
+The same CPU-only configuration can export a compilation database for
+`clang-tidy`; [C++ quality](cpp-quality.md) documents the pinned formatter and
+static-analysis commands. Those checks are host-only and do not compile the
+kernels.
+
 ## GPU host requirements
 
 | Component | Requirement | Notes |

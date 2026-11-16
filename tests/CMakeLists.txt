@@ -2,7 +2,11 @@
 # present, and each one returns 0 with SKIPPED on a machine without a device.
 
 add_executable(test_host test_host.cpp)
-target_include_directories(test_host PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(test_host PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_SOURCE_DIR}/include)
+cuda_kernels_set_host_warnings(test_host)
 add_test(NAME host_reference COMMAND test_host)
 
 if(CUDA_KERNELS_HAVE_CUDA)
@@ -10,6 +14,7 @@ if(CUDA_KERNELS_HAVE_CUDA)
     add_executable(test_${name} test_${name}.cpp)
     target_include_directories(test_${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(test_${name} PRIVATE cuda_kernels::cudakernels)
+    cuda_kernels_set_host_warnings(test_${name})
     add_test(NAME ${name} COMMAND test_${name})
     # Labelled so a GPU run can be selected with `ctest -L gpu`. The label does
     # not make a skip visible: the binaries exit 0 when no device is present, so

@@ -1,0 +1,15 @@
+---
+# Host-side analysis only. CUDA translation units need cuda_runtime.h and are
+# not in the CPU compilation database, so kernels and CUDA-gated tests are out
+# of scope. The exclusions below are noisy for this small, float-heavy test.
+Checks: >
+  -*,
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-exception-escape
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(include|tests)/.*'
+FormatStyle: file

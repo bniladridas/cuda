@@ -4,7 +4,11 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <string>
 #include <vector>
+
+#include "cuda_kernels/reduce.cuh"
+#include "cuda_kernels/vecadd.cuh"
 
 #include "host_utils.h"
 

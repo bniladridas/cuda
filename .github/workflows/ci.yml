@@ -17,9 +17,11 @@ jobs:
   # Host-side checks. Runs on every push and PR on a standard GitHub-hosted
   # runner. No CUDA toolkit is installed, so the kernels are not compiled and
   # the GPU kernels are NOT verified here. This job proves the tree configures,
-  # the host references are correct, the CUDA test binaries are absent rather
-  # than silently passing, the workflow and repository YAML pass actionlint and
-  # yamllint, and the label-review, PR confidence and PR Scope Guard engines pass their tests.
+  # the host references are correct, C++ and CUDA sources are formatted, host
+  # C++ passes clang-tidy, the CUDA test binaries are absent rather than
+  # silently passing, the workflow and repository YAML pass actionlint and
+  # yamllint, and the label-review, PR confidence and PR Scope Guard engines
+  # pass their tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
@@ -54,13 +56,36 @@ jobs:
         run: |
           cmake -S . -B build-cpu \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON
+            -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Build
         run: cmake --build build-cpu -j"$(nproc)"
 
       - name: Test (host reference only)
         run: ctest --test-dir build-cpu --output-on-failure
+
+      - name: Install C++ quality tools
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet \
+            clang-format==22.1.8 clang-tidy==22.1.8
+
+      - name: Check C++ and CUDA formatting
+        run: |
+          clang-format --version
+          if ! git ls-files '*.cpp' '*.h' '*.cu' '*.cuh' | grep -q .; then
+            echo "No C++ or CUDA files found" >&2
+            exit 1
+          fi
+          git ls-files -z '*.cpp' '*.h' '*.cu' '*.cuh' |
+            xargs -0 clang-format --dry-run --Werror
+
+      - name: Static analysis (host C++ only)
+        run: |
+          test -f build-cpu/compile_commands.json
+          clang-tidy --version
+          clang-tidy --config-file=.clang-tidy --warnings-as-errors='*' \
+            -p build-cpu tests/test_host.cpp
 
       - name: Assert GPU binaries were not built
         run: |
