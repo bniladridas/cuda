@@ -10,7 +10,7 @@ acceptance criteria were met.
 | Trigger | Report behavior | Close behavior |
 | --- | --- | --- |
 | Merged pull request | Finds issues explicitly cross-referenced in the PR timeline and posts a report for each | Never closes issues |
-| Manual dispatch with an open issue number | Reports explicitly cross-referenced PRs and acceptance criteria | Can close only after the protected environment approval |
+| Manual dispatch with an open issue number | Reports explicitly cross-referenced PRs and acceptance criteria | Requires a second dispatch with the exact report digest; Environment approval is an additional gate when configured |
 
 The workflow does not scan the backlog or guess links from branch names, titles,
 commit subjects, or similar text. An issue with no explicit linked PR receives
