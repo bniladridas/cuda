@@ -150,8 +150,7 @@ def load_config(path, registry_names):
     errors = sorted(validator.iter_errors(data), key=lambda error: str(list(error.path)))
     if errors:
         details = "; ".join(
-            "%s: %s" % ("/".join(str(part) for part in error.path) or "<root>", error.message)
-            for error in errors
+            "%s: %s" % ("/".join(str(part) for part in error.path) or "<root>", error.message) for error in errors
         )
         raise EngineError("invalid %s: %s" % (path, details))
     mapped = set(data["scopes"])
@@ -252,9 +251,7 @@ def fetch_pr(repo, number, token):
 
 
 def fetch_files(repo, number, token):
-    return fetch_pages(
-        "%s/repos/%s/pulls/%d/files?per_page=100" % (API_ROOT, repo, number), token
-    )
+    return fetch_pages("%s/repos/%s/pulls/%d/files?per_page=100" % (API_ROOT, repo, number), token)
 
 
 def load_fixture(path):
@@ -286,11 +283,7 @@ def pr_fields(pr):
         if not isinstance(sha, str) or not SHA_RE.match(sha):
             raise EngineError("pull request %s SHA is invalid" % label)
     changed_files = pr.get("changed_files")
-    if (
-        isinstance(changed_files, bool)
-        or not isinstance(changed_files, int)
-        or changed_files < 0
-    ):
+    if isinstance(changed_files, bool) or not isinstance(changed_files, int) or changed_files < 0:
         raise EngineError("pull request changed_files count is invalid")
     return number, title, head_sha, base_sha, changed_files
 
@@ -307,16 +300,12 @@ def file_records(files, ignore_patterns, scope_patterns):
             ignored += 1
             continue
         scopes = sorted(
-            scope
-            for scope, patterns in scope_patterns.items()
-            if any(matches(path, pattern) for pattern in patterns)
+            scope for scope, patterns in scope_patterns.items() if any(matches(path, pattern) for pattern in patterns)
         )
         records.append(
             {
                 "filename": filename,
-                "status": item.get("status")
-                if isinstance(item.get("status"), str)
-                else "unknown",
+                "status": item.get("status") if isinstance(item.get("status"), str) else "unknown",
                 "previous_filename": item.get("previous_filename")
                 if isinstance(item.get("previous_filename"), str)
                 else None,
@@ -457,14 +446,9 @@ def analyze(repo, pr, files, registry, config):
 
 def render_summary(result):
     lines = ["# PR Scope Guard", ""]
-    lines.append(
-        "Pull request #%d: %s" % (result["pr_number"], code_span(result["title"]))
-    )
+    lines.append("Pull request #%d: %s" % (result["pr_number"], code_span(result["title"])))
     if result["declared_scope"]:
-        lines.append(
-            "Declared scope: %s (%s)"
-            % (code_span(result["declared_scope"]), result["title_status"])
-        )
+        lines.append("Declared scope: %s (%s)" % (code_span(result["declared_scope"]), result["title_status"]))
     else:
         lines.append("Declared scope: none (%s)" % result["title_status"])
     counts = result["counts"]
@@ -508,10 +492,7 @@ def render_summary(result):
         lines.append("## Candidate scopes")
         lines.append("")
         for candidate in result["candidates"]:
-            lines.append(
-                "- %s: %d changed file(s)"
-                % (code_span(candidate["scope"]), candidate["files"])
-            )
+            lines.append("- %s: %d changed file(s)" % (code_span(candidate["scope"]), candidate["files"]))
     return "\n".join(lines) + "\n"
 
 
@@ -545,16 +526,12 @@ def main(argv=None):
             pr = fetch_pr(args.repo, args.pr, token)
             files = fetch_files(args.repo, args.pr, token)
         if pr.get("number") != args.pr:
-            raise EngineError(
-                "pull request number %s does not match --pr %d" % (pr.get("number"), args.pr)
-            )
+            raise EngineError("pull request number %s does not match --pr %d" % (pr.get("number"), args.pr))
         result = analyze(args.repo, pr, files, registry, config)
         artifact_path = Path(args.artifact_out)
         try:
             artifact_path.parent.mkdir(parents=True, exist_ok=True)
-            artifact_path.write_text(
-                json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-            )
+            artifact_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         except OSError as exc:
             raise EngineError("cannot write artifact: %s" % exc)
         summary = render_summary(result)

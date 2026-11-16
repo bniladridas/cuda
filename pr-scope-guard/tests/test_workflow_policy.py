@@ -34,9 +34,7 @@ class ScopeGuardWorkflowTests(unittest.TestCase):
 
     def test_permissions_are_read_only(self):
         workflow = self.load_workflow()
-        self.assertEqual(
-            workflow["permissions"], {"contents": "read", "pull-requests": "read"}
-        )
+        self.assertEqual(workflow["permissions"], {"contents": "read", "pull-requests": "read"})
 
     def test_checks_out_the_default_branch_without_credentials(self):
         workflow = self.load_workflow()
