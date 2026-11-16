@@ -76,7 +76,7 @@ class LoadResultsTests(unittest.TestCase):
             plot_results.load(self.write_json(data))
 
     def test_rejects_invalid_element_counts(self):
-        for n in (True, False, 0, -1, 1.5, "1024", None):
+        for n in (True, False, 0, -1, 1.5, "1024", None, 1 << 63):
             with self.subTest(n=n):
                 data = self.valid_data()
                 data["results"][0]["n"] = n
