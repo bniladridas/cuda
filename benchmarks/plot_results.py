@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot a benchmark result file as achieved-versus-peak bandwidth bars.
+"""Plot a benchmark result file as achieved-versus-peak bandwidth.
 
 The input is one JSON file written by `runners/benchmark.sh`, i.e. by
 `cuda_benchmarks --json` on a real device. Nothing here invents data: with no
@@ -18,6 +18,7 @@ one dashed line for the reference the measurement is judged against.
 
 import argparse
 import json
+import math
 import sys
 
 RESULT_KEYS = {"gpu", "results"}
@@ -25,22 +26,56 @@ POINT_KEYS = {"kernel", "n", "gb_per_s"}
 
 
 def load(path):
-    with open(path, encoding="utf-8") as f:
-        try:
+    """Load and validate benchmark JSON before any plotting dependencies load."""
+    try:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"{path}: not a benchmark JSON file ({exc})") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}: not a benchmark JSON file ({exc})") from exc
+
     if not isinstance(data, dict):
         raise ValueError(f"{path}: expected a JSON object")
+
     missing = RESULT_KEYS - data.keys()
     if missing:
         raise ValueError(f"{path}: missing top-level key(s) {sorted(missing)}")
-    if not data["results"]:
-        raise ValueError(f"{path}: contains no results")
-    for i, point in enumerate(data["results"]):
+
+    if not isinstance(data["gpu"], str) or not data["gpu"].strip():
+        raise ValueError(f"{path}: field 'gpu' must be a non-empty string")
+
+    results = data["results"]
+    if not isinstance(results, list) or not results:
+        raise ValueError(f"{path}: field 'results' must be a non-empty list")
+
+    for i, point in enumerate(results):
+        prefix = f"{path}: results[{i}]"
+        if not isinstance(point, dict):
+            raise ValueError(f"{prefix} must be an object")
+
         missing = POINT_KEYS - point.keys()
         if missing:
-            raise ValueError(f"{path}: result {i} missing key(s) {sorted(missing)}")
+            raise ValueError(f"{prefix} missing key(s) {sorted(missing)}")
+
+        if not isinstance(point["kernel"], str) or not point["kernel"].strip():
+            raise ValueError(f"{prefix}.kernel must be a non-empty string")
+
+        n = point["n"]
+        if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+            raise ValueError(f"{prefix}.n must be a positive integer")
+
+        bandwidth = point["gb_per_s"]
+        try:
+            valid_bandwidth = (
+                not isinstance(bandwidth, bool)
+                and isinstance(bandwidth, (int, float))
+                and math.isfinite(float(bandwidth))
+                and bandwidth >= 0
+            )
+        except OverflowError:
+            valid_bandwidth = False
+        if not valid_bandwidth:
+            raise ValueError(f"{prefix}.gb_per_s must be a finite, non-negative number")
+
     return data
 
 
@@ -64,8 +99,8 @@ def main():
     parser.add_argument("--out", default="bandwidth.png", help="output PNG")
     args = parser.parse_args()
 
-    if args.peak_gbps <= 0:
-        parser.error("--peak-gbps must be positive")
+    if not math.isfinite(args.peak_gbps) or args.peak_gbps <= 0:
+        parser.error("--peak-gbps must be finite and strictly positive")
 
     try:
         data = load(args.result)
