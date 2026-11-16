@@ -58,13 +58,57 @@ class CriteriaTests(unittest.TestCase):
 
 
 class CrossReferenceTests(unittest.TestCase):
-    def test_issue_timeline_only_returns_explicit_pr_cross_references(self):
+    def test_issue_timeline_only_returns_same_repository_pr_cross_references(self):
         timeline = [
-            {"event": "cross-referenced", "source": {"issue": {"number": 8, "pull_request": {"url": "x"}}}},
-            {"event": "mentioned", "source": {"issue": {"number": 9, "pull_request": {"url": "y"}}}},
-            {"event": "cross-referenced", "source": {"issue": {"number": 8, "pull_request": {"url": "x"}}}},
+            {
+                "event": "cross-referenced",
+                "source": {
+                    "issue": {
+                        "number": 8,
+                        "pull_request": {"url": "x"},
+                        "repository": {"full_name": "acme/cuda"},
+                    }
+                },
+            },
+            {
+                "event": "cross-referenced",
+                "source": {
+                    "issue": {
+                        "number": 8,
+                        "pull_request": {"url": "external"},
+                        "repository": {"full_name": "other/repo"},
+                    }
+                },
+            },
+            {
+                "event": "cross-referenced",
+                "source": {"issue": {"number": 9, "pull_request": {"url": "missing-repository"}}},
+            },
+            {"event": "mentioned", "source": {"issue": {"number": 10, "pull_request": {"url": "y"}}}},
         ]
-        self.assertEqual(landing.linked_pull_request_numbers(timeline), [8])
+        self.assertEqual(landing.linked_pull_request_numbers(timeline, "ACME/CUDA"), [8])
+
+    def test_comment_excerpt_cannot_break_report_markdown_tables_or_headings(self):
+        report = {
+            "issue": {"number": 7, "title": "Example", "url": "https://github.com/acme/cuda/issues/7", "digest": "issue-sha"},
+            "default_branch": {"name": "main", "sha": "abc"},
+            "report_digest": "report-sha",
+            "pull_requests": [],
+            "issue_comments": {
+                "count": 1,
+                "digest": "comments-sha",
+                "evidence": [{
+                    "author": "reviewer",
+                    "url": "https://github.com/acme/cuda/issues/7#issuecomment-1",
+                    "excerpt": "## Heading | Column |\\n| --- | --- |",
+                }],
+            },
+            "acceptance_criteria": [],
+        }
+        rendered = landing.markdown_report(report)
+        self.assertIn("**Comment by [reviewer]", rendered)
+        self.assertIn(r"\\#\\# Heading \\| Column \\|", rendered)
+        self.assertNotIn("- [Comment by reviewer]", rendered)
 
     def test_pr_candidates_are_verified_on_each_issue_timeline(self):
         def fake_gh_json(path, paginate=False):
