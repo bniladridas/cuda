@@ -96,7 +96,7 @@ class CrossReferenceTests(unittest.TestCase):
             "| ----- | ----- |\n"
             "| ci | .github/workflows/check.yml |\n\n"
             "### Model assessment\n"
-            "**needs-gpu**: Requires an NVIDIA GPU."
+            "**needs-gpu**: Requires an NVIDIA GPU. Validation is pending."
         )
         evidence = landing.relevant_comment_evidence(
             [
