@@ -107,7 +107,7 @@ class CrossReferenceTests(unittest.TestCase):
         }
         rendered = landing.markdown_report(report)
         self.assertIn("**Comment by [reviewer]", rendered)
-        self.assertIn(r"\\#\\# Heading \\| Column \\|", rendered)
+        self.assertIn(r"\#\# Heading \| Column \|", rendered)
         self.assertNotIn("- [Comment by reviewer]", rendered)
 
     def test_pr_candidates_are_verified_on_each_issue_timeline(self):
