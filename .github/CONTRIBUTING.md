@@ -34,8 +34,9 @@ device, so a missing device fails the run instead of warning.
 Use `[scope] Short action-oriented description` for every pull request title.
 Choose the most specific scope that describes the main area of the change. The
 allowed scopes and their meanings are maintained in
-[`.github/pr-scopes.json`](pr-scopes.json). Add a scope there when a new area
-of work needs one, rather than introducing an undocumented variation.
+[.github/pr-scopes.json](https://github.com/bniladridas/cuda/blob/main/.github/pr-scopes.json).
+Add a scope there when a new area of work needs one, rather than introducing an
+undocumented variation.
 
 Begin the description with an action verb, use sentence case, and keep the
 title concise and specific. Apply this convention to new pull requests and
