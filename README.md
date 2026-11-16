@@ -175,8 +175,9 @@ kernels/                library target
 tests/                  host reference checks + GPU correctness tests
 benchmarks/             timing harness and benchmark binary
 pr-confidence/          PR Confidence engine and its offline tests
+pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
-docs/                   hardware requirements, methodology, PR confidence and label review
+docs/                   hardware requirements, methodology, PR confidence, label review and PR Scope Guard
 label-review/           reusable issue label review engine and tests
 ```
 
@@ -192,6 +193,11 @@ label-review/           reusable issue label review engine and tests
   no secrets. Treat the score as advisory alongside the checks it reads. The
   check activates for later pull requests after this workflow merges. Rubric and
   setup in [`docs/pr-confidence.md`](docs/pr-confidence.md).
+- `pr-scope-guard`: read-only and advisory. On pull request activity it
+  compares the title's declared scope with the changed files using
+  `.github/pr-scopes.json` and `.github/pr-scope-guard.yml`, then writes a
+  summary and JSON artifact. It never comments, labels, approves, blocks or
+  merges. Findings do not fail the check.
 - `lock-merged-pr`: runs when a pull request closes and locks the conversation
   with reason `resolved` only when the pull request was merged. It uses
   `pull_request_target` so the workflow comes from the base branch, needs only
