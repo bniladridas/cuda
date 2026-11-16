@@ -16,3 +16,10 @@ benchmarks/results/*.json
 # Python cache from any tooling around results
 __pycache__/
 *.pyc
+.ruff_cache/
+
+# Python coverage output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/

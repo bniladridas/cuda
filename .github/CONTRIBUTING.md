@@ -64,6 +64,28 @@ values chosen to expose float precision loss.
 Tests compare against a host reference with an explicit tolerance. Do not tighten
 or loosen a tolerance without saying why in the pull request.
 
+## Python checks
+
+Python dependencies are pinned in `requirements-dev.txt`, and Ruff is
+configured in `pyproject.toml`. CI runs Ruff lint, a Ruff format check, every
+Python test suite present in the checkout, and coverage. Coverage is reported
+for visibility and is not used as a pass/fail gate.
+
+Run the same checks locally:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+ruff check .
+ruff format --check .
+coverage erase
+for suite in pr-confidence label-review pr-scope-guard; do
+  if [ -d "$suite/tests" ]; then
+    coverage run --append -m unittest discover -s "$suite/tests"
+  fi
+done
+coverage report --show-missing --omit="*/tests/*,*/test_*.py"
+```
+
 ## Performance claims
 
 Any claim of a speedup needs:
