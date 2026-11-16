@@ -24,8 +24,12 @@ is reachable from the repository's current default branch. A PR is reported as
 landed only when GitHub says it merged, a merge commit SHA is present, and the
 compare API confirms that commit is an ancestor of the current default branch.
 
-Acceptance criteria are extracted from a Markdown heading named
-\`Acceptance criteria\`. Every criterion is marked \`human review required\`.
+Issue comments are read alongside the body. Their identifiers and content hashes
+are included in the report revision, and comments with implementation or
+validation language are surfaced as linked excerpts for human inspection.
+Acceptance criteria are extracted from Markdown headings named
+`Acceptance criteria` in the body and comments. Every criterion is marked
+`human review required`.
 A checked checkbox is not proof, and the workflow does not use an LLM to
 interpret implementation behavior. Criteria that cannot be extracted are
 called out for manual review.
@@ -37,15 +41,15 @@ excludes the report timestamp so the same evidence has a stable revision.
 ## Approval and close safety
 
 Report generation is read-only. Posting the report is a separate job with only
-\`issues: write\`. Closing is a third job, enabled only when the repository
-variable \`ISSUE_LANDING_CLOSE_ENABLED=true\`.
+`issues: write`. Closing is a third job, enabled only when the repository
+variable `ISSUE_LANDING_CLOSE_ENABLED=true`.
 
 Before enabling close:
 
-1. Create a GitHub Environment named \`issue-landing-close\`.
+1. Create a GitHub Environment named `issue-landing-close`.
 2. Configure at least one required reviewer for that environment.
 3. Verify the reviewer rule is active.
-4. Set \`ISSUE_LANDING_CLOSE_ENABLED=true\`.
+4. Set `ISSUE_LANDING_CLOSE_ENABLED=true`.
 
 The close job waits for approval on that environment. It then checks that the
 environment still has a required-reviewer rule, validates the downloaded
@@ -60,15 +64,15 @@ command fails closed.
 
 ## Manual use
 
-Actions > \`issue-landing\` > Run workflow, enter an open issue number, then
+Actions > `issue-landing` > Run workflow, enter an open issue number, then
 inspect the posted report. If close is enabled, approve or reject the waiting
-\`issue-landing-close\` job after reviewing the exact report for that run.
+`issue-landing-close` job after reviewing the exact report for that run.
 
 The engine can also be tested offline:
 
-\`\`\`bash
+```bash
 python3 -m unittest discover -s issue-landing/tests
-\`\`\`
+```
 
 ## Limits
 
