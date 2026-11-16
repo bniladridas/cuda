@@ -61,15 +61,8 @@ def load(path):
             raise ValueError(f"{prefix}.kernel must be a non-empty string")
 
         n = point["n"]
-        if (
-            isinstance(n, bool)
-            or not isinstance(n, int)
-            or n <= 0
-            or n > MAX_ELEMENT_COUNT
-        ):
-            raise ValueError(
-                f"{prefix}.n must be a positive integer no greater than {MAX_ELEMENT_COUNT}"
-            )
+        if isinstance(n, bool) or not isinstance(n, int) or n <= 0 or n > MAX_ELEMENT_COUNT:
+            raise ValueError(f"{prefix}.n must be a positive integer no greater than {MAX_ELEMENT_COUNT}")
 
         bandwidth = point["gb_per_s"]
         try:
