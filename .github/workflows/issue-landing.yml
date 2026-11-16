@@ -25,7 +25,9 @@ concurrency:
 
 jobs:
   report:
-    if: (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) || github.event.pull_request.merged == true
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+      || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -94,7 +96,10 @@ jobs:
 
   close:
     needs: [report, comment]
-    if: github.event_name == 'workflow_dispatch' && vars.ISSUE_LANDING_CLOSE_ENABLED == 'true' && inputs.approved-report-digest != ''
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && vars.ISSUE_LANDING_CLOSE_ENABLED == 'true'
+      && inputs.approved-report-digest != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment:
