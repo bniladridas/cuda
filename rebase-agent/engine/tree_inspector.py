@@ -107,6 +107,15 @@ def compare_trees(base_tree, head_tree):
     return changed
 
 
+def overlapping_path_pairs(left_paths, right_paths):
+    pairs = []
+    for left in sorted(left_paths):
+        for right in sorted(right_paths):
+            if left == right or left.startswith(right + "/") or right.startswith(left + "/"):
+                pairs.append({"base_path": left, "head_path": right})
+    return pairs
+
+
 def inspect_pull_request(api, repository, number):
     pr = api.get(api_path(repository, "/pulls/%d" % number))
     base_sha = pr.get("base", {}).get("sha")
@@ -136,6 +145,7 @@ def inspect_pull_request(api, repository, number):
     base_changes = compare_trees(merge_base_tree, base_tree)
     head_changes = compare_trees(merge_base_tree, head_tree)
     overlaps = sorted(base_changes & head_changes)
+    overlap_pairs = overlapping_path_pairs(base_changes, head_changes)
     pr_files = fetch_pr_files(api, repository, number)
     inventory = []
     for item in pr_files:
@@ -173,6 +183,7 @@ def inspect_pull_request(api, repository, number):
         "base_changed_paths_since_merge_base": sorted(base_changes),
         "head_changed_paths_since_merge_base": tree_paths,
         "overlapping_paths": overlaps,
+        "overlapping_path_pairs": overlap_pairs,
         "overlap_is_conflict_proof": False,
         "pr_file_inventory": inventory,
         "pr_file_inventory_matches_head_tree": reported_paths == set(tree_paths),
