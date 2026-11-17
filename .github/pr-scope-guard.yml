@@ -22,6 +22,10 @@ scopes:
     - "**/CMakeLists.txt"
   ci:
     - ".github/workflows/**"
+  codex-review:
+    - ".github/codex-review.json"
+    - ".github/workflows/codex-review.yml"
+    - "docs/codex-review.md"
   docs:
     - "docs/**"
     - "README.md"
