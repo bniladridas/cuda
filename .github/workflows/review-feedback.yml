@@ -28,7 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
           ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
           persist-credentials: false
           fetch-depth: 0
       - name: Export exact PR snapshot and reviewer feedback
@@ -38,13 +44,13 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
-          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
-          test "$(git rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
-          git archive --format=tar HEAD > source.tar
-          git diff --binary --full-index "$BASE_SHA...$HEAD_SHA" > pr.diff
-          git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
-          python3 rebase-agent/engine/extract_review_feedback.py review-feedback.json
+          git -C pr fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          test "$(git -C pr rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C pr rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
+          git -C pr archive --format=tar HEAD > source.tar
+          git -C pr diff --binary --full-index "$BASE_SHA...$HEAD_SHA" > pr.diff
+          git -C pr diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
+          python3 trusted/rebase-agent/engine/extract_review_feedback.py review-feedback.json
       - uses: actions/upload-artifact@v4
         with:
           name: review-feedback-snapshot
