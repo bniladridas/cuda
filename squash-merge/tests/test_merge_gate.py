@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
-from merge_gate import latest_review_states, validate_state
+from merge_gate import latest_review_states, validate_state  # noqa: E402
 
 
 class MergeGateTests(unittest.TestCase):
