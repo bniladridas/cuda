@@ -16,7 +16,7 @@ class SuggestionTests(unittest.TestCase):
 
     def test_patch_parser_handles_multiple_hunks(self):
         patch = "@@ -1 +1,2 @@\n-old\n+new\n keep\n@@ -8 +9 @@\n-old\n+newer\n"
-        self.assertEqual(fs.changed_right_lines(patch), {1, 2, 9})
+        self.assertEqual(fs.changed_right_lines(patch), {1, 9})
 
     def test_suggestion_is_limited_to_changed_lines(self):
         source = b"answer=42\nkeep = 1\n"
@@ -36,7 +36,7 @@ class SuggestionTests(unittest.TestCase):
         formatted = b"if x:\n    y = 1\n"
         comments = fs.suggestions_for("src/example.py", source, formatted, {1}, "a" * 40)
         self.assertEqual(len(comments), 1)
-        self.assertEqual(comments[0]["start_line"], 1)
+        self.assertNotIn("start_line", comments[0])
         self.assertEqual(comments[0]["line"], 1)
 
 
