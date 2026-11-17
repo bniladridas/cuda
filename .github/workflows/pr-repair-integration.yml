@@ -284,11 +284,14 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          REVIEW_FEEDBACK: ${{ inputs.review_feedback }}
         run: |
           set -euo pipefail
+          python3 rebase-agent/engine/write_feedback.py feedback.txt
           python3 rebase-agent/engine/repair_agent.py \
             --source source --diff input/final.diff \
-            --files input/final-files.txt --report final-review.json --review-only
+            --files input/final-files.txt --feedback feedback.txt \
+            --report final-review.json --review-only
           python3 rebase-agent/engine/verify_agent_report.py final-review.json --final
       - uses: actions/upload-artifact@v4
         with:
