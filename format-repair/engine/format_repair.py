@@ -257,7 +257,11 @@ def run_repair(args, cfg, token):
     diff = subprocess.run(["git", "diff", "--name-only"], cwd=work, capture_output=True, check=True)
     changed = validate_changed_paths(diff.stdout.decode().splitlines(), paths)
     if not changed:
-        write_json(args.artifact, {"status": "no_changes", "changed_files": []})
+        write_json(args.artifact, {
+            "status": "no_changes", "formatter_version": cfg["formatter_version"],
+            "validation": "clang-format completed; no formatting changes were needed",
+            "changed_files": [],
+        })
         return
     check = subprocess.run(["git", "diff", "--check"], cwd=work, capture_output=True)
     if check.returncode:
@@ -282,7 +286,11 @@ def run_repair(args, cfg, token):
     if push.returncode:
         raise RepairError("non-force push failed; PR branch may have advanced: " + push.stderr.decode("utf-8", "replace")[:500])
     commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=work, capture_output=True, check=True).stdout.decode().strip()
-    write_json(args.artifact, {"status": "pushed", "commit_sha": commit, "changed_files": changed})
+    write_json(args.artifact, {
+        "status": "pushed", "commit_sha": commit, "changed_files": changed,
+        "formatter_version": cfg["formatter_version"],
+        "validation": "clang-format completed and git diff --check passed",
+    })
 
 
 def main():
