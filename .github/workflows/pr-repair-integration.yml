@@ -393,7 +393,9 @@ jobs:
             git merge-base --is-ancestor "$EXPECTED_HEAD" "$parent1"
             test "$parent2" = "$EXPECTED_BASE"
             test -z "${extra:-}"
-            git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+            git fetch --no-tags origin \
+              "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" \
+              "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
             test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
             test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
             git push origin "$RESULT_SHA:refs/heads/$BRANCH"
