@@ -70,24 +70,10 @@ if ! "$BIN" --json ${BENCH_ARGS:-} > "$tmp"; then
   exit 1
 fi
 
-# Reject truncated or otherwise invalid output before it becomes visible as
-# a completed result. The plotter expects a JSON object at the top level.
-if ! python3 - "$tmp" <<'PY'
-import json
-import sys
-
-try:
-    with open(sys.argv[1], encoding="utf-8") as result_file:
-        value = json.load(result_file)
-except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-    print(f"invalid benchmark JSON: {exc}", file=sys.stderr)
-    raise SystemExit(1)
-
-if not isinstance(value, dict):
-    print("invalid benchmark JSON: expected a JSON object", file=sys.stderr)
-    raise SystemExit(1)
-PY
-then
+# Validate the completed result and attach its exact source commit and UTC
+# completion time before atomic publication. Missing Git metadata is recorded
+# as JSON null rather than inferred from the filename.
+if ! python3 "$ROOT/benchmarks/provenance.py" "$tmp" "$ROOT"; then
   echo "benchmark result was not published" >&2
   exit 1
 fi
