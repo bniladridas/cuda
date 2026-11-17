@@ -318,12 +318,16 @@ class Agent:
             {"role": "user", "content": "Review this complete PR diff and source snapshot. The base/head metadata is provided by the trusted workflow. Inspect all changed files and report evidence. " + ("You may propose a minimal patch using the apply_patch tool." if self.allow_patch else "This is a final review only. Do not change files.")},
         ]
         usage_total = 0
+        cost_total = 0.0
         model_used = MODEL
         for _ in range(MAX_ROUNDS):
             message, usage, model_used = self.call_model(messages)
             usage_total += int(usage.get("total_tokens") or 0)
+            cost_total += float(usage.get("cost") or usage.get("total_cost") or 0.0)
             if usage_total > 30000:
                 raise AgentError("token budget exceeded; stopping without branch update")
+            if cost_total > 0.0:
+                raise AgentError("provider reported non-zero cost; stopping without branch update")
             messages.append(message)
             calls = message.get("tool_calls") or []
             if not calls:
@@ -343,6 +347,7 @@ class Agent:
                     report = json.loads(self.report_path.read_text(encoding="utf-8"))
                     report["model"] = model_used
                     report["usage_total_tokens"] = usage_total
+                    report["cost_total_usd"] = cost_total
                     report["tool_calls"] = self.tool_log
                     self.report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
                     return report
