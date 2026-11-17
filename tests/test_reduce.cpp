@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 
 #include "cuda_kernels/reduce.cuh"
+#include "device_status.h"
 #include "host_utils.h"
 
 namespace {
@@ -70,9 +71,17 @@ std::vector<float> constant_floats(std::size_t n, float value) {
 
 int main() {
   int devices = 0;
-  if (cudaGetDeviceCount(&devices) != cudaSuccess || devices == 0) {
+  const cudaError_t device_status = cudaGetDeviceCount(&devices);
+  const cuda_device::Availability availability = cuda_device::classify_device_count(
+      device_status, devices, cudaSuccess, cudaErrorNoDevice);
+  if (availability == cuda_device::Availability::kUnavailable) {
     std::printf("SKIPPED [%s]: no CUDA device\n", kTest);
     return 0;
+  }
+  if (availability == cuda_device::Availability::kError) {
+    std::fprintf(stderr, "ERROR [%s]: cudaGetDeviceCount failed: %s\n", kTest,
+                 cudaGetErrorString(device_status));
+    return 1;
   }
 
   run_case<float>(constant_floats(0, 1.0f), "empty", kTolFloat);

@@ -9,6 +9,11 @@ target_include_directories(test_host PRIVATE
 cuda_kernels_set_host_warnings(test_host)
 add_test(NAME host_reference COMMAND test_host)
 
+add_executable(test_device_status test_device_status.cpp)
+target_include_directories(test_device_status PRIVATE ${PROJECT_SOURCE_DIR}/src)
+cuda_kernels_set_host_warnings(test_device_status)
+add_test(NAME device_status COMMAND test_device_status)
+
 add_executable(test_benchmark_options test_benchmark_options.cpp)
 target_include_directories(test_benchmark_options PRIVATE
   ${PROJECT_SOURCE_DIR}/benchmarks)
@@ -24,7 +29,7 @@ add_test(NAME benchmark_metadata COMMAND test_benchmark_metadata)
 if(CUDA_KERNELS_HAVE_CUDA)
   foreach(name IN ITEMS vecadd reduce)
     add_executable(test_${name} test_${name}.cpp)
-    target_include_directories(test_${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(test_${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(test_${name} PRIVATE cuda_kernels::cudakernels)
     cuda_kernels_set_host_warnings(test_${name})
     add_test(NAME ${name} COMMAND test_${name})

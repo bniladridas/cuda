@@ -102,8 +102,11 @@ CUDA_KERNELS_ARCH="86" ./runners/build.sh
 ```
 
 `test_host` runs anywhere and checks the CPU reference implementations.
-`test_vecadd` and `test_reduce` need a GPU; without one they print
-`SKIPPED: no CUDA device` and exit 0, so CTest counts them as passed.
+`test_vecadd` and `test_reduce` need a GPU. A successful device query that
+reports zero devices, or CUDA's explicit `cudaErrorNoDevice`, prints
+`SKIPPED: no CUDA device` and exits 0, so CTest counts them as passed.
+Other `cudaGetDeviceCount` failures, including insufficient-driver and
+initialization errors, print the CUDA diagnostic and exit non-zero.
 **A skip is not a pass.** The runner invokes CTest once with verbose
 output, reports any GPU test that emitted `SKIPPED` as
 `*** SKIPPED (not a pass)`, and exits non-zero if anything actually failed.
