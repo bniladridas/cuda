@@ -61,6 +61,12 @@ class PolicyTests(unittest.TestCase):
         self.assertIn("maintainer", config()["maintainers"])
         self.assertNotIn("contributor", config()["maintainers"])
 
+    def test_authorized_repair_requires_maintainer_label_and_default_branch(self):
+        info = fr.authorize_repair(pr(), REPO, "maintainer", HEAD, config(), "main")
+        self.assertEqual(info["sha"], HEAD)
+        with self.assertRaisesRegex(fr.RepairError, "not authorized"):
+            fr.authorize_repair(pr(), REPO, "contributor", HEAD, config(), "main")
+
     def test_rejects_fork_for_repair_but_allows_report_metadata(self):
         fork = pr()
         fork["head"]["repo"]["full_name"] = "contributor/repo"
@@ -132,7 +138,7 @@ class ReportTests(unittest.TestCase):
 
     def test_incomplete_changed_file_list_fails_closed(self):
         with self.assertRaisesRegex(fr.RepairError, "coverage is incomplete"):
-            fr.make_report(REPO, pr(changed_files=2), [{"filename": "src/a.cpp"}], config(), "token")
+            fr.make_report(REPO, pr(changed_files=2), [{"filename": "src/a.cpp"}], config(), "token", ".clang-format")
 
     def test_fork_report_is_explicitly_read_only(self):
         value = pr()
