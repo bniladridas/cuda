@@ -26,6 +26,7 @@ void usage(const char* argv0) {
               "  --iterations  launches per timed batch (default %d)\n"
               "  --reps        timed batches to summarise (default %d)\n"
               "  --warmup      untimed launches before measuring (default %d)\n"
+              "  limits        iterations/warmup <= 100000, reps <= 1000, iterations * reps <= 100000\n"
               "  --json        emit machine-readable results instead of a table\n",
               argv0, bench_options::kDefaultIterations, bench_options::kDefaultReps,
               bench_options::kDefaultWarmup);
