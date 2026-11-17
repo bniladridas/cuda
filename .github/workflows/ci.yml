@@ -55,6 +55,9 @@ jobs:
           python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2 jsonschema==4.23.0
           python3 -m unittest discover -s pr-scope-guard/tests
 
+      - name: Test runner skip handling
+        run: bash tests/test_runner.sh
+
       - name: Configure (CPU only)
         run: |
           cmake -S . -B build-cpu \
