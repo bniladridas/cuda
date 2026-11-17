@@ -78,7 +78,8 @@ def main():
         if branch == default_branch or branch == base_branch:
             raise GateError("default/base branch cannot be used as the PR head")
         protection = api(
-            "/repos/%s/branches/%s/protection" % (
+            "/repos/%s/branches/%s/protection"
+            % (
                 repository,
                 __import__("urllib.parse", fromlist=["quote"]).quote(branch, safe=""),
             ),
