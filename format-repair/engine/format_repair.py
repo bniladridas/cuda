@@ -64,6 +64,13 @@ def allowed(path, cfg):
     )
 
 
+def validate_changed_paths(changed, selected):
+    result = sorted(set(changed))
+    if any(path not in set(selected) for path in result):
+        raise RepairError("formatter changed an unapproved path")
+    return result
+
+
 def api_json(url, token):
     req = urllib.request.Request(url, headers={
         "Accept": "application/vnd.github+json", "Authorization": "Bearer " + token,
@@ -151,9 +158,10 @@ def line_numbers(source, xml_text):
     return sorted({source[:offset].count(b"\n") + 1 for offset in offsets})
 
 
-def inspect(path, source):
+def inspect(path, source, style_file):
     result = subprocess.run(
-        ["clang-format", "--output-replacements-xml", "--assume-filename=" + path],
+        ["clang-format", "--style=file:" + str(Path(style_file).resolve()),
+         "--output-replacements-xml", "--assume-filename=" + path],
         input=source, capture_output=True, check=False,
     )
     if result.returncode:
@@ -162,7 +170,7 @@ def inspect(path, source):
     return {"path": path, "lines": lines, "formatted": not lines}
 
 
-def make_report(repo, pr, files, cfg, token):
+def make_report(repo, pr, files, cfg, token, style_file):
     info = pr_info(pr, repo)
     if not isinstance(pr.get("changed_files"), int) or len(files) != pr["changed_files"]:
         raise RepairError("changed-file coverage is incomplete")
@@ -172,7 +180,7 @@ def make_report(repo, pr, files, cfg, token):
         if item.get("status") == "removed":
             continue
         if allowed(path, cfg):
-            checked.append(inspect(path, source_bytes(info["head_repo"], path, info["sha"], token)))
+            checked.append(inspect(path, source_bytes(info["head_repo"], path, info["sha"], token), style_file))
         else:
             skipped.append(path)
     violations = [item for item in checked if not item["formatted"]]
@@ -208,7 +216,7 @@ def write_json(path, data):
 def run_report(args, cfg, token):
     pr = fetch_pr(args.repo, args.pr, token)
     files = changed_files(args.repo, args.pr, token)
-    result = make_report(args.repo, pr, files, cfg, token)
+    result = make_report(args.repo, pr, files, cfg, token, args.style_file)
     write_json(args.artifact, result)
     Path(args.summary).write_text(report_markdown(result), encoding="utf-8")
 
@@ -233,13 +241,16 @@ def run_repair(args, cfg, token):
         candidate = work / path
         if candidate.is_symlink() or work not in candidate.resolve().parents or not candidate.is_file():
             raise RepairError("unsafe or missing worktree file: %s" % path)
-        result = subprocess.run(["clang-format", "-i", "--", str(candidate)], capture_output=True)
+        result = subprocess.run(
+            ["clang-format", "--style=file:" + str(Path(args.style_file).resolve()),
+             "--assume-filename=" + path],
+            input=candidate.read_bytes(), capture_output=True, check=False,
+        )
         if result.returncode:
             raise RepairError("clang-format failed for %s" % path)
+        candidate.write_bytes(result.stdout)
     diff = subprocess.run(["git", "diff", "--name-only"], cwd=work, capture_output=True, check=True)
-    changed = sorted(diff.stdout.decode().splitlines())
-    if any(path not in paths for path in changed):
-        raise RepairError("formatter changed an unapproved path")
+    changed = validate_changed_paths(diff.stdout.decode().splitlines(), paths)
     if not changed:
         write_json(args.artifact, {"status": "no_changes", "changed_files": []})
         return
@@ -275,6 +286,7 @@ def main():
     parser.add_argument("--repo", required=True)
     parser.add_argument("--pr", required=True, type=int)
     parser.add_argument("--config", required=True)
+    parser.add_argument("--style-file", default=".clang-format")
     parser.add_argument("--artifact", required=True)
     parser.add_argument("--summary", default="format-repair.md")
     parser.add_argument("--actor")
