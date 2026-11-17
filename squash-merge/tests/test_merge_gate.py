@@ -3,7 +3,11 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
-from merge_gate import latest_review_states, validate_state  # noqa: E402
+from merge_gate import (  # noqa: E402
+    latest_review_states,
+    outstanding_change_request_reviewers,
+    validate_state,
+)
 
 
 class MergeGateTests(unittest.TestCase):
@@ -87,6 +91,83 @@ class MergeGateTests(unittest.TestCase):
         ]
         errors = self.errors(reviews=reviews)
         self.assertTrue(any("change-request" in error for error in errors))
+
+    def test_old_change_request_blocks_even_when_another_reviewer_approves_current_head(self):
+        reviews = [
+            {
+                "id": 1,
+                "user": {"login": "requesting-reviewer"},
+                "state": "CHANGES_REQUESTED",
+                "commit_id": "b" * 40,
+                "submitted_at": "2026-11-17T10:00:00Z",
+            },
+            {
+                "id": 2,
+                "user": {"login": "approving-reviewer"},
+                "state": "APPROVED",
+                "commit_id": "a" * 40,
+                "submitted_at": "2026-11-17T11:00:00Z",
+            },
+        ]
+        errors = self.errors(reviews=reviews)
+        self.assertTrue(any("requesting-reviewer" in error for error in errors))
+
+    def test_comment_does_not_clear_outstanding_change_request(self):
+        reviews = [
+            {
+                "id": 1,
+                "user": {"login": "reviewer"},
+                "state": "CHANGES_REQUESTED",
+                "commit_id": "b" * 40,
+                "submitted_at": "2026-11-17T10:00:00Z",
+            },
+            {
+                "id": 2,
+                "user": {"login": "reviewer"},
+                "state": "COMMENTED",
+                "commit_id": "a" * 40,
+                "submitted_at": "2026-11-17T11:00:00Z",
+            },
+        ]
+        self.assertEqual(outstanding_change_request_reviewers(reviews), {"reviewer"})
+
+    def test_later_approval_clears_old_change_request(self):
+        reviews = [
+            {
+                "id": 1,
+                "user": {"login": "reviewer"},
+                "state": "CHANGES_REQUESTED",
+                "commit_id": "b" * 40,
+                "submitted_at": "2026-11-17T10:00:00Z",
+            },
+            {
+                "id": 2,
+                "user": {"login": "reviewer"},
+                "state": "APPROVED",
+                "commit_id": "a" * 40,
+                "submitted_at": "2026-11-17T11:00:00Z",
+            },
+        ]
+        self.assertEqual(outstanding_change_request_reviewers(reviews), set())
+
+    def test_dismissal_clears_old_change_request(self):
+        reviews = [
+            {
+                "id": 1,
+                "user": {"login": "reviewer"},
+                "state": "CHANGES_REQUESTED",
+                "commit_id": "b" * 40,
+                "submitted_at": "2026-11-17T10:00:00Z",
+            },
+            {
+                "id": 2,
+                "user": {"login": "reviewer"},
+                "state": "DISMISSED",
+                "commit_id": "a" * 40,
+                "submitted_at": "2026-11-17T11:00:00Z",
+            },
+        ]
+        self.assertEqual(outstanding_change_request_reviewers(reviews), set())
 
     def test_dismissed_approval_does_not_count(self):
         reviews = [
