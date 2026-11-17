@@ -91,6 +91,19 @@ class WorkflowPolicyTests(unittest.TestCase):
             step = next(x for x in self.read(WORKFLOW)["jobs"][job]["steps"] if "clang-format==" in x.get("run", ""))
             self.assertIn("clang-format==" + version, step["run"])
 
+    def test_formatter_commit_dispatches_ci_before_acknowledgement(self):
+        workflow = self.read(WORKFLOW)
+        repair = workflow["jobs"]["repair"]
+        self.assertEqual(repair["permissions"]["actions"], "write")
+        steps = repair["steps"]
+        dispatch = next(x for x in steps if x.get("name") == "Dispatch CI for formatter-generated commit")
+        acknowledge = next(x for x in steps if x.get("name") == "Remove approval label and acknowledge result")
+        self.assertLess(steps.index(dispatch), steps.index(acknowledge))
+        self.assertIn("gh workflow run ci.yml", dispatch["run"])
+        self.assertIn("HEAD_SHA", dispatch["run"])
+        self.assertIn("COMMIT", dispatch["run"])
+        self.assertIn("workflow_dispatch requested", acknowledge["run"])
+
     def test_success_removes_only_approval_label_and_acknowledges(self):
         steps = self.read(WORKFLOW)["jobs"]["repair"]["steps"]
         step = next(x for x in steps if x.get("name") == "Remove approval label and acknowledge result")
