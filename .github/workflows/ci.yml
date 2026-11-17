@@ -61,6 +61,9 @@ jobs:
       - name: Test the safe rebase engine
         run: python3 -m unittest discover -s rebase-agent/tests
 
+      - name: Test the separate merge integration engine
+        run: python3 -m unittest discover -s rebase-agent/tests -p 'test_merge_agent.py'
+
       - name: Test runner skip handling
         run: bash tests/test_runner.sh
 
