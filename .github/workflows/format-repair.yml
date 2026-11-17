@@ -107,9 +107,11 @@ jobs:
             echo "The required approval label is missing" >&2
             exit 1
           fi
-          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-          echo "head=$EVENT_HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "actor=$ACTOR" >> "$GITHUB_OUTPUT"
+          {
+            echo "number=$PR_NUMBER"
+            echo "head=$EVENT_HEAD_SHA"
+            echo "actor=$ACTOR"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check out trusted default branch
         uses: actions/checkout@v7
