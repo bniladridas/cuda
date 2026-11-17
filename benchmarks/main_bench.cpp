@@ -26,7 +26,8 @@ void usage(const char* argv0) {
               "  --iterations  launches per timed batch (default %d)\n"
               "  --reps        timed batches to summarise (default %d)\n"
               "  --warmup      untimed launches before measuring (default %d)\n"
-              "  limits        iterations/warmup <= 100000, reps <= 1000, iterations * reps <= 100000\n"
+              "  limits        iterations/warmup <= 100000, reps <= 1000, "
+"iterations * reps <= 100000\n"
               "  --json        emit machine-readable results instead of a table\n",
               argv0, bench_options::kDefaultIterations, bench_options::kDefaultReps,
               bench_options::kDefaultWarmup);
@@ -118,7 +119,9 @@ int main(int argc, char** argv) {
   bench_options::Options opts;
   std::vector<std::string> arguments;
   arguments.reserve(static_cast<std::size_t>(argc > 1 ? argc - 1 : 0));
-  for (int i = 1; i < argc; ++i) arguments.emplace_back(argv[i]);
+  for (int i = 1; i < argc; ++i) {
+    arguments.emplace_back(argv[i]);
+  }
   std::string parse_error;
   const bench_options::ParseStatus parse_status =
       bench_options::parse_options(arguments, &opts, &parse_error);
