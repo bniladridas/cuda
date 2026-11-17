@@ -226,27 +226,7 @@ jobs:
           git diff --name-only --no-renames -z "$BASE_SHA...HEAD" > final-files.txt
           git rev-parse HEAD > prepared-sha.txt
           git rev-parse HEAD^{tree} > prepared-tree.txt
-          # shellcheck disable=SC1083
-          python3 - <<'PY'
-          import json
-          json.dump({
-              "ruff_check": "passed",
-              "ruff_format": "passed",
-              "python_test_suites": [
-                  "rebase-agent",
-                  "label-review",
-                  "issue-landing",
-                  "pr-confidence",
-                  "pr-scope-guard",
-                  "format-repair",
-                  "benchmarks-if-present",
-              ],
-              "cmake_cpu_configure": "passed",
-              "cmake_cpu_build": "passed",
-              "ctest_cpu": "passed",
-              "gpu_validation": "not_run_no_gpu_runner",
-          }, open("validation.json", "w", encoding="utf-8"), indent=2)
-          PY
+          python3 rebase-agent/engine/write_validation_report.py validation.json
           git bundle create prepared.bundle HEAD
           echo "result_sha=$(cat prepared-sha.txt)" >> "$GITHUB_OUTPUT"
           echo "result_tree=$(cat prepared-tree.txt)" >> "$GITHUB_OUTPUT"
