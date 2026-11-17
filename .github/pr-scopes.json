@@ -39,6 +39,10 @@
     {
       "name": "tests",
       "description": "Test cases, fixtures, and correctness coverage."
+    },
+    {
+      "name": "squash-merge",
+      "description": "The maintainer-approved squash-merge policy engine and workflow."
     }
   ]
 }
