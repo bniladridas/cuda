@@ -26,9 +26,9 @@ from trusted GitHub API metadata plus explicit maintainer approval.
       --request /path/to/trusted-request.json
 
 Request fields: repository, head_repository, branch, base_branch,
-default_branch, protected_branches, expected_remote_sha, authorization,
-and rebase_enabled. The SHA must be the exact 40-character PR head SHA
-returned by GitHub immediately before the operation.
+default_branch, protected_branches, expected_remote_sha, expected_base_sha,
+authorization, and rebase_enabled. Both SHAs must be the exact 40-character
+PR head and base SHAs returned by GitHub immediately before the operation.
 
 ## Security boundary
 
