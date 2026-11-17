@@ -31,7 +31,7 @@ def safe_path(root, raw):
     if not isinstance(raw, str) or not raw or "\x00" in raw:
         raise AgentError("path must be a non-empty repository-relative string")
     path = Path(raw)
-    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts) or path.parts[0] == ".git":
+    if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts) or path.parts[0] == ".git":
         raise AgentError("path escapes the repository")
     current = root
     for part in path.parts:
