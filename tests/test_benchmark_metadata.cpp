@@ -50,10 +50,8 @@ void runtime_failure_stops_before_driver_query() {
         driver_called = true;
         return 0;
       },
-      [](int status) {
-        return "mock error " + std::to_string(status);
-      },
-      &runtime, &driver, &error);
+      [](int status) { return "mock error " + std::to_string(status); }, &runtime,
+      &driver, &error);
   check(!ok, "runtime query failure was accepted");
   check(!driver_called, "driver query ran after runtime query failed");
   check(error.find("cudaRuntimeGetVersion") != std::string::npos,
@@ -74,15 +72,14 @@ void driver_failure_is_reported() {
         return 0;
       },
       [](int*) { return 2; },
-      [](int status) { return "mock error " + std::to_string(status); },
-      &runtime, &driver, &error);
+      [](int status) { return "mock error " + std::to_string(status); }, &runtime,
+      &driver, &error);
   check(!ok, "driver query failure was accepted");
   check(error.find("cudaDriverGetVersion") != std::string::npos,
         "driver failure omitted API name");
   check(error.find("mock error 2") != std::string::npos,
         "driver failure omitted CUDA error detail");
-  check(runtime == -1 && driver == -1,
-        "failed query modified output versions");
+  check(runtime == -1 && driver == -1, "failed query modified output versions");
 }
 
 }  // namespace
