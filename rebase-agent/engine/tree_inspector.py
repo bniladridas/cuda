@@ -108,12 +108,28 @@ def compare_trees(base_tree, head_tree):
 
 
 def overlapping_path_pairs(left_paths, right_paths):
-    pairs = []
-    for left in sorted(left_paths):
-        for right in sorted(right_paths):
-            if left == right or left.startswith(right + "/") or right.startswith(left + "/"):
-                pairs.append({"base_path": left, "head_path": right})
-    return pairs
+    left = set(left_paths)
+    right = set(right_paths)
+    pairs = {
+        (path, path)
+        for path in left & right
+    }
+    for path in left:
+        parts = path.split("/")
+        for index in range(1, len(parts)):
+            ancestor = "/".join(parts[:index])
+            if ancestor in right:
+                pairs.add((path, ancestor))
+    for path in right:
+        parts = path.split("/")
+        for index in range(1, len(parts)):
+            ancestor = "/".join(parts[:index])
+            if ancestor in left:
+                pairs.add((ancestor, path))
+    return [
+        {"base_path": base_path, "head_path": head_path}
+        for base_path, head_path in sorted(pairs)
+    ]
 
 
 def inspect_pull_request(api, repository, number):
