@@ -28,8 +28,14 @@ void accepts_valid_options() {
 
   options = {};
   error.clear();
-  const std::vector<std::string> valid_args = {
-      "--iterations", "12", "--reps", "3", "--warmup", "4", "--json"};
+  std::vector<std::string> valid_args;
+  valid_args.emplace_back("--iterations");
+  valid_args.emplace_back("12");
+  valid_args.emplace_back("--reps");
+  valid_args.emplace_back("3");
+  valid_args.emplace_back("--warmup");
+  valid_args.emplace_back("4");
+  valid_args.emplace_back("--json");
   status = bench_options::parse_options(valid_args, &options, &error);
   check(status == bench_options::ParseStatus::kOk, "valid options rejected");
   check(options.iterations == 12 && options.reps == 3 && options.warmup == 4,
@@ -38,8 +44,13 @@ void accepts_valid_options() {
 
   options = {};
   error.clear();
-  const std::vector<std::string> maximum_args = {
-      "--iterations", "100000", "--reps", "1", "--warmup", "100000"};
+  std::vector<std::string> maximum_args;
+  maximum_args.emplace_back("--iterations");
+  maximum_args.emplace_back("100000");
+  maximum_args.emplace_back("--reps");
+  maximum_args.emplace_back("1");
+  maximum_args.emplace_back("--warmup");
+  maximum_args.emplace_back("100000");
   status = bench_options::parse_options(maximum_args, &options, &error);
   check(status == bench_options::ParseStatus::kOk, "documented maximum values rejected");
 }
