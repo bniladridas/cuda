@@ -14,6 +14,7 @@
 
 #include "bench.h"
 #include "device_metadata.h"
+#include "device_status.h"
 #include "options.h"
 #include "cuda_kernels/reduce.cuh"
 #include "cuda_kernels/vecadd.cuh"
@@ -148,9 +149,18 @@ int main(int argc, char** argv) {
   }
 
   int devices = 0;
-  if (cudaGetDeviceCount(&devices) != cudaSuccess || devices == 0) {
+  const cudaError_t device_status = cudaGetDeviceCount(&devices);
+  const cuda_device::Availability availability =
+      cuda_device::classify_device_count(device_status, devices, cudaSuccess,
+                                         cudaErrorNoDevice);
+  if (availability == cuda_device::Availability::kUnavailable) {
     std::printf("SKIPPED [benchmarks]: no CUDA device\n");
     return 0;
+  }
+  if (availability == cuda_device::Availability::kError) {
+    std::fprintf(stderr, "ERROR [benchmarks]: cudaGetDeviceCount failed: %s\n",
+                 cudaGetErrorString(device_status));
+    return 1;
   }
 
   const std::vector<std::size_t> sizes = {1u << 16, 1u << 20, 1u << 24};
