@@ -77,15 +77,17 @@ def main():
         default_branch = repo["default_branch"]
         if branch == default_branch or branch == base_branch:
             raise GateError("default/base branch cannot be used as the PR head")
-        protection = api(
-            "/repos/%s/branches/%s/protection"
+        branch_info = api(
+            "/repos/%s/branches/%s"
             % (
                 repository,
                 __import__("urllib.parse", fromlist=["quote"]).quote(branch, safe=""),
             ),
             token,
         )
-        if protection is not None:
+        if not branch_info:
+            raise GateError("PR head branch could not be verified")
+        if branch_info.get("protected"):
             raise GateError("protected PR branches cannot be modified")
         if operation == "rebase" and os.environ.get("REPAIR_REBASE_ENABLED") != "true":
             raise GateError("repository policy has not enabled rebase")
