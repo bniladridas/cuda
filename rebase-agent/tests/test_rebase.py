@@ -33,6 +33,7 @@ def fake_runner(responses, calls):
         calls.append(command[3:])
         code, stdout, stderr = responses.pop(0)
         return SimpleNamespace(returncode=code, stdout=stdout, stderr=stderr)
+
     return run
 
 
