@@ -125,7 +125,7 @@ def merge_and_push(repo, request, runner=subprocess.run):
 
     try:
         run_git(repo, ["diff", "--cached", "--check"], runner)
-        run_git(repo, ["commit", "--no-ff", "-m", "Merge " + base_branch + " into " + branch], runner)
+        run_git(repo, ["commit", "-m", "Merge " + base_branch + " into " + branch], runner)
         new_sha = run_git(repo, ["rev-parse", "HEAD"], runner).stdout.strip()
         parents = run_git(repo, ["rev-list", "--parents", "-n", "1", "HEAD"], runner).stdout.split()
         if parents != [new_sha, expected_head, expected_base]:
