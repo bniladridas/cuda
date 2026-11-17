@@ -18,6 +18,8 @@ from pathlib import Path
 URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openrouter/free"
 MAX_ROUNDS = 20
+MAX_TOOL_CALLS = 80
+MAX_PARALLEL_CALLS = 8
 MAX_TOOL_OUTPUT = 18000
 MAX_DIFF_BYTES = 180000
 SHA_PATH = re.compile(r"^[A-Za-z0-9_./+-]+$")
@@ -104,6 +106,7 @@ class Agent:
         self.file_ranges = {}
         self.skipped_files = {}
         self.file_list_ranges = []
+        self.tool_calls_count = 0
 
     def tools(self):
         items = [
@@ -332,6 +335,11 @@ class Agent:
             calls = message.get("tool_calls") or []
             if not calls:
                 raise AgentError("model did not finish with a required review tool call")
+            if len(calls) > MAX_PARALLEL_CALLS:
+                raise AgentError("model requested too many parallel tool calls")
+            self.tool_calls_count += len(calls)
+            if self.tool_calls_count > MAX_TOOL_CALLS:
+                raise AgentError("tool-call budget exceeded")
             for call in calls:
                 function = call.get("function") or {}
                 name = function.get("name")
