@@ -13,6 +13,7 @@
 #include <cuda_runtime.h>
 
 #include "bench.h"
+#include "device_metadata.h"
 #include "options.h"
 #include "cuda_kernels/reduce.cuh"
 #include "cuda_kernels/vecadd.cuh"
@@ -33,18 +34,29 @@ void usage(const char* argv0) {
               bench_options::kDefaultWarmup);
 }
 
-bool device_strings(std::string* name, std::string* capability, std::string* driver) {
+bool device_strings(std::string* name, std::string* capability, std::string* runtime,
+                    std::string* driver, std::string* error) {
   int device = 0;
   cudaDeviceProp prop{};
-  if (cudaGetDevice(&device) != cudaSuccess) return false;
-  if (cudaGetDeviceProperties(&prop, device) != cudaSuccess) return false;
-  int rt = 0;
-  int drv = 0;
-  cudaRuntimeGetVersion(&rt);
-  cudaDriverGetVersion(&drv);
+  if (!bench::check_cuda(cudaGetDevice(&device), "cudaGetDevice")) return false;
+  if (!bench::check_cuda(cudaGetDeviceProperties(&prop, device),
+                         "cudaGetDeviceProperties"))
+    return false;
+
+  int runtime_version = 0;
+  int driver_version = 0;
+  if (!bench_metadata::query_versions(
+          cudaSuccess, [](int* version) { return cudaRuntimeGetVersion(version); },
+          [](int* version) { return cudaDriverGetVersion(version); },
+          [](cudaError_t status) { return std::string(cudaGetErrorString(status)); },
+          &runtime_version, &driver_version, error)) {
+    return false;
+  }
+
   *name = prop.name;
   *capability = std::to_string(prop.major) + "." + std::to_string(prop.minor);
-  *driver = std::to_string(drv / 1000) + "." + std::to_string((drv % 1000) / 10);
+  *runtime = bench_metadata::format_version(runtime_version);
+  *driver = bench_metadata::format_version(driver_version);
   return true;
 }
 
@@ -155,9 +167,14 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::string gpu_name, capability, driver;
-  if (!device_strings(&gpu_name, &capability, &driver)) {
-    std::fprintf(stderr, "could not query device properties\n");
+  std::string gpu_name, capability, runtime, driver, metadata_error;
+  if (!device_strings(&gpu_name, &capability, &runtime, &driver, &metadata_error)) {
+    if (!metadata_error.empty()) {
+      std::fprintf(stderr, "could not query benchmark metadata: %s\n",
+                   metadata_error.c_str());
+    } else {
+      std::fprintf(stderr, "could not query device properties\n");
+    }
     return 1;
   }
 
@@ -211,15 +228,12 @@ int main(int argc, char** argv) {
     cudaFree(d_scratch);
   }
 
-  const std::string cuda_ver = std::to_string(CUDART_VERSION / 1000) + "." +
-                               std::to_string((CUDART_VERSION % 1000) / 10);
-
   if (opts.json) {
     std::printf("{\n");
     std::printf("  \"gpu\": \"%s\",\n", gpu_name.c_str());
     std::printf("  \"compute_capability\": \"%s\",\n", capability.c_str());
     std::printf("  \"driver\": \"%s\",\n", driver.c_str());
-    std::printf("  \"cuda_runtime\": \"%s\",\n", cuda_ver.c_str());
+    std::printf("  \"cuda_runtime\": \"%s\",\n", runtime.c_str());
     std::printf("  \"iterations_per_batch\": %d,\n", opts.iterations);
     std::printf("  \"batches\": %d,\n", opts.reps);
     std::printf("  \"warmup\": %d,\n", opts.warmup);
@@ -236,7 +250,7 @@ int main(int argc, char** argv) {
     std::printf("  ]\n}\n");
   } else {
     std::printf("gpu=%s sm_%s driver=%s cuda=%s iterations=%d batches=%d warmup=%d\n\n",
-                gpu_name.c_str(), capability.c_str(), driver.c_str(), cuda_ver.c_str(),
+                gpu_name.c_str(), capability.c_str(), driver.c_str(), runtime.c_str(),
                 opts.iterations, opts.reps, opts.warmup);
     for (const Row& r : rows) {
       bench::print_stats(r.kernel, r.n, r.bytes, r.stats);
