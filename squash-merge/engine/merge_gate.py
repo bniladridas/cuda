@@ -12,13 +12,19 @@ from pathlib import Path
 from typing import Any
 
 
-def latest_review_states(reviews: list[dict[str, Any]]) -> dict[str, str]:
+def latest_review_states(
+    reviews: list[dict[str, Any]], expected_head: str
+) -> dict[str, str]:
     latest: dict[str, tuple[str, str]] = {}
     for review in reviews:
         login = (review.get("user") or {}).get("login", "")
         state = str(review.get("state", "")).upper()
         submitted = str(review.get("submitted_at") or "")
-        if not login or state == "PENDING":
+        if (
+            not login
+            or state == "PENDING"
+            or review.get("commit_id") != expected_head
+        ):
             continue
         if login not in latest or submitted >= latest[login][0]:
             latest[login] = (submitted, state)
@@ -62,7 +68,7 @@ def validate_state(
         errors.append("Squash-merge approval label is no longer present")
 
     author = (pr.get("user") or {}).get("login")
-    states = latest_review_states(reviews)
+    states = latest_review_states(reviews, expected_head)
     if any(state == "CHANGES_REQUESTED" for state in states.values()):
         errors.append("An outstanding change-request review remains")
     approvals = {
@@ -73,18 +79,13 @@ def validate_state(
     if not approvals:
         errors.append("At least one approval from a non-author, non-bot reviewer is required")
 
-    unfinished = [
-        run.get("name", "unnamed check")
-        for run in check_runs
-        if run.get("status") != "completed"
-    ]
+    unfinished = [run.get("name", "unnamed check") for run in check_runs if run.get("status") != "completed"]
     if unfinished:
         errors.append("Checks are still running: " + ", ".join(unfinished))
     unsuccessful = [
         f"{run.get('name', 'unnamed check')} ({run.get('conclusion')})"
         for run in check_runs
-        if run.get("status") == "completed"
-        and run.get("conclusion") not in {"success", "skipped", "neutral"}
+        if run.get("status") == "completed" and run.get("conclusion") not in {"success", "skipped", "neutral"}
     ]
     if unsuccessful:
         errors.append("Checks have not passed: " + ", ".join(unsuccessful))
@@ -134,9 +135,7 @@ def collect_state(
 
 def write_summary(title: str, errors: list[str]) -> None:
     summary = "# " + title + "\n\n" + "\n".join(f"- {error}" for error in errors) + "\n"
-    Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text(
-        summary, encoding="utf-8"
-    )
+    Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text(summary, encoding="utf-8")
 
 
 def main() -> int:
@@ -163,9 +162,7 @@ def main() -> int:
         "maintainers": set(config.get("maintainers", [])),
         "approval_label": config["approval_label"],
     }
-    pr, reviews, checks, status = collect_state(
-        args.repo, args.pr, args.event_head
-    )
+    pr, reviews, checks, status = collect_state(args.repo, args.pr, args.event_head)
     errors = validate_state(
         pr=pr,
         reviews=reviews,
@@ -180,9 +177,7 @@ def main() -> int:
 
     # Re-fetch all decision inputs immediately before the merge to close the
     # review/check/head race between initial validation and the write.
-    latest, latest_reviews, latest_checks, latest_status = collect_state(
-        args.repo, args.pr, args.event_head
-    )
+    latest, latest_reviews, latest_checks, latest_status = collect_state(args.repo, args.pr, args.event_head)
     errors = validate_state(
         pr=latest,
         reviews=latest_reviews,
