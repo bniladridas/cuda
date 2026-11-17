@@ -179,9 +179,17 @@ def source_bytes(repo, path, sha, token):
     validate_repo(repo)
     url = "%s/repos/%s/contents/%s?ref=%s" % (API, repo, urllib.parse.quote(path, safe="/"), sha)
     data, _ = api_json(url, token)
-    if not isinstance(data, dict) or data.get("type") != "file" or not isinstance(data.get("content"), str):
-        raise RepairError("could not fetch source file %s" % path)
-    return base64.b64decode(data["content"])
+    if (
+        not isinstance(data, dict)
+        or data.get("type") != "file"
+        or data.get("encoding") != "base64"
+        or not isinstance(data.get("content"), str)
+    ):
+        raise RepairError("GitHub did not return base64 source content for %s; refusing an incomplete formatting check" % path)
+    try:
+        return base64.b64decode("".join(data["content"].split()), validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise RepairError("GitHub returned invalid base64 source content for %s" % path) from exc
 
 
 def line_numbers(source, xml_text):
