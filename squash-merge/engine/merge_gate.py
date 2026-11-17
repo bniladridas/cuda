@@ -25,6 +25,33 @@ def latest_review_states(reviews: list[dict[str, Any]], expected_head: str) -> d
     return {login: value[1] for login, value in latest.items()}
 
 
+def outstanding_change_request_reviewers(reviews: list[dict[str, Any]]) -> set[str]:
+    """Return reviewers whose latest effective decision is still changes requested.
+
+    A change request remains blocking across head updates. Only a later
+    approval or explicit dismissal by that reviewer clears it; comments and
+    pending reviews do not.
+    """
+    ordered = sorted(
+        reviews,
+        key=lambda review: (
+            str(review.get("submitted_at") or ""),
+            int(review.get("id") or 0),
+        ),
+    )
+    blocking: set[str] = set()
+    for review in ordered:
+        login = (review.get("user") or {}).get("login", "")
+        state = str(review.get("state", "")).upper()
+        if not login or state == "PENDING":
+            continue
+        if state == "CHANGES_REQUESTED":
+            blocking.add(login)
+        elif state in {"APPROVED", "DISMISSED"}:
+            blocking.discard(login)
+    return blocking
+
+
 def validate_state(
     *,
     pr: dict[str, Any],
@@ -63,8 +90,12 @@ def validate_state(
 
     author = (pr.get("user") or {}).get("login")
     states = latest_review_states(reviews, expected_head)
-    if any(state == "CHANGES_REQUESTED" for state in states.values()):
-        errors.append("An outstanding change-request review remains")
+    blocking_reviewers = outstanding_change_request_reviewers(reviews)
+    if blocking_reviewers:
+        errors.append(
+            "Outstanding change-request review remains from: "
+            + ", ".join(sorted(blocking_reviewers))
+        )
     approvals = {
         login
         for login, state in states.items()
