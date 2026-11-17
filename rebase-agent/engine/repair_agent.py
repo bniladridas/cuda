@@ -103,10 +103,11 @@ class Agent:
         self.diff_ranges = []
         self.file_ranges = {}
         self.skipped_files = {}
+        self.file_list_ranges = []
 
     def tools(self):
         items = [
-            {"type": "function", "function": {"name": "list_changed_files", "description": "List every file in the supplied PR diff.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
+            {"type": "function", "function": {"name": "list_changed_files", "description": "List changed files in consecutive pages until the complete inventory has been read.", "parameters": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["offset", "limit"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "get_diff", "description": "Read a chunk of the complete PR diff. Request consecutive chunks until all characters have been read.", "parameters": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 8000}}, "required": ["offset", "limit"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "read_file", "description": "Read a chunk of a UTF-8 changed file. Read consecutive chunks until complete; mark deleted or binary files skipped with a reason.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 7000}}, "required": ["path", "offset", "limit"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "mark_file_skipped", "description": "Record why a changed file cannot be read, such as deletion, binary content, or generated output.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "reason": {"type": "string"}}, "required": ["path", "reason"], "additionalProperties": False}}},
@@ -121,7 +122,17 @@ class Agent:
         if not isinstance(args, dict):
             raise AgentError("tool arguments must be an object")
         if name == "list_changed_files":
-            return {"files": self.files, "count": len(self.files)}
+            offset = args.get("offset")
+            limit = args.get("limit")
+            if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+                raise AgentError("file-list offset must be non-negative")
+            if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 100:
+                raise AgentError("file-list page size must be between 1 and 100")
+            end = min(len(self.files), offset + limit)
+            if offset > len(self.files):
+                raise AgentError("file-list offset is past the end")
+            self.file_list_ranges.append((offset, end))
+            return {"files": self.files[offset:end], "offset": offset, "end": end, "count": len(self.files), "complete": end == len(self.files)}
         if name == "get_diff":
             offset = args.get("offset")
             limit = args.get("limit")
