@@ -130,7 +130,17 @@ def merge_and_push(repo, request, runner=subprocess.run):
         parents = run_git(repo, ["rev-list", "--parents", "-n", "1", "HEAD"], runner).stdout.split()
         if parents != [new_sha, expected_head, expected_base]:
             raise MergeError("result is not the expected two-parent merge commit")
-        run_git(repo, ["fetch", "--no-tags", "origin", branch, base_branch], runner)
+        run_git(
+            repo,
+            [
+                "fetch",
+                "--no-tags",
+                "origin",
+                "+refs/heads/" + branch + ":refs/remotes/origin/" + branch,
+                "+refs/heads/" + base_branch + ":refs/remotes/origin/" + base_branch,
+            ],
+            runner,
+        )
         if remote_sha(repo, branch, runner) != expected_head:
             raise MergeError("remote PR branch moved during merge; refusing to push")
         if remote_sha(repo, base_branch, runner) != expected_base:
@@ -142,6 +152,9 @@ def merge_and_push(repo, request, runner=subprocess.run):
         )
     except MergeError:
         run_git(repo, ["merge", "--abort"], runner, allow_failure=True)
+        current_head = run_git(repo, ["rev-parse", "HEAD"], runner).stdout.strip()
+        if current_head != expected_head:
+            run_git(repo, ["reset", "--hard", expected_head], runner)
         raise
 
     return {
