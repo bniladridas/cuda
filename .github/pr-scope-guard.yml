@@ -14,6 +14,10 @@ scopes:
     - ".gitignore"
     - "gitbook-docs.yaml"
     - "runners/**"
+    - "format-repair/**"
+    - ".github/format-repair.yml"
+    - ".github/workflows/format-repair.yml"
+    - "docs/format-repair.md"
   benchmarks:
     - "benchmarks/**"
   build:
