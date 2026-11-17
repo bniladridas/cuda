@@ -102,9 +102,7 @@ def compare_trees(base_tree, head_tree):
         path
         for path in paths
         if base_tree.get(path) != head_tree.get(path)
-        and (
-            (base_tree.get(path) or head_tree.get(path) or {}).get("type") != "tree"
-        )
+        and ((base_tree.get(path) or head_tree.get(path) or {}).get("type") != "tree")
     }
     return changed
 
@@ -121,10 +119,12 @@ def inspect_pull_request(api, repository, number):
     if pr.get("base", {}).get("repo", {}).get("full_name", "").lower() != repository.lower():
         raise InspectionError("PR base repository does not match requested repository")
 
-    comparison = api.get(api_path(
-        repository,
-        "/compare/%s...%s" % (urllib.parse.quote(base_branch, safe=""), head_sha),
-    ))
+    comparison = api.get(
+        api_path(
+            repository,
+            "/compare/%s...%s" % (urllib.parse.quote(base_branch, safe=""), head_sha),
+        )
+    )
     merge_base_sha = comparison.get("merge_base_commit", {}).get("sha")
     status = comparison.get("status")
     if not merge_base_sha or status not in {"ahead", "behind", "diverged", "identical"}:
@@ -139,20 +139,19 @@ def inspect_pull_request(api, repository, number):
     pr_files = fetch_pr_files(api, repository, number)
     inventory = []
     for item in pr_files:
-        inventory.append({
-            "filename": item.get("filename"),
-            "previous_filename": item.get("previous_filename"),
-            "status": item.get("status"),
-            "additions": item.get("additions"),
-            "deletions": item.get("deletions"),
-            "patch_available": isinstance(item.get("patch"), str),
-            "binary_or_patchless": not isinstance(item.get("patch"), str),
-        })
+        inventory.append(
+            {
+                "filename": item.get("filename"),
+                "previous_filename": item.get("previous_filename"),
+                "status": item.get("status"),
+                "additions": item.get("additions"),
+                "deletions": item.get("deletions"),
+                "patch_available": isinstance(item.get("patch"), str),
+                "binary_or_patchless": not isinstance(item.get("patch"), str),
+            }
+        )
     reported_paths = {
-        path
-        for item in inventory
-        for path in (item.get("filename"), item.get("previous_filename"))
-        if path
+        path for item in inventory for path in (item.get("filename"), item.get("previous_filename")) if path
     }
     tree_paths = sorted(head_changes)
     return {
