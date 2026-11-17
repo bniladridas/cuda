@@ -9,9 +9,8 @@ namespace bench_metadata {
 // host-only tests without a CUDA toolkit.
 template <typename Status, typename RuntimeQuery, typename DriverQuery,
           typename ErrorString>
-bool query_versions(Status success, RuntimeQuery runtime_query,
-                    DriverQuery driver_query, ErrorString error_string,
-                    int* runtime_version, int* driver_version,
+bool query_versions(Status success, RuntimeQuery runtime_query, DriverQuery driver_query,
+                    ErrorString error_string, int* runtime_version, int* driver_version,
                     std::string* error) {
   int runtime = 0;
   const Status runtime_status = runtime_query(&runtime);
