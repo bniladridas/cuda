@@ -52,9 +52,11 @@ class PolicyTests(unittest.TestCase):
                 fr.require_path(path)
 
     def test_removed_files_are_not_eligible(self):
-        selected = [x for x in [{"filename": "src/a.cpp", "status": "removed"},
-                                {"filename": "src/b.cu", "status": "modified"}]
-                    if x["status"] != "removed" and fr.allowed(x["filename"], config())]
+        selected = [
+            x
+            for x in [{"filename": "src/a.cpp", "status": "removed"}, {"filename": "src/b.cu", "status": "modified"}]
+            if x["status"] != "removed" and fr.allowed(x["filename"], config())
+        ]
         self.assertEqual(selected, [{"filename": "src/b.cu", "status": "modified"}])
 
     def test_authorized_actor_is_exact(self):
@@ -125,8 +127,7 @@ class ReportTests(unittest.TestCase):
             fr.authorize_repair(pr(labels=[]), REPO, "maintainer", HEAD, config(), "main")
 
     def test_report_checks_only_allowlisted_files(self):
-        files = [{"filename": "src/a.cpp", "status": "modified"},
-                 {"filename": "docs/readme.cpp", "status": "modified"}]
+        files = [{"filename": "src/a.cpp", "status": "modified"}, {"filename": "docs/readme.cpp", "status": "modified"}]
         result = {"path": "src/a.cpp", "lines": [4], "formatted": False}
         with mock.patch.object(fr, "source_bytes", return_value=b"source") as source:
             with mock.patch.object(fr, "inspect", return_value=result):
@@ -143,8 +144,14 @@ class ReportTests(unittest.TestCase):
     def test_fork_report_is_explicitly_read_only(self):
         value = pr()
         value["head"]["repo"]["full_name"] = "contributor/repo"
-        report = {"formatter_version": "22.1.8", "files_checked": [], "files_skipped": [],
-                  "violations": [], "clean": True, "repair_eligible": False}
+        report = {
+            "formatter_version": "22.1.8",
+            "files_checked": [],
+            "files_skipped": [],
+            "violations": [],
+            "clean": True,
+            "repair_eligible": False,
+        }
         self.assertIn("Fork pull request", fr.report_markdown(report))
 
 
