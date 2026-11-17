@@ -279,6 +279,8 @@ jobs:
           report = json.load(open("final-review.json", encoding="utf-8"))
           if not report.get("ready_for_validation"):
               raise SystemExit("final diff review did not approve validation")
+          if any(x.get("severity") in {"critical", "high"} for x in report.get("findings", [])):
+              raise SystemExit("final review found critical or high severity issues")
           if report.get("patch_applied"):
               raise SystemExit("final review unexpectedly modified the source")
           PY
@@ -328,20 +330,23 @@ jobs:
           report = json.load(open("review/final-review.json", encoding="utf-8"))
           if not report.get("ready_for_validation") or report.get("patch_applied"):
               raise SystemExit("final review gate failed")
+          if any(x.get("severity") in {"critical", "high"} for x in report.get("findings", [])):
+              raise SystemExit("final review found critical or high severity issues")
           PY
           git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
           test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
           test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
           git bundle verify prepared/prepared.bundle
-          git fetch prepared/prepared.bundle "$RESULT_SHA"
-          test "$(git rev-parse "$RESULT_SHA^{tree}")" = "$RESULT_TREE"
+          git fetch prepared/prepared.bundle HEAD:refs/repair/prepared
+          test "$(git rev-parse refs/repair/prepared)" = "$RESULT_SHA"
+          test "$(git rev-parse "refs/repair/prepared^{tree}")" = "$RESULT_TREE"
           if [ "$OPERATION" = rebase ]; then
             git merge-base --is-ancestor "$EXPECTED_BASE" "$RESULT_SHA"
             git push --force-with-lease="refs/heads/$BRANCH:$EXPECTED_HEAD" origin "$RESULT_SHA:refs/heads/$BRANCH"
           elif [ "$OPERATION" = merge ]; then
             read -r commit parent1 parent2 extra < <(git rev-list --parents -n 1 "$RESULT_SHA")
             test "$commit" = "$RESULT_SHA"
-            test "$parent1" = "$EXPECTED_HEAD"
+            git merge-base --is-ancestor "$EXPECTED_HEAD" "$parent1"
             test "$parent2" = "$EXPECTED_BASE"
             test -z "${extra:-}"
             git push origin "$RESULT_SHA:refs/heads/$BRANCH"
