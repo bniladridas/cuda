@@ -1,5 +1,6 @@
 version: 1
 formatter_version: "22.1.8"
+python_formatter_version: "0.17.5"
 approval_label: "format-fix:approved"
 maintainers:
   - bniladridas
@@ -8,9 +9,16 @@ allowed_extensions:
   - .h
   - .cu
   - .cuh
+  - .py
 allowed_paths:
   - "src/**"
   - "include/**"
   - "kernels/**"
   - "tests/**"
   - "benchmarks/**"
+  - "format-repair/**"
+  - "pr-confidence/**"
+  - "pr-scope-guard/**"
+  - "label-review/**"
+  - "issue-landing/**"
+  - "runners/**"

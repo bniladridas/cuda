@@ -19,10 +19,11 @@ def config():
     return {
         "version": 1,
         "formatter_version": "22.1.8",
+        "python_formatter_version": "0.17.5",
         "approval_label": "format-fix:approved",
         "maintainers": {"maintainer"},
-        "allowed_extensions": [".cpp", ".h", ".cu", ".cuh"],
-        "allowed_paths": ["src/**", "include/**", "kernels/**", "tests/**", "benchmarks/**"],
+        "allowed_extensions": [".cpp", ".h", ".cu", ".cuh", ".py"],
+        "allowed_paths": ["src/**", "include/**", "kernels/**", "tests/**", "benchmarks/**", "format-repair/**", "pr-confidence/**", "pr-scope-guard/**", "label-review/**", "issue-landing/**", "runners/**"],
     }
 
 
@@ -44,7 +45,9 @@ class PolicyTests(unittest.TestCase):
         cfg = config()
         self.assertTrue(fr.allowed("src/vector.cu", cfg))
         self.assertFalse(fr.allowed("docs/example.cpp", cfg))
-        self.assertFalse(fr.allowed("src/data.py", cfg))
+        self.assertTrue(fr.allowed("format-repair/engine/format_repair.py", cfg))
+        self.assertTrue(fr.allowed("benchmarks/plot.py", cfg))
+        self.assertFalse(fr.allowed("docs/example.py", cfg))
 
     def test_rejects_unsafe_paths(self):
         for path in ("/tmp/a.cpp", "../a.cpp", "src/../a.cpp", "src\\a.cpp", "src/a.cpp\nother.cpp"):
@@ -144,6 +147,15 @@ class ReportTests(unittest.TestCase):
             with self.assertRaisesRegex(fr.RepairError, "clang-format failed"):
                 fr.inspect("src/a.cpp", b"source", ".clang-format")
 
+    def test_python_formatter_uses_ruff_and_reports_changed_lines(self):
+        source = b"answer=42\n"
+        formatted = b"answer = 42\n"
+        with mock.patch.object(fr, "formatted_python", return_value=formatted) as formatter:
+            result = fr.inspect_python("benchmarks/plot.py", source, "pyproject.toml")
+        formatter.assert_called_once_with(source, "benchmarks/plot.py", "pyproject.toml")
+        self.assertFalse(result["formatted"])
+        self.assertEqual(result["lines"], [1])
+
     def test_clean_formatter_output_is_reported_clean(self):
         clean = mock.Mock(returncode=0, stdout=b"<replacements/>", stderr=b"")
         with mock.patch.object(fr.subprocess, "run", return_value=clean):
@@ -160,7 +172,7 @@ class ReportTests(unittest.TestCase):
         result = {"path": "src/a.cpp", "lines": [4], "formatted": False}
         with mock.patch.object(fr, "source_bytes", return_value=b"source") as source:
             with mock.patch.object(fr, "inspect", return_value=result):
-                report = fr.make_report(REPO, pr(changed_files=2), files, config(), "token", ".clang-format")
+                report = fr.make_report(REPO, pr(changed_files=2), files, config(), "token", ".clang-format", "pyproject.toml")
         source.assert_called_once()
         self.assertEqual(report["files_skipped"], ["docs/readme.cpp"])
         self.assertEqual(report["violations"], [result])
@@ -168,7 +180,7 @@ class ReportTests(unittest.TestCase):
 
     def test_incomplete_changed_file_list_fails_closed(self):
         with self.assertRaisesRegex(fr.RepairError, "coverage is incomplete"):
-            fr.make_report(REPO, pr(changed_files=2), [{"filename": "src/a.cpp"}], config(), "token", ".clang-format")
+            fr.make_report(REPO, pr(changed_files=2), [{"filename": "src/a.cpp"}], config(), "token", ".clang-format", "pyproject.toml")
 
     def test_fork_report_is_explicitly_read_only(self):
         value = pr()

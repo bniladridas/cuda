@@ -188,7 +188,7 @@ pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
 docs/                   hardware, methodology, C++ quality, PR confidence, label review and PR Scope Guard
 label-review/           reusable issue label review engine and tests
-format-repair/          approval-gated clang-format reporting and repair
+format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
 ```
 
@@ -209,7 +209,7 @@ issue-landing/          issue landing report engine and offline tests
   no secrets. Treat the score as advisory alongside the checks it reads. The
   check activates for later pull requests after this workflow merges. Rubric and
   setup in [`docs/pr-confidence.md`](docs/pr-confidence.md).
-- `format-repair`: read-only formatting reports on pull-request activity;
+- `format-repair`: read-only C/C++/CUDA and Python formatting reports on pull-request activity;
   formatting commits require the `format-fix:approved` label from an
   authorized maintainer. Fork PRs remain report-only. It never approves or
   merges a pull request. Details in `docs/format-repair.md`.

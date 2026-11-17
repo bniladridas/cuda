@@ -86,13 +86,19 @@ class WorkflowPolicyTests(unittest.TestCase):
             x["run"] for x in workflow["jobs"]["repair"]["steps"] if "format_repair.py repair" in x.get("run", "")
         )
         self.assertIn("--style-file .clang-format", report_run)
+        self.assertIn("--python-config-file pyproject.toml", report_run)
         self.assertIn("--style-file steward/.clang-format", repair_run)
+        self.assertIn("--python-config-file steward/pyproject.toml", repair_run)
 
     def test_formatter_pin_matches_configuration(self):
-        version = self.read(CONFIG)["formatter_version"]
+        config = self.read(CONFIG)
+        version = config["formatter_version"]
+        python_version = config["python_formatter_version"]
         for job in ("report", "repair"):
             step = next(x for x in self.read(WORKFLOW)["jobs"][job]["steps"] if "clang-format==" in x.get("run", ""))
             self.assertIn("clang-format==" + version, step["run"])
+            self.assertIn("ruff==" + python_version, step["run"])
+            self.assertIn("--python-config-file", step["run"])
 
     def test_formatter_commit_dispatches_ci_before_acknowledgement(self):
         workflow = self.read(WORKFLOW)

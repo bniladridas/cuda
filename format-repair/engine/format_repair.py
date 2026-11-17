@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Read-only formatting reports and maintainer-approved clang-format repairs."""
+"""Read-only formatting reports and maintainer-approved source formatting repairs."""
 
 import argparse
 import base64
 import fnmatch
+import difflib
 import json
 import os
 import re
@@ -48,11 +49,13 @@ def load_config(path):
         cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise RepairError("cannot load format-repair configuration: %s" % exc) from exc
-    keys = {"version", "formatter_version", "approval_label", "maintainers", "allowed_extensions", "allowed_paths"}
+    keys = {"version", "formatter_version", "python_formatter_version", "approval_label", "maintainers", "allowed_extensions", "allowed_paths"}
     if not isinstance(cfg, dict) or set(cfg) != keys or isinstance(cfg.get("version"), bool) or cfg["version"] != 1:
         raise RepairError("invalid format-repair configuration")
     if not re.fullmatch(r"\d+\.\d+\.\d+", str(cfg["formatter_version"])):
         raise RepairError("formatter_version must be pinned")
+    if not re.fullmatch(r"\d+\.\d+\.\d+", str(cfg["python_formatter_version"])):
+        raise RepairError("python_formatter_version must be pinned")
     for key in ("maintainers", "allowed_extensions", "allowed_paths"):
         if not isinstance(cfg[key], list) or not cfg[key] or not all(isinstance(x, str) and x for x in cfg[key]):
             raise RepairError("%s must be a non-empty string list" % key)
@@ -224,7 +227,37 @@ def inspect(path, source, style_file):
     return {"path": path, "lines": lines, "formatted": not lines}
 
 
-def make_report(repo, pr, files, cfg, token, style_file):
+def formatted_python(source, path, config_file):
+    result = subprocess.run(
+        ["ruff", "format", "--config", str(Path(config_file).resolve()), "--stdin-filename", path, "-"],
+        input=source, capture_output=True, check=False,
+    )
+    if result.returncode:
+        raise RepairError("ruff format failed for %s: %s" % (path, result.stderr.decode("utf-8", "replace")[:400]))
+    return result.stdout
+
+
+def changed_line_numbers(before, after):
+    old_lines, new_lines = before.decode("utf-8").splitlines(), after.decode("utf-8").splitlines()
+    changed = set()
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=old_lines, b=new_lines).get_opcodes():
+        if tag != "equal":
+            changed.update(range(i1 + 1, max(i2, i1 + 1) + 1))
+    return sorted(changed)
+
+
+def inspect_python(path, source, config_file):
+    formatted = formatted_python(source, path, config_file)
+    return {"path": path, "lines": changed_line_numbers(source, formatted), "formatted": source == formatted}
+
+
+def inspect_file(path, source, style_file, python_config_file):
+    if PurePosixPath(path).suffix.lower() == ".py":
+        return inspect_python(path, source, python_config_file)
+    return inspect(path, source, style_file)
+
+
+def make_report(repo, pr, files, cfg, token, style_file, python_config_file):
     info = pr_info(pr, repo)
     if (
         isinstance(pr.get("changed_files"), bool)
@@ -238,7 +271,9 @@ def make_report(repo, pr, files, cfg, token, style_file):
         if item.get("status") == "removed":
             continue
         if allowed(path, cfg):
-            checked.append(inspect(path, source_bytes(info["head_repo"], path, info["sha"], token), style_file))
+            checked.append(
+                inspect_file(path, source_bytes(info["head_repo"], path, info["sha"], token), style_file, python_config_file)
+            )
         else:
             skipped.append(path)
     violations = [item for item in checked if not item["formatted"]]
@@ -250,6 +285,7 @@ def make_report(repo, pr, files, cfg, token, style_file):
         "head_repo": info["head_repo"],
         "coverage": {"expected_files": pr["changed_files"], "fetched_files": len(files), "complete": True},
         "formatter_version": cfg["formatter_version"],
+        "formatter_versions": {"clang-format": cfg["formatter_version"], "ruff": cfg["python_formatter_version"]},
         "approval_label": cfg["approval_label"],
         "repair_eligible": info["head_repo"] == repo,
         "files_checked": checked,
@@ -263,7 +299,8 @@ def report_markdown(report):
     lines = [
         "## Formatting check",
         "",
-        "Formatter: clang-format %s" % report["formatter_version"],
+        "Formatters: clang-format %s; Ruff %s"
+        % (report["formatter_version"], report["formatter_versions"]["ruff"]),
         "Files checked: %d. Outside allowlist: %d." % (len(report["files_checked"]), len(report["files_skipped"])),
         "",
     ]
@@ -291,7 +328,7 @@ def write_json(path, data):
 def run_report(args, cfg, token):
     pr = fetch_pr(args.repo, args.pr, token)
     files = changed_files(args.repo, args.pr, token)
-    result = make_report(args.repo, pr, files, cfg, token, args.style_file)
+    result = make_report(args.repo, pr, files, cfg, token, args.style_file, args.python_config_file)
     write_json(args.artifact, result)
     Path(args.summary).write_text(report_markdown(result), encoding="utf-8")
 
@@ -319,15 +356,18 @@ def run_repair(args, cfg, token):
         candidate = work / path
         if candidate.is_symlink() or work not in candidate.resolve().parents or not candidate.is_file():
             raise RepairError("unsafe or missing worktree file: %s" % path)
-        result = subprocess.run(
-            ["clang-format", "--style=file:" + str(Path(args.style_file).resolve()), "--assume-filename=" + path],
-            input=candidate.read_bytes(),
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode:
-            raise RepairError("clang-format failed for %s" % path)
-        candidate.write_bytes(result.stdout)
+        source = candidate.read_bytes()
+        if PurePosixPath(path).suffix.lower() == ".py":
+            formatted = formatted_python(source, path, args.python_config_file)
+        else:
+            result = subprocess.run(
+                ["clang-format", "--style=file:" + str(Path(args.style_file).resolve()), "--assume-filename=" + path],
+                input=source, capture_output=True, check=False,
+            )
+            if result.returncode:
+                raise RepairError("clang-format failed for %s" % path)
+            formatted = result.stdout
+        candidate.write_bytes(formatted)
     diff = subprocess.run(["git", "diff", "--name-only"], cwd=work, capture_output=True, check=True)
     changed = validate_changed_paths(diff.stdout.decode().splitlines(), paths)
     if not changed:
@@ -336,7 +376,8 @@ def run_repair(args, cfg, token):
             {
                 "status": "no_changes",
                 "formatter_version": cfg["formatter_version"],
-                "validation": "clang-format completed; no formatting changes were needed",
+                "formatter_versions": {"clang-format": cfg["formatter_version"], "ruff": cfg["python_formatter_version"]},
+                "validation": "configured formatters completed; no formatting changes were needed",
                 "changed_files": [],
             },
         )
@@ -361,7 +402,7 @@ def run_repair(args, cfg, token):
     staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=work, capture_output=True, check=True)
     if sorted(staged.stdout.decode().splitlines()) != changed:
         raise RepairError("staged paths differ from formatter output")
-    subprocess.run(["git", "commit", "-m", "style: apply approved clang-format fixes"], cwd=work, check=True)
+    subprocess.run(["git", "commit", "-m", "style: apply approved formatting fixes"], cwd=work, check=True)
     if subprocess.run(["git", "check-ref-format", "--branch", info["branch"]], cwd=work).returncode:
         raise RepairError("invalid PR branch ref")
     remote = "https://x-access-token:%s@github.com/%s.git" % (token, args.repo)
@@ -381,7 +422,8 @@ def run_repair(args, cfg, token):
             "commit_sha": commit,
             "changed_files": changed,
             "formatter_version": cfg["formatter_version"],
-            "validation": "clang-format completed and git diff --check passed",
+            "formatter_versions": {"clang-format": cfg["formatter_version"], "ruff": cfg["python_formatter_version"]},
+            "validation": "configured formatters completed and git diff --check passed",
         },
     )
 
@@ -393,6 +435,7 @@ def main():
     parser.add_argument("--pr", required=True, type=int)
     parser.add_argument("--config", required=True)
     parser.add_argument("--style-file", default=".clang-format")
+    parser.add_argument("--python-config-file", default="pyproject.toml")
     parser.add_argument("--artifact", required=True)
     parser.add_argument("--summary", default="format-repair.md")
     parser.add_argument("--actor")
