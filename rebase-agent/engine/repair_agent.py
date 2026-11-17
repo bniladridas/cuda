@@ -33,7 +33,12 @@ def safe_path(root, raw):
     if not isinstance(raw, str) or not raw or "\x00" in raw:
         raise AgentError("path must be a non-empty repository-relative string")
     path = Path(raw)
-    if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts) or path.parts[0] == ".git":
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or path.parts[0] == ".git"
+    ):
         raise AgentError("path escapes the repository")
     current = root
     for part in path.parts:
@@ -76,7 +81,13 @@ def validate_patch_paths(patch):
                 continue
             if value.startswith(("a/", "b/")):
                 value = value[2:]
-            if not value or value.startswith("/") or "\\" in value or value.split("/")[0] == ".git" or any(p in {"", ".", ".."} for p in value.split("/")):
+            if (
+                not value
+                or value.startswith("/")
+                or "\\" in value
+                or value.split("/")[0] == ".git"
+                or any(p in {"", ".", ".."} for p in value.split("/"))
+            ):
                 raise AgentError("patch contains an unsafe path")
             paths.append(value)
     if not paths:
@@ -110,15 +121,132 @@ class Agent:
 
     def tools(self):
         items = [
-            {"type": "function", "function": {"name": "list_changed_files", "description": "List changed files in consecutive pages until the complete inventory has been read.", "parameters": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["offset", "limit"], "additionalProperties": False}}},
-            {"type": "function", "function": {"name": "get_diff", "description": "Read a chunk of the complete PR diff. Request consecutive chunks until all characters have been read.", "parameters": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 8000}}, "required": ["offset", "limit"], "additionalProperties": False}}},
-            {"type": "function", "function": {"name": "read_file", "description": "Read a chunk of a UTF-8 changed file. Read consecutive chunks until complete; mark deleted or binary files skipped with a reason.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 7000}}, "required": ["path", "offset", "limit"], "additionalProperties": False}}},
-            {"type": "function", "function": {"name": "mark_file_skipped", "description": "Record why a changed file cannot be read, such as deletion, binary content, or generated output.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "reason": {"type": "string"}}, "required": ["path", "reason"], "additionalProperties": False}}},
-            {"type": "function", "function": {"name": "search_text", "description": "Search literal text in tracked source files in the supplied snapshot.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"], "additionalProperties": False}}},
-            {"type": "function", "function": {"name": "submit_review", "description": "Finish the review. Report concrete findings and whether the resulting patch is ready for independent validation.", "parameters": {"type": "object", "properties": {"summary": {"type": "string"}, "ready_for_validation": {"type": "boolean"}, "findings": {"type": "array", "items": {"type": "object", "properties": {"severity": {"type": "string", "enum": ["critical", "high", "medium", "low", "info"]}, "path": {"type": "string"}, "line": {"type": "integer"}, "reason": {"type": "string"}}, "required": ["severity", "path", "line", "reason"], "additionalProperties": False}}, "additionalProperties": False}, "required": ["summary", "ready_for_validation", "findings"]}}},
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_changed_files",
+                    "description": "List changed files in consecutive pages until the complete inventory has been read.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "offset": {"type": "integer", "minimum": 0},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                        },
+                        "required": ["offset", "limit"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_diff",
+                    "description": "Read a chunk of the complete PR diff. Request consecutive chunks until all characters have been read.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "offset": {"type": "integer", "minimum": 0},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 8000},
+                        },
+                        "required": ["offset", "limit"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "read_file",
+                    "description": "Read a chunk of a UTF-8 changed file. Read consecutive chunks until complete; mark deleted or binary files skipped with a reason.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "offset": {"type": "integer", "minimum": 0},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 7000},
+                        },
+                        "required": ["path", "offset", "limit"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "mark_file_skipped",
+                    "description": "Record why a changed file cannot be read, such as deletion, binary content, or generated output.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"path": {"type": "string"}, "reason": {"type": "string"}},
+                        "required": ["path", "reason"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_text",
+                    "description": "Search literal text in tracked source files in the supplied snapshot.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"query": {"type": "string"}},
+                        "required": ["query"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "submit_review",
+                    "description": "Finish the review. Report concrete findings and whether the resulting patch is ready for independent validation.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "summary": {"type": "string"},
+                            "ready_for_validation": {"type": "boolean"},
+                            "findings": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "severity": {
+                                            "type": "string",
+                                            "enum": ["critical", "high", "medium", "low", "info"],
+                                        },
+                                        "path": {"type": "string"},
+                                        "line": {"type": "integer"},
+                                        "reason": {"type": "string"},
+                                    },
+                                    "required": ["severity", "path", "line", "reason"],
+                                    "additionalProperties": False,
+                                },
+                            },
+                        },
+                        "required": ["summary", "ready_for_validation", "findings"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
         ]
         if self.allow_patch:
-            items.insert(4, {"type": "function", "function": {"name": "apply_patch", "description": "Apply a unified diff patch to the isolated source snapshot. This does not execute code.", "parameters": {"type": "object", "properties": {"patch": {"type": "string"}}, "required": ["patch"], "additionalProperties": False}}})
+            items.insert(
+                4,
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "apply_patch",
+                        "description": "Apply a unified diff patch to the isolated source snapshot. This does not execute code.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"patch": {"type": "string"}},
+                            "required": ["patch"],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+            )
         return items
 
     def execute(self, name, args):
@@ -135,7 +263,13 @@ class Agent:
             if offset > len(self.files):
                 raise AgentError("file-list offset is past the end")
             self.file_list_ranges.append((offset, end))
-            return {"files": self.files[offset:end], "offset": offset, "end": end, "count": len(self.files), "complete": end == len(self.files)}
+            return {
+                "files": self.files[offset:end],
+                "offset": offset,
+                "end": end,
+                "count": len(self.files),
+                "complete": end == len(self.files),
+            }
         if name == "get_diff":
             offset = args.get("offset")
             limit = args.get("limit")
@@ -147,7 +281,13 @@ class Agent:
             if offset > len(self.diff):
                 raise AgentError("diff offset is past end of diff")
             self.diff_ranges.append((offset, end))
-            return {"offset": offset, "end": end, "total_chars": len(self.diff), "complete": end == len(self.diff), "diff": self.diff[offset:end]}
+            return {
+                "offset": offset,
+                "end": end,
+                "total_chars": len(self.diff),
+                "complete": end == len(self.diff),
+                "diff": self.diff[offset:end],
+            }
         if name == "read_file":
             raw_path = args.get("path")
             if raw_path not in self.files:
@@ -169,7 +309,14 @@ class Agent:
                 raise AgentError("file offset is past end of file")
             end = min(len(content), offset + limit)
             self.file_ranges.setdefault(raw_path, []).append((offset, end, len(content)))
-            return {"path": raw_path, "offset": offset, "end": end, "total_chars": len(content), "complete": end == len(content), "content": content[offset:end]}
+            return {
+                "path": raw_path,
+                "offset": offset,
+                "end": end,
+                "total_chars": len(content),
+                "complete": end == len(content),
+                "content": content[offset:end],
+            }
         if name == "mark_file_skipped":
             raw_path = args.get("path")
             reason = args.get("reason")
@@ -193,7 +340,9 @@ class Agent:
                     continue
                 for number, line in enumerate(content.splitlines(), 1):
                     if query in line:
-                        results.append({"path": path.relative_to(self.root).as_posix(), "line": number, "text": line[:500]})
+                        results.append(
+                            {"path": path.relative_to(self.root).as_posix(), "line": number, "text": line[:500]}
+                        )
                         if len(results) >= 20:
                             break
             return {"matches": results, "truncated": len(results) >= 20}
@@ -206,15 +355,31 @@ class Agent:
             paths = validate_patch_paths(patch)
             for item in paths:
                 safe_path(self.root, item)
-            check = subprocess.run(["git", "-C", str(self.root), "apply", "--check", "--whitespace=error"], input=patch, text=True, capture_output=True, check=False)
+            check = subprocess.run(
+                ["git", "-C", str(self.root), "apply", "--check", "--whitespace=error"],
+                input=patch,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
             if check.returncode:
                 raise AgentError("patch did not apply cleanly: " + (check.stderr or check.stdout)[:1000])
-            applied = subprocess.run(["git", "-C", str(self.root), "apply", "--whitespace=error"], input=patch, text=True, capture_output=True, check=False)
+            applied = subprocess.run(
+                ["git", "-C", str(self.root), "apply", "--whitespace=error"],
+                input=patch,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
             if applied.returncode:
                 raise AgentError("patch application failed: " + (applied.stderr or applied.stdout)[:1000])
-            staged = subprocess.run(["git", "-C", str(self.root), "add", "-A", "-f"], capture_output=True, text=True, check=False)
+            staged = subprocess.run(
+                ["git", "-C", str(self.root), "add", "-A", "-f"], capture_output=True, text=True, check=False
+            )
             if staged.returncode:
-                raise AgentError("could not stage the isolated patch for artifact export: " + (staged.stderr or staged.stdout)[:1000])
+                raise AgentError(
+                    "could not stage the isolated patch for artifact export: " + (staged.stderr or staged.stdout)[:1000]
+                )
             self.applied = True
             return {"applied": True, "paths": paths}
         if name == "submit_review":
@@ -249,7 +414,11 @@ class Agent:
                     inspected.append(path)
                 elif path not in self.skipped_files:
                     raise AgentError("every changed file must be read completely or explicitly skipped: " + path)
-            if not isinstance(summary, str) or not isinstance(findings, list) or not isinstance(args.get("ready_for_validation"), bool):
+            if (
+                not isinstance(summary, str)
+                or not isinstance(findings, list)
+                or not isinstance(args.get("ready_for_validation"), bool)
+            ):
                 raise AgentError("review result does not match schema")
             for finding in findings:
                 if not isinstance(finding, dict) or finding.get("path") not in self.files:
@@ -288,12 +457,16 @@ class Agent:
             "temperature": 0,
             "provider": {"data_collection": "deny"},
         }
-        request = urllib.request.Request(URL, data=json.dumps(payload).encode("utf-8"), headers={
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/" + os.environ.get("GITHUB_REPOSITORY", ""),
-            "X-Title": "CUDA PR repair agent",
-        })
+        request = urllib.request.Request(
+            URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/" + os.environ.get("GITHUB_REPOSITORY", ""),
+                "X-Title": "CUDA PR repair agent",
+            },
+        )
         try:
             with urllib.request.urlopen(request, timeout=60) as response:
                 data = json.loads(response.read().decode("utf-8"))
@@ -350,7 +523,13 @@ class Agent:
                 except (ValueError, AgentError, OSError) as exc:
                     result = {"error": str(exc)}
                     self.tool_log.append({"tool": name, "ok": False, "error": str(exc)[:300]})
-                messages.append({"role": "tool", "tool_call_id": call.get("id"), "content": json.dumps(result, ensure_ascii=False)[:MAX_TOOL_OUTPUT]})
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id"),
+                        "content": json.dumps(result, ensure_ascii=False)[:MAX_TOOL_OUTPUT],
+                    }
+                )
                 if name == "submit_review" and result.get("review_saved"):
                     report = json.loads(self.report_path.read_text(encoding="utf-8"))
                     report["model"] = model_used
