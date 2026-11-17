@@ -20,8 +20,8 @@ jobs:
   # the host references are correct, C++ and CUDA sources are formatted, host
   # C++ passes clang-tidy, the CUDA test binaries are absent rather than
   # silently passing, the workflow and repository YAML pass actionlint and
-  # yamllint, and the label-review, PR confidence, PR Scope Guard, formatting repair and rebase safety
-  # engines pass their tests.
+  # yamllint, and the label-review, PR confidence, PR Scope Guard, formatting repair and
+  # rebase safety engines pass their tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
@@ -63,6 +63,9 @@ jobs:
 
       - name: Test the separate merge integration engine
         run: python3 -m unittest discover -s rebase-agent/tests -p 'test_merge_agent.py'
+
+      - name: Test GitHub API tree inspection
+        run: python3 -m unittest discover -s rebase-agent/tests -p 'test_tree_inspector.py'
 
       - name: Test runner skip handling
         run: bash tests/test_runner.sh
