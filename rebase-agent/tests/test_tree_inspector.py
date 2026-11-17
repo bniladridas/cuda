@@ -92,6 +92,12 @@ class TreeTests(unittest.TestCase):
         self.assertTrue(report["pr_file_inventory_matches_head_tree"])
         self.assertEqual(report["branch_mutation"], "not_attempted")
 
+    def test_file_directory_replacement_is_reported_as_overlap(self):
+        self.assertEqual(
+            tree_inspector.overlapping_path_pairs({"config/settings.json"}, {"config"}),
+            [{"base_path": "config/settings.json", "head_path": "config"}],
+        )
+
     def test_rejects_incomplete_compare_metadata(self):
         prefix = "/repos/owner/repo"
         api = FakeAPI(
