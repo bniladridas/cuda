@@ -11,7 +11,7 @@ int failures = 0;
 
 void check(bool condition, const std::string& message) {
   if (!condition) {
-    std::fprintf(stderr, "FAIL [benchmark_options] %s\\n", message.c_str());
+    std::fprintf(stderr, "FAIL [benchmark_options] %s\n", message.c_str());
     ++failures;
   }
 }
@@ -108,9 +108,9 @@ int main() {
   rejects_excessive_combined_work();
   recognizes_help();
   if (failures != 0) {
-    std::fprintf(stderr, "benchmark_options: %d failure(s)\\n", failures);
+    std::fprintf(stderr, "benchmark_options: %d failure(s)\n", failures);
     return 1;
   }
-  std::printf("OK [benchmark_options] all parser checks passed\\n");
+  std::printf("OK [benchmark_options] all parser checks passed\n");
   return 0;
 }
