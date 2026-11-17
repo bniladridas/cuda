@@ -53,8 +53,12 @@ def api_path(repository, suffix):
 def fetch_tree(api, repository, commit_sha):
     if not SHA_RE.fullmatch(commit_sha):
         raise InspectionError("tree commit must be a full 40-character SHA")
-    result = api.get(api_path(repository, "/git/trees/" + commit_sha + "?recursive=1"))
-    if result.get("sha") != commit_sha:
+    commit = api.get(api_path(repository, "/git/commits/" + commit_sha))
+    tree_sha = commit.get("tree", {}).get("sha")
+    if not isinstance(tree_sha, str) or not SHA_RE.fullmatch(tree_sha):
+        raise InspectionError("GitHub commit response has no valid tree SHA")
+    result = api.get(api_path(repository, "/git/trees/" + tree_sha + "?recursive=1"))
+    if result.get("sha") != tree_sha:
         raise InspectionError("GitHub returned a tree for an unexpected SHA")
     if result.get("truncated") is True:
         raise InspectionError("GitHub returned a truncated recursive tree; inspection is incomplete")
@@ -98,6 +102,9 @@ def compare_trees(base_tree, head_tree):
         path
         for path in paths
         if base_tree.get(path) != head_tree.get(path)
+        and (
+            (base_tree.get(path) or head_tree.get(path) or {}).get("type") != "tree"
+        )
     }
     return changed
 
