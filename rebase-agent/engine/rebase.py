@@ -24,12 +24,12 @@ def validate_request(request):
         raise RebaseError("missing required metadata: " + ", ".join(missing))
     if request["repository"].lower() != request["head_repository"].lower():
         raise RebaseError("fork PR branches cannot be modified")
-    if request["branch"] == request["base_branch"]:
-        raise RebaseError("PR branch cannot be its base branch")
-    if request["branch"] in set(request.get("protected_branches") or []):
-        raise RebaseError("protected branches cannot be modified")
     if request["branch"] == request.get("default_branch"):
         raise RebaseError("default branch cannot be modified")
+    if request["branch"] in set(request.get("protected_branches") or []):
+        raise RebaseError("protected branches cannot be modified")
+    if request["branch"] == request["base_branch"]:
+        raise RebaseError("PR branch cannot be its base branch")
     if not REF_RE.fullmatch(request["branch"]) or ".." in request["branch"] or request["branch"].endswith("/"):
         raise RebaseError("invalid PR branch name")
     if not REF_RE.fullmatch(request["base_branch"]) or ".." in request["base_branch"]:
