@@ -46,8 +46,8 @@ inline bool parse_positive_integer(const std::string& value, int maximum, int* o
   return true;
 }
 
-inline ParseStatus parse_options(const std::vector<std::string>& args,
-                                 Options* opts, std::string* error) {
+inline ParseStatus parse_options(const std::vector<std::string>& args, Options* opts,
+                                 std::string* error) {
   for (std::size_t i = 0; i < args.size(); ++i) {
     const std::string& arg = args[i];
     if (arg == "--help" || arg == "-h") return ParseStatus::kHelp;
