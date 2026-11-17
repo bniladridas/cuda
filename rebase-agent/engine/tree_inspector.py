@@ -141,13 +141,19 @@ def inspect_pull_request(api, repository, number):
     for item in pr_files:
         inventory.append({
             "filename": item.get("filename"),
+            "previous_filename": item.get("previous_filename"),
             "status": item.get("status"),
             "additions": item.get("additions"),
             "deletions": item.get("deletions"),
             "patch_available": isinstance(item.get("patch"), str),
             "binary_or_patchless": not isinstance(item.get("patch"), str),
         })
-    reported_paths = {item["filename"] for item in inventory if item["filename"]}
+    reported_paths = {
+        path
+        for item in inventory
+        for path in (item.get("filename"), item.get("previous_filename"))
+        if path
+    }
     tree_paths = sorted(head_changes)
     return {
         "schema_version": 1,
