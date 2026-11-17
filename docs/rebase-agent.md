@@ -106,6 +106,14 @@ Configure these repository variables before dispatch:
 - `REPAIR_MERGE_ENABLED`: set to the literal string `true` only when
   merge-based updates are permitted.
 
+Configure a protected GitHub environment named `pr-repair-write` with required
+reviewers. The initial dispatch authorization is not sufficient by itself:
+the `publish` job waits for this second human approval after the patch has been
+validated and the final diff review artifact is available. Review the
+`prepared-integration`, `repair-proposal`, and `final-review` artifacts
+before approving the environment deployment. GitHub records the environment
+reviewer and decision separately from the workflow audit artifact.
+
 Configure the existing `OPENROUTER_API_KEY` repository secret. The agent
 uses only `openrouter/free`, requests provider data-collection denial, has a
 bounded tool loop and token budget, and stops if tool calling is unavailable.
