@@ -59,6 +59,7 @@ jobs:
           REPAIR_MAINTAINERS: ${{ vars.REPAIR_MAINTAINERS }}
           REPAIR_REBASE_ENABLED: ${{ vars.REPAIR_REBASE_ENABLED }}
           REPAIR_MERGE_ENABLED: ${{ vars.REPAIR_MERGE_ENABLED }}
+          REPAIR_WRITE_ENVIRONMENT_CONFIRMED: ${{ vars.REPAIR_WRITE_ENVIRONMENT_CONFIRMED }}
         run: |
           set -euo pipefail
           python3 rebase-agent/engine/authorization_gate.py > gate.env
