@@ -18,6 +18,10 @@ scopes:
     - ".github/format-repair.yml"
     - ".github/workflows/format-repair.yml"
     - "docs/format-repair.md"
+    - "README.md"
+    - ".github/CONTRIBUTING.md"
+    - ".github/pr-scope-guard.yml"
+    - ".github/workflows/ci.yml"
   benchmarks:
     - "benchmarks/**"
   build:
