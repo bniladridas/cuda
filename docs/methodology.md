@@ -21,6 +21,7 @@ before it collects a single timing, and exits non-zero if any case is wrong.
   sensitive to a single scheduler hiccup; the min is the best case and is
   reported too but is not the headline figure. p90 is included to show spread.
 - **Defaults**: 200 iterations, 7 batches, 20 warmup launches.
+- **Input limits**: each value must be a positive decimal integer. Iterations and warmup are capped at 100,000, batches at 1,000, and the product of iterations and batches at 100,000 timed launches. This rejects malformed input and bounds accidental long runs before CUDA work begins.
 
 ## Metrics
 
