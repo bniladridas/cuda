@@ -144,7 +144,7 @@ jobs:
           set -euo pipefail
           python3 rebase-agent/engine/repair_agent.py \
             --source source --diff input/pr.diff --files input/pr-files.txt --report agent-report.json
-          git -C source diff --binary --full-index > proposed.patch
+          git -C source diff --cached --binary --full-index > proposed.patch
           test -s proposed.patch
           python3 - <<'PY'
           import json
@@ -194,7 +194,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           git apply --check --whitespace=error proposal/proposed.patch
           git apply --whitespace=error proposal/proposed.patch
-          git add -A
+          git add -A -f
           git commit -m "fix: apply reviewed PR repair proposal"
           git fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
           test "$(git rev-parse refs/remotes/origin/$BASE_BRANCH)" = "$BASE_SHA"
