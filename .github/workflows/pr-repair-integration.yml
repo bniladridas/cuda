@@ -123,16 +123,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir source
-          python3 - <<'PY'
-          import tarfile
-          with tarfile.open("input/source.tar") as archive:
-              for member in archive.getmembers():
-                  if member.name.startswith("/") or ".." in member.name.split("/"):
-                      raise SystemExit("unsafe path in source archive")
-                  if not (member.isfile() or member.isdir()):
-                      raise SystemExit("non-regular source archive entry rejected")
-              archive.extractall("source")
-          PY
+          python3 rebase-agent/engine/extract_safe_archive.py input/source.tar source
           git -C source init -q
           git -C source config user.name "repair-agent"
           git -C source config user.email "repair-agent@users.noreply.github.com"
@@ -150,14 +141,8 @@ jobs:
           python3 rebase-agent/engine/tree_inspector.py \
             --repository "$REPOSITORY" --pull-request "$PR_NUMBER" \
             --output tree-inspection.json
-          python3 - <<'PY'
-          import json, os
-          report = json.load(open("tree-inspection.json", encoding="utf-8"))
-          if report["head"]["sha"] != os.environ["EXPECTED_HEAD"]:
-              raise SystemExit("tree inspection head SHA differs from approved PR head")
-          if report["base"]["sha"] != os.environ["EXPECTED_BASE"]:
-              raise SystemExit("tree inspection base SHA differs from approved base")
-          PY
+          python3 rebase-agent/engine/verify_tree_inspection.py \
+            tree-inspection.json "$EXPECTED_HEAD" "$EXPECTED_BASE"
       - name: Run bounded OpenRouter review and repair proposal
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -168,12 +153,7 @@ jobs:
             --source source --diff input/pr.diff --files input/pr-files.txt --report agent-report.json
           git -C source diff --cached --binary --full-index > proposed.patch
           test -s proposed.patch
-          python3 - <<'PY'
-          import json
-          report = json.load(open("agent-report.json", encoding="utf-8"))
-          if not report.get("ready_for_validation") or not report.get("patch_applied"):
-              raise SystemExit("agent did not produce a patch marked ready for independent validation")
-          PY
+          python3 rebase-agent/engine/verify_agent_report.py agent-report.json
       - uses: actions/upload-artifact@v4
         with:
           name: repair-proposal
@@ -287,16 +267,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir source
-          python3 - <<'PY'
-          import tarfile
-          with tarfile.open("input/final-source.tar") as archive:
-              for member in archive.getmembers():
-                  if member.name.startswith("/") or ".." in member.name.split("/"):
-                      raise SystemExit("unsafe path in source archive")
-                  if not (member.isfile() or member.isdir()):
-                      raise SystemExit("non-regular source archive entry rejected")
-              archive.extractall("source")
-          PY
+          python3 rebase-agent/engine/extract_safe_archive.py input/final-source.tar source
           git -C source init -q
           git -C source config user.name "repair-agent"
           git -C source config user.email "repair-agent@users.noreply.github.com"
@@ -311,16 +282,7 @@ jobs:
           python3 rebase-agent/engine/repair_agent.py \
             --source source --diff input/final.diff \
             --files input/final-files.txt --report final-review.json --review-only
-          python3 - <<'PY'
-          import json
-          report = json.load(open("final-review.json", encoding="utf-8"))
-          if not report.get("ready_for_validation"):
-              raise SystemExit("final diff review did not approve validation")
-          if any(x.get("severity") in {"critical", "high"} for x in report.get("findings", [])):
-              raise SystemExit("final review found critical or high severity issues")
-          if report.get("patch_applied"):
-              raise SystemExit("final review unexpectedly modified the source")
-          PY
+          python3 rebase-agent/engine/verify_agent_report.py final-review.json --final
       - uses: actions/upload-artifact@v4
         with:
           name: final-review
@@ -368,14 +330,7 @@ jobs:
           PR_NUMBER: ${{ inputs.pull_request }}
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          report = json.load(open("review/final-review.json", encoding="utf-8"))
-          if not report.get("ready_for_validation") or report.get("patch_applied"):
-              raise SystemExit("final review gate failed")
-          if any(x.get("severity") in {"critical", "high"} for x in report.get("findings", [])):
-              raise SystemExit("final review found critical or high severity issues")
-          PY
+          python3 rebase-agent/engine/verify_agent_report.py review/final-review.json --final
           git fetch --no-tags origin \
             "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" \
             "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
@@ -409,27 +364,7 @@ jobs:
             echo "unsupported operation" >&2
             exit 1
           fi
-          python3 - <<'PY'
-          import json, os
-          report = json.load(open("review/final-review.json", encoding="utf-8"))
-          audit = {
-              "pull_request": int(os.environ["PR_NUMBER"]),
-              "actor": os.environ.get("GITHUB_ACTOR"),
-              "operation": os.environ["OPERATION"],
-              "old_head_sha": os.environ["EXPECTED_HEAD"],
-              "new_head_sha": os.environ["RESULT_SHA"],
-              "base_sha": os.environ["EXPECTED_BASE"],
-              "tree_sha": os.environ["RESULT_TREE"],
-              "force_with_lease": os.environ["OPERATION"] == "rebase",
-              "initial_agent_review": json.load(open("proposal/agent-report.json", encoding="utf-8")),
-              "tree_inspection": json.load(open("proposal/tree-inspection.json", encoding="utf-8")),
-              "final_review": report,
-              "validation": json.load(open("prepared/validation.json", encoding="utf-8")),
-              "diff_stat": open("prepared/prepared-diff-stat.txt", encoding="utf-8").read(),
-              "post_update_checks": "pending",
-          }
-          json.dump(audit, open("audit.json", "w", encoding="utf-8"), indent=2, sort_keys=True)
-          PY
+          python3 rebase-agent/engine/write_audit.py
       - name: Wait for post-update checks and record conclusions
         env:
           GH_TOKEN: ${{ github.token }}
@@ -438,34 +373,13 @@ jobs:
           set -euo pipefail
           for _ in $(seq 1 60); do
             gh api "repos/$GITHUB_REPOSITORY/commits/$RESULT_SHA/check-runs" > checks.json
-            if python3 - <<'PY'
-          import json, sys
-          checks = json.load(open("checks.json", encoding="utf-8")).get("check_runs", [])
-          sys.exit(0 if checks and all(item.get("status") == "completed" for item in checks) else 1)
-          PY
+            if python3 rebase-agent/engine/checks_complete.py checks.json
             then
               break
             fi
             sleep 10
           done
-          python3 - <<'PY'
-          import json
-          checks = json.load(open("checks.json", encoding="utf-8")).get("check_runs", [])
-          summary = [
-              {"name": x.get("name"), "status": x.get("status"), "conclusion": x.get("conclusion")}
-              for x in checks
-          ]
-          audit = json.load(open("audit.json", encoding="utf-8"))
-          audit["post_update_checks"] = summary
-          audit["all_checks_completed"] = bool(checks) and all(x["status"] == "completed" for x in checks)
-          audit["all_reported_checks_acceptable"] = bool(checks) and all(
-              x["conclusion"] in {"success", "skipped", "neutral"} for x in checks
-          )
-          audit["branch_protection_required_checks_verified"] = False
-          json.dump(audit, open("audit.json", "w", encoding="utf-8"), indent=2, sort_keys=True)
-          if not audit["all_checks_completed"] or not audit["all_reported_checks_acceptable"]:
-              raise SystemExit("post-update checks are pending or failing; inspect audit artifact")
-          PY
+          python3 rebase-agent/engine/summarize_checks.py checks.json audit.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
