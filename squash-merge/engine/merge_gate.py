@@ -12,9 +12,7 @@ from pathlib import Path
 from typing import Any
 
 
-def latest_review_states(
-    reviews: list[dict[str, Any]], expected_head: str
-) -> dict[str, str]:
+def latest_review_states(reviews: list[dict[str, Any]], expected_head: str) -> dict[str, str]:
     latest: dict[str, tuple[str, str]] = {}
     for review in reviews:
         login = (review.get("user") or {}).get("login", "")
