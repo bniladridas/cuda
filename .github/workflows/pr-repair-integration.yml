@@ -455,11 +455,12 @@ jobs:
           audit = json.load(open("audit.json", encoding="utf-8"))
           audit["post_update_checks"] = summary
           audit["all_checks_completed"] = bool(checks) and all(x["status"] == "completed" for x in checks)
-          audit["all_required_checks_passed"] = bool(checks) and all(
+          audit["all_reported_checks_acceptable"] = bool(checks) and all(
               x["conclusion"] in {"success", "skipped", "neutral"} for x in checks
           )
+          audit["branch_protection_required_checks_verified"] = False
           json.dump(audit, open("audit.json", "w", encoding="utf-8"), indent=2, sort_keys=True)
-          if not audit["all_checks_completed"] or not audit["all_required_checks_passed"]:
+          if not audit["all_checks_completed"] or not audit["all_reported_checks_acceptable"]:
               raise SystemExit("post-update checks are pending or failing; inspect audit artifact")
           PY
       - uses: actions/upload-artifact@v4
