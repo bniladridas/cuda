@@ -18,7 +18,7 @@ REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
 
 
 def validate_request(request):
-    required = ("repository", "head_repository", "branch", "base_branch", "expected_remote_sha")
+    required = ("repository", "head_repository", "branch", "base_branch", "expected_remote_sha", "expected_base_sha")
     missing = [key for key in required if not request.get(key)]
     if missing:
         raise RebaseError("missing required metadata: " + ", ".join(missing))
@@ -34,8 +34,9 @@ def validate_request(request):
         raise RebaseError("invalid PR branch name")
     if not REF_RE.fullmatch(request["base_branch"]) or ".." in request["base_branch"]:
         raise RebaseError("invalid base branch name")
-    if not SHA_RE.fullmatch(request["expected_remote_sha"]):
-        raise RebaseError("expected remote SHA must be a full 40-character commit SHA")
+    for key in ("expected_remote_sha", "expected_base_sha"):
+        if not SHA_RE.fullmatch(request[key]):
+            raise RebaseError(key + " must be a full 40-character commit SHA")
     if request.get("authorization") is not True:
         raise RebaseError("explicit maintainer authorization is required")
     if request.get("rebase_enabled") is not True:
@@ -81,9 +82,21 @@ def rebase_and_push(repo, request, runner=subprocess.run):
     if run_git(repo, ["rev-parse", "HEAD"], runner) != expected:
         raise RebaseError("local branch HEAD does not match the approved PR head SHA")
 
-    run_git(repo, ["fetch", "--no-tags", "origin", branch, base_branch], runner)
+    run_git(
+        repo,
+        [
+            "fetch",
+            "--no-tags",
+            "origin",
+            "+refs/heads/" + branch + ":refs/remotes/origin/" + branch,
+            "+refs/heads/" + base_branch + ":refs/remotes/origin/" + base_branch,
+        ],
+        runner,
+    )
     if current_remote_sha(repo, branch, runner) != expected:
         raise RebaseError("remote PR branch moved before rebase; refresh PR state and request approval again")
+    if current_remote_sha(repo, base_branch, runner) != request["expected_base_sha"]:
+        raise RebaseError("base branch moved before rebase; refresh PR state and request approval again")
 
     try:
         run_git(repo, ["rebase", "refs/remotes/origin/" + base_branch], runner)
@@ -99,9 +112,21 @@ def rebase_and_push(repo, request, runner=subprocess.run):
             pass
         raise RebaseError("rebase failed or conflicted; rebase was aborted and requires human resolution") from exc
 
-    run_git(repo, ["fetch", "--no-tags", "origin", branch], runner)
+    run_git(
+        repo,
+        [
+            "fetch",
+            "--no-tags",
+            "origin",
+            "+refs/heads/" + branch + ":refs/remotes/origin/" + branch,
+            "+refs/heads/" + base_branch + ":refs/remotes/origin/" + base_branch,
+        ],
+        runner,
+    )
     if current_remote_sha(repo, branch, runner) != expected:
         raise RebaseError("remote PR branch moved during rebase; refusing to push")
+    if current_remote_sha(repo, base_branch, runner) != request["expected_base_sha"]:
+        raise RebaseError("base branch moved during rebase; refusing to push")
 
     run_git(
         repo,
