@@ -21,6 +21,10 @@
       "description": "Documentation and contributor guidance."
     },
     {
+      "name": "format-repair",
+      "description": "Approval-gated clang-format reporting and repair automation."
+    },
+    {
       "name": "kernels",
       "description": "CUDA kernel implementations and launch behavior."
     },
