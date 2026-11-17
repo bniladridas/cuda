@@ -77,7 +77,7 @@ class RepairAgentTests(unittest.TestCase):
     def test_final_review_disables_patch_tool(self):
         final = repair_agent.Agent(self.root, self.diff, self.report, allow_patch=False)
         self.assertNotIn("apply_patch", [x["function"]["name"] for x in final.tools()])
-        with self.assertRaisesRegex(repair_agent.AgentError, "not allowlisted"):
+        with self.assertRaisesRegex(repair_agent.AgentError, "patching is disabled"):
             final.execute("apply_patch", {"patch": "anything"})
 
     def test_review_cannot_finish_before_full_diff_is_read(self):
