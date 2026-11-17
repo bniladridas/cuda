@@ -35,8 +35,8 @@ int main() {
   expect(cuda_device::classify_device_count(Fake::kNoDevice, 0, Fake::kSuccess,
                                             Fake::kNoDevice),
          Availability::kUnavailable, "explicit no-device result");
-  expect(cuda_device::classify_device_count(Fake::kInsufficientDriver, 0,
-                                            Fake::kSuccess, Fake::kNoDevice),
+  expect(cuda_device::classify_device_count(Fake::kInsufficientDriver, 0, Fake::kSuccess,
+                                            Fake::kNoDevice),
          Availability::kError, "insufficient driver is an error");
   expect(cuda_device::classify_device_count(Fake::kInitializationFailure, 0,
                                             Fake::kSuccess, Fake::kNoDevice),
