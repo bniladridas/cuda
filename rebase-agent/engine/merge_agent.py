@@ -93,7 +93,17 @@ def merge_and_push(repo, request, runner=subprocess.run):
     if run_git(repo, ["rev-parse", "HEAD"], runner).stdout.strip() != expected_head:
         raise MergeError("local HEAD does not match the separately approved PR head SHA")
 
-    run_git(repo, ["fetch", "--no-tags", "origin", branch, base_branch], runner)
+    run_git(
+        repo,
+        [
+            "fetch",
+            "--no-tags",
+            "origin",
+            "+refs/heads/" + branch + ":refs/remotes/origin/" + branch,
+            "+refs/heads/" + base_branch + ":refs/remotes/origin/" + base_branch,
+        ],
+        runner,
+    )
     if remote_sha(repo, branch, runner) != expected_head:
         raise MergeError("remote PR branch moved before merge; request approval again")
     if remote_sha(repo, base_branch, runner) != expected_base:
