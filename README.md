@@ -65,6 +65,9 @@ reorders the sums. Tests compare with a relative tolerance, not for equality.
 - Host-side build: any Linux or macOS machine. No CUDA install needed.
 - Kernel build and GPU tests: NVIDIA Linux host, compute capability 7.0 or
   newer, driver 525 or newer, CUDA toolkit 12.x with `nvcc` on `PATH`.
+- Python 3 for benchmark JSON validation and selecting the newest result when
+  plotting. The benchmark runner checks for it before probing or running the GPU.
+  Plotting also needs matplotlib (`pip install matplotlib`).
 - Bash. The build, test and benchmark scripts are shell scripts, so native
   Windows is not supported. macOS can run the host checks but not the kernels:
   there is no CUDA toolchain for it.

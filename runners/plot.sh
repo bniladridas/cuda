@@ -21,18 +21,27 @@ if [ -z "${PEAK_GBPS:-}" ]; then
   exit 2
 fi
 
-# Newest by modification time; the file name also carries a timestamp.
-# GNU stat uses -c, BSD/macOS stat uses -f, so both are attempted.
-latest=""
-latest_time=-1
-while IFS= read -r candidate; do
-  candidate_time="$(stat -c '%Y' "$candidate" 2>/dev/null \
-    || stat -f '%m' "$candidate" 2>/dev/null || echo 0)"
-  if [ "$candidate_time" -ge "$latest_time" ]; then
-    latest="$candidate"
-    latest_time="$candidate_time"
-  fi
-done < <(find "$RESULTS_DIR" -maxdepth 1 -name '*.json' -type f)
+# Compare the full-resolution filesystem timestamps. GNU stat's %Y only
+# exposes whole seconds, which can misorder concurrent benchmark publications.
+latest="$(python3 - "$RESULTS_DIR" <<'PY'
+import sys
+from pathlib import Path
+
+results_dir = Path(sys.argv[1])
+candidates = (
+    path
+    for path in results_dir.glob("*.json")
+    if path.is_file()
+)
+latest = max(
+    candidates,
+    key=lambda path: (path.stat().st_mtime_ns, path.name),
+    default=None,
+)
+if latest is not None:
+    print(latest)
+PY
+)"
 if [ -z "$latest" ]; then
   echo "no result files in $RESULTS_DIR; run runners/benchmark.sh on a GPU first" >&2
   exit 2
