@@ -39,6 +39,10 @@
     {
       "name": "tests",
       "description": "Test cases, fixtures, and correctness coverage."
+    },
+    {
+      "name": "codex-review",
+      "description": "The label-triggered Codex pull-request review request workflow."
     }
   ]
 }
