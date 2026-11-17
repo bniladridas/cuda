@@ -36,8 +36,11 @@ def require_path(path):
 def load_config(path):
     try:
         import yaml
+    except ImportError as exc:
+        raise RepairError("PyYAML is required") from exc
+    try:
         cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    except (ImportError, OSError, ValueError) as exc:
+    except (OSError, yaml.YAMLError) as exc:
         raise RepairError("cannot load format-repair configuration: %s" % exc) from exc
     keys = {"version", "formatter_version", "approval_label", "maintainers", "allowed_extensions", "allowed_paths"}
     if not isinstance(cfg, dict) or set(cfg) != keys or isinstance(cfg.get("version"), bool) or cfg["version"] != 1:
@@ -186,8 +189,10 @@ def make_report(repo, pr, files, cfg, token, style_file):
     violations = [item for item in checked if not item["formatted"]]
     return {
         "version": 1, "repo": repo, "pr_number": pr["number"], "head_sha": info["sha"],
-        "head_repo": info["head_repo"], "formatter_version": cfg["formatter_version"],
-        "approval_label": cfg["approval_label"], "repair_eligible": info["head_repo"] == repo,
+        "head_repo": info["head_repo"],
+        "coverage": {"expected_files": pr["changed_files"], "fetched_files": len(files), "complete": True},
+        "formatter_version": cfg["formatter_version"], "approval_label": cfg["approval_label"],
+        "repair_eligible": info["head_repo"] == repo,
         "files_checked": checked, "files_skipped": skipped, "violations": violations, "clean": not violations,
     }
 
