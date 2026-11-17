@@ -28,7 +28,7 @@ class SuggestionTests(unittest.TestCase):
         self.assertIn("page=2", request.call_args_list[1].args[0])
 
     def test_changed_files_rejects_incomplete_pagination(self):
-        with unittest.mock.patch.object(fs, "request_json", return_value=[{"filename": "one.py"}]):
+        with mock.patch.object(fs, "request_json", return_value=[{"filename": "one.py"}]):
             with self.assertRaises(fs.SuggestionError):
                 fs.changed_files("owner/repo", 7, "token", 2)
 
