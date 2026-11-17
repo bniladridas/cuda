@@ -30,17 +30,21 @@ class ProvenanceValidationTests(unittest.TestCase):
         self.assertNotIn("timestamp_utc", result)
 
     def test_accepts_full_commit_and_utc_timestamp(self):
-        result = self.load_data({
-            "git_commit": "a" * 40,
-            "timestamp_utc": "2026-11-17T12:00:00Z",
-        })
+        result = self.load_data(
+            {
+                "git_commit": "a" * 40,
+                "timestamp_utc": "2026-11-17T12:00:00Z",
+            }
+        )
         self.assertEqual(result["git_commit"], "a" * 40)
 
     def test_accepts_missing_git_metadata_as_null(self):
-        result = self.load_data({
-            "git_commit": None,
-            "timestamp_utc": "2026-11-17T12:00:00Z",
-        })
+        result = self.load_data(
+            {
+                "git_commit": None,
+                "timestamp_utc": "2026-11-17T12:00:00Z",
+            }
+        )
         self.assertIsNone(result["git_commit"])
 
     def test_rejects_partial_provenance(self):
@@ -49,19 +53,23 @@ class ProvenanceValidationTests(unittest.TestCase):
 
     def test_rejects_invalid_commit(self):
         with self.assertRaisesRegex(ValueError, "full hexadecimal"):
-            self.load_data({
-                "git_commit": "short",
-                "timestamp_utc": "2026-11-17T12:00:00Z",
-            })
+            self.load_data(
+                {
+                    "git_commit": "short",
+                    "timestamp_utc": "2026-11-17T12:00:00Z",
+                }
+            )
 
     def test_rejects_invalid_timestamp(self):
         for timestamp in ("not-a-dateZ", "2026-11-17T12:00:00+05:30", 123):
             with self.subTest(timestamp=timestamp):
                 with self.assertRaisesRegex(ValueError, "timestamp_utc"):
-                    self.load_data({
-                        "git_commit": "a" * 40,
-                        "timestamp_utc": timestamp,
-                    })
+                    self.load_data(
+                        {
+                            "git_commit": "a" * 40,
+                            "timestamp_utc": timestamp,
+                        }
+                    )
 
 
 if __name__ == "__main__":
