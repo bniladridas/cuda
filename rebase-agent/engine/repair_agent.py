@@ -214,12 +214,11 @@ class Agent:
                 "Inspect every changed file using list_changed_files and the full diff. Read relevant source and tests. "
                 "Identify only concrete defects with evidence. "
                 + ("If a minimal safe fix is clear, use apply_patch. " if self.allow_patch else "Do not propose or attempt patches in this final review. ")
-
-                "Never claim tests passed. Do not invent APIs, benchmarks, or GPU validation. "
+                + "Never claim tests passed. Do not invent APIs, benchmarks, or GPU validation. "
                 "Finish only by calling submit_review. If unsure, set ready_for_validation false. "
                 "A patch is a proposal and will be validated independently."
             )},
-            {"role": "user", "content": "Review this complete PR diff and source snapshot. The base/head metadata is provided by the trusted workflow. Inspect all changed files and report evidence. You may propose a minimal patch using the apply_patch tool."},
+            {"role": "user", "content": "Review this complete PR diff and source snapshot. The base/head metadata is provided by the trusted workflow. Inspect all changed files and report evidence. " + ("You may propose a minimal patch using the apply_patch tool." if self.allow_patch else "This is a final review only. Do not change files.")},
         ]
         usage_total = 0
         model_used = MODEL
