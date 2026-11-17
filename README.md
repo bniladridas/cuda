@@ -196,8 +196,7 @@ issue-landing/          issue landing report engine and offline tests
 
 - `cpu`: GitHub-hosted, runs on every push. CPU-only configure and build, host
   reference checks, clang-format over C++ and CUDA files, host-side clang-tidy,
-  the label-review engine tests, the PR confidence engine tests, and the PR
-  Scope Guard tests. CUDA sources are formatted but not compiled or analyzed
+  the label-review, PR confidence, PR Scope Guard and format-repair engine tests. CUDA sources are formatted but not compiled or analyzed
   here.
 - `python`: GitHub-hosted, runs Ruff lint and format checks, every Python test
   suite present in the checkout, and coverage. Dependency versions are pinned in
