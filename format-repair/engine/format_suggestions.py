@@ -139,7 +139,21 @@ def main():
             continue
         if not path.endswith((".py", ".cpp", ".h", ".cu", ".cuh")):
             continue
-        if not path.startswith(("src/", "include/", "kernels/", "tests/", "benchmarks/", "format-repair/", "pr-confidence/", "pr-scope-guard/", "label-review/", "issue-landing/", "runners/")):
+        if not path.startswith(
+            (
+                "src/",
+                "include/",
+                "kernels/",
+                "tests/",
+                "benchmarks/",
+                "format-repair/",
+                "pr-confidence/",
+                "pr-scope-guard/",
+                "label-review/",
+                "issue-landing/",
+                "runners/",
+            )
+        ):
             continue
         changed_lines = changed_right_lines(item["patch"])
         if not changed_lines:
