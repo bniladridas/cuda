@@ -76,6 +76,13 @@ jobs:
           python3 -m pip install --disable-pip-version-check --quiet \
             clang-format==22.1.8 clang-tidy==22.1.8
 
+      - name: Preview pinned formatter output
+        run: |
+          for file in src/device_status.h tests/test_device_status.cpp tests/test_vecadd.cpp tests/test_reduce.cpp benchmarks/main_bench.cpp; do
+            clang-format "$file" > /tmp/formatted.cpp
+            diff -u "$file" /tmp/formatted.cpp || true
+          done
+
       - name: Check C++ and CUDA formatting
         run: |
           clang-format --version
