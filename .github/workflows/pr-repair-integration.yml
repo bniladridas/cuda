@@ -248,7 +248,7 @@ jobs:
           git diff --binary --full-index "$BASE_SHA...HEAD" > final.diff
           git diff --name-only --no-renames -z "$BASE_SHA...HEAD" > final-files.txt
           git rev-parse HEAD > prepared-sha.txt
-          git rev-parse HEAD^{tree} > prepared-tree.txt
+          git rev-parse "HEAD^{tree}" > prepared-tree.txt
           python3 rebase-agent/engine/write_validation_report.py validation.json
           git bundle create prepared.bundle HEAD
           echo "result_sha=$(cat prepared-sha.txt)" >> "$GITHUB_OUTPUT"
