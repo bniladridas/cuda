@@ -20,9 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      checks: read
       contents: write
       issues: write
       pull-requests: write
+      statuses: read
     steps:
       - name: Check out trusted default-branch policy and code
         uses: actions/checkout@v7
