@@ -300,7 +300,7 @@ def report_markdown(report):
         "## Formatting check",
         "",
         "Formatters: clang-format %s; Ruff %s"
-        % (report["formatter_version"], report["formatter_versions"]["ruff"]),
+        % (report["formatter_version"], report.get("formatter_versions", {}).get("ruff", "unknown")),
         "Files checked: %d. Outside allowlist: %d." % (len(report["files_checked"]), len(report["files_skipped"])),
         "",
     ]

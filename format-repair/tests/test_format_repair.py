@@ -187,6 +187,7 @@ class ReportTests(unittest.TestCase):
         value["head"]["repo"]["full_name"] = "contributor/repo"
         report = {
             "formatter_version": "22.1.8",
+            "formatter_versions": {"clang-format": "22.1.8", "ruff": "0.17.5"},
             "files_checked": [],
             "files_skipped": [],
             "violations": [],
