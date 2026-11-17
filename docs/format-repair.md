@@ -36,8 +36,15 @@ files, verifies the staged path set, and re-fetches PR metadata before commit.
 The push is non-force, so a concurrent branch advance is rejected rather than
 overwritten.
 
-After a successful push, the workflow removes only format-fix:approved and
-posts an acknowledgement with the commit SHA and changed files. On failure,
+After a successful push, the workflow verifies that the PR head still equals
+the formatter commit, then explicitly dispatches the normal `ci.yml` workflow
+against that branch using `workflow_dispatch`. This event is permitted to
+start a workflow when invoked with the workflow token, unlike an ordinary
+token-authenticated push. The repair job has `actions: write` only for this
+dispatch. The acknowledgement records the dispatch request and commit SHA;
+the CI run itself remains asynchronous and its checks must finish normally.
+Only then does the workflow remove format-fix:approved and post the
+acknowledgement with the commit SHA and changed files. On dispatch failure,
 it does not push partial changes and leaves the label in place. A duplicate
 label event either sees the label missing or finds no formatting diff.
 
@@ -51,7 +58,9 @@ version must match the workflow installation pin. The current allowlist covers
 .cpp, .h, .cu and .cuh under src/, include/, kernels/, tests/ and benchmarks/.
 
 The report job has contents: read and pull-requests: read. The repair job has
-contents: write, pull-requests: read and issues: write only. It does not
+actions: write, contents: write, pull-requests: read and issues: write only.
+The Actions permission is used only to dispatch the normal CI workflow after
+a successful formatter push. It does not
 automatically approve, merge, close issues, or modify unrelated labels. No
 GPU, paid runner, hosted service, or model provider is required.
 
