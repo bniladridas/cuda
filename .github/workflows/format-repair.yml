@@ -217,7 +217,12 @@ jobs:
           STATUS=$(jq -r '.status' "$ARTIFACT")
           COMMIT=$(jq -r '.commit_sha // "none"' "$ARTIFACT")
           FILES=$(jq -r '(.changed_files // []) | if length == 0 then "none" else join(", ") end' "$ARTIFACT")
-          FORMATTERS=$(jq -r '.formatter_versions // {"clang-format": (.formatter_version // "unknown")} | to_entries | map("\(.key) \(.value)") | join(", ")' "$ARTIFACT")
+          FORMATTERS=$(jq -r '
+            .formatter_versions // {"clang-format": (.formatter_version // "unknown")}
+            | to_entries
+            | map("\(.key) \(.value)")
+            | join(", ")
+          ' "$ARTIFACT")
           VALIDATION=$(jq -r '.validation // "not reported"' "$ARTIFACT")
           CI_RESULT="not needed (no formatting changes)"
           if [[ "$CI_STATUS" == "requested" ]]; then

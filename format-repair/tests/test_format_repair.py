@@ -23,7 +23,19 @@ def config():
         "approval_label": "format-fix:approved",
         "maintainers": {"maintainer"},
         "allowed_extensions": [".cpp", ".h", ".cu", ".cuh", ".py"],
-        "allowed_paths": ["src/**", "include/**", "kernels/**", "tests/**", "benchmarks/**", "format-repair/**", "pr-confidence/**", "pr-scope-guard/**", "label-review/**", "issue-landing/**", "runners/**"],
+        "allowed_paths": [
+            "src/**",
+            "include/**",
+            "kernels/**",
+            "tests/**",
+            "benchmarks/**",
+            "format-repair/**",
+            "pr-confidence/**",
+            "pr-scope-guard/**",
+            "label-review/**",
+            "issue-landing/**",
+            "runners/**",
+        ],
     }
 
 
@@ -172,7 +184,9 @@ class ReportTests(unittest.TestCase):
         result = {"path": "src/a.cpp", "lines": [4], "formatted": False}
         with mock.patch.object(fr, "source_bytes", return_value=b"source") as source:
             with mock.patch.object(fr, "inspect", return_value=result):
-                report = fr.make_report(REPO, pr(changed_files=2), files, config(), "token", ".clang-format", "pyproject.toml")
+                report = fr.make_report(
+                    REPO, pr(changed_files=2), files, config(), "token", ".clang-format", "pyproject.toml"
+                )
         source.assert_called_once()
         self.assertEqual(report["files_skipped"], ["docs/readme.cpp"])
         self.assertEqual(report["violations"], [result])
@@ -180,7 +194,15 @@ class ReportTests(unittest.TestCase):
 
     def test_incomplete_changed_file_list_fails_closed(self):
         with self.assertRaisesRegex(fr.RepairError, "coverage is incomplete"):
-            fr.make_report(REPO, pr(changed_files=2), [{"filename": "src/a.cpp"}], config(), "token", ".clang-format", "pyproject.toml")
+            fr.make_report(
+                REPO,
+                pr(changed_files=2),
+                [{"filename": "src/a.cpp"}],
+                config(),
+                "token",
+                ".clang-format",
+                "pyproject.toml",
+            )
 
     def test_fork_report_is_explicitly_read_only(self):
         value = pr()

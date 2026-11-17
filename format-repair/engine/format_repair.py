@@ -49,7 +49,15 @@ def load_config(path):
         cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise RepairError("cannot load format-repair configuration: %s" % exc) from exc
-    keys = {"version", "formatter_version", "python_formatter_version", "approval_label", "maintainers", "allowed_extensions", "allowed_paths"}
+    keys = {
+        "version",
+        "formatter_version",
+        "python_formatter_version",
+        "approval_label",
+        "maintainers",
+        "allowed_extensions",
+        "allowed_paths",
+    }
     if not isinstance(cfg, dict) or set(cfg) != keys or isinstance(cfg.get("version"), bool) or cfg["version"] != 1:
         raise RepairError("invalid format-repair configuration")
     if not re.fullmatch(r"\d+\.\d+\.\d+", str(cfg["formatter_version"])):
@@ -230,7 +238,9 @@ def inspect(path, source, style_file):
 def formatted_python(source, path, config_file):
     result = subprocess.run(
         ["ruff", "format", "--config", str(Path(config_file).resolve()), "--stdin-filename", path, "-"],
-        input=source, capture_output=True, check=False,
+        input=source,
+        capture_output=True,
+        check=False,
     )
     if result.returncode:
         raise RepairError("ruff format failed for %s: %s" % (path, result.stderr.decode("utf-8", "replace")[:400]))
@@ -272,7 +282,9 @@ def make_report(repo, pr, files, cfg, token, style_file, python_config_file):
             continue
         if allowed(path, cfg):
             checked.append(
-                inspect_file(path, source_bytes(info["head_repo"], path, info["sha"], token), style_file, python_config_file)
+                inspect_file(
+                    path, source_bytes(info["head_repo"], path, info["sha"], token), style_file, python_config_file
+                )
             )
         else:
             skipped.append(path)
@@ -285,7 +297,10 @@ def make_report(repo, pr, files, cfg, token, style_file, python_config_file):
         "head_repo": info["head_repo"],
         "coverage": {"expected_files": pr["changed_files"], "fetched_files": len(files), "complete": True},
         "formatter_version": cfg["formatter_version"],
-        "formatter_versions": {"clang-format": cfg["formatter_version"], "ruff": cfg["python_formatter_version"]},
+        "formatter_versions": {
+                    "clang-format": cfg["formatter_version"],
+                    "ruff": cfg["python_formatter_version"],
+                },
         "approval_label": cfg["approval_label"],
         "repair_eligible": info["head_repo"] == repo,
         "files_checked": checked,
@@ -362,7 +377,9 @@ def run_repair(args, cfg, token):
         else:
             result = subprocess.run(
                 ["clang-format", "--style=file:" + str(Path(args.style_file).resolve()), "--assume-filename=" + path],
-                input=source, capture_output=True, check=False,
+                input=source,
+                capture_output=True,
+                check=False,
             )
             if result.returncode:
                 raise RepairError("clang-format failed for %s" % path)
