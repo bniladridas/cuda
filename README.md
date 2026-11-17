@@ -104,9 +104,10 @@ CUDA_KERNELS_ARCH="86" ./runners/build.sh
 `test_host` runs anywhere and checks the CPU reference implementations.
 `test_vecadd` and `test_reduce` need a GPU; without one they print
 `SKIPPED: no CUDA device` and exit 0, so CTest counts them as passed.
-**A skip is not a pass.** The runner re-runs each test verbosely, prints
-`*** SKIPPED (not a pass)` for any test that skipped, and exits non-zero if
-anything actually failed.
+**A skip is not a pass.** The runner invokes CTest once with verbose
+output, reports any GPU test that emitted `SKIPPED` as
+`*** SKIPPED (not a pass)`, and exits non-zero if anything actually failed.
+It does not execute tests a second time.
 
 Set `GPU_REQUIRED=1` to make a skip a failure. CI uses it on the GPU runner,
 which is supposed to have a device.
