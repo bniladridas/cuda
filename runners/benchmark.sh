@@ -48,7 +48,10 @@ fi
 mkdir -p "$RESULTS_DIR"
 
 # The binary itself re-checks for a device and for correctness before timing.
-probe="$("$BIN" --iterations 5 --reps 1 --warmup 1 --json)"
+if ! probe="$("$BIN" --iterations 5 --reps 1 --warmup 1 --json)"; then
+  echo "CUDA runtime device probe failed; benchmark was not run" >&2
+  exit 1
+fi
 if printf '%s' "$probe" | grep -q "^SKIPPED"; then
   echo "no CUDA device; nothing to benchmark" >&2
   exit 2
