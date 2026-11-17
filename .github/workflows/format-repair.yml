@@ -83,6 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: write
       contents: write
       issues: write
       pull-requests: read
@@ -180,18 +181,48 @@ jobs:
             --workdir work \
             --artifact "$ARTIFACT"
 
+      - name: Dispatch CI for formatter-generated commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.number }}
+          ARTIFACT: ${{ runner.temp }}/format-repair-result.json
+        run: |
+          STATUS=$(jq -r '.status' "$ARTIFACT")
+          if [[ "$STATUS" != "pushed" ]]; then
+            echo "status=not-needed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          COMMIT=$(jq -er '.commit_sha' "$ARTIFACT")
+          PR_JSON=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")
+          BRANCH=$(jq -er '.head.ref' <<< "$PR_JSON")
+          HEAD_SHA=$(jq -er '.head.sha' <<< "$PR_JSON")
+          if [[ "$HEAD_SHA" != "$COMMIT" ]]; then
+            echo "PR head does not match the formatter commit; refusing to dispatch CI" >&2
+            exit 1
+          fi
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
+          echo "status=requested" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+
       - name: Remove approval label and acknowledge result
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.target.outputs.number }}
           ARTIFACT: ${{ runner.temp }}/format-repair-result.json
           ACTOR: ${{ steps.target.outputs.actor }}
+          CI_STATUS: ${{ steps.ci.outputs.status }}
+          CI_COMMIT: ${{ steps.ci.outputs.commit }}
         run: |
           STATUS=$(jq -r '.status' "$ARTIFACT")
           COMMIT=$(jq -r '.commit_sha // "none"' "$ARTIFACT")
           FILES=$(jq -r '(.changed_files // []) | if length == 0 then "none" else join(", ") end' "$ARTIFACT")
           FORMATTER=$(jq -r '.formatter_version // "unknown"' "$ARTIFACT")
           VALIDATION=$(jq -r '.validation // "not reported"' "$ARTIFACT")
+          CI_RESULT="not needed (no formatting changes)"
+          if [[ "$CI_STATUS" == "requested" ]]; then
+            CI_RESULT="workflow_dispatch requested for $CI_COMMIT"
+          fi
           gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "format-fix:approved"
           BODY=$(cat <<EOF
           Formatting repair result: $STATUS
@@ -200,6 +231,7 @@ jobs:
           Commit: $COMMIT
           Files: $FILES
           Validation: $VALIDATION
+          CI: $CI_RESULT
           Approved by: @$ACTOR
 
           The normal CI formatter check remains authoritative. This does not
