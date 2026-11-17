@@ -44,6 +44,28 @@ def load(path):
     if not isinstance(data["gpu"], str) or not data["gpu"].strip():
         raise ValueError(f"{path}: field 'gpu' must be a non-empty string")
 
+    has_commit = "git_commit" in data
+    has_timestamp = "timestamp_utc" in data
+    if has_commit != has_timestamp:
+        raise ValueError(f"{path}: provenance requires both 'git_commit' and 'timestamp_utc'")
+    if has_commit:
+        commit = data["git_commit"]
+        if commit is not None and (
+            not isinstance(commit, str)
+            or len(commit) not in (40, 64)
+            or any(char not in "0123456789abcdef" for char in commit)
+        ):
+            raise ValueError(f"{path}: field 'git_commit' must be a full hexadecimal commit or null")
+        timestamp = data["timestamp_utc"]
+        if not isinstance(timestamp, str) or not timestamp.endswith("Z"):
+            raise ValueError(f"{path}: field 'timestamp_utc' must be a UTC timestamp ending in Z")
+        try:
+            from datetime import datetime
+
+            datetime.fromisoformat(timestamp[:-1] + "+00:00")
+        except ValueError as exc:
+            raise ValueError(f"{path}: field 'timestamp_utc' must be a valid ISO 8601 timestamp") from exc
+
     results = data["results"]
     if not isinstance(results, list) or not results:
         raise ValueError(f"{path}: field 'results' must be a non-empty list")
@@ -152,9 +174,16 @@ def main():
     ax.set_xticklabels(labels, fontsize=8)
     ax.set_ylabel("achieved / peak bandwidth")
     ax.set_ylim(0, top)
+    if "timestamp_utc" in data:
+        commit = data["git_commit"]
+        revision = commit[:12] if commit else "unknown revision"
+        provenance = f"commit {revision} | {data['timestamp_utc']}"
+    else:
+        provenance = "legacy result without embedded provenance"
     ax.set_title(
-        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\nachieved versus peak memory bandwidth",
-        fontsize=10,
+        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\n"
+        f"achieved versus peak memory bandwidth\n{provenance}",
+        fontsize=9,
     )
     fig.tight_layout()
     fig.savefig(args.out, dpi=150)
