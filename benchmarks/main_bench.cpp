@@ -150,9 +150,8 @@ int main(int argc, char** argv) {
 
   int devices = 0;
   const cudaError_t device_status = cudaGetDeviceCount(&devices);
-  const cuda_device::Availability availability =
-      cuda_device::classify_device_count(device_status, devices, cudaSuccess,
-                                         cudaErrorNoDevice);
+  const cuda_device::Availability availability = cuda_device::classify_device_count(
+      device_status, devices, cudaSuccess, cudaErrorNoDevice);
   if (availability == cuda_device::Availability::kUnavailable) {
     std::printf("SKIPPED [benchmarks]: no CUDA device\n");
     return 0;
