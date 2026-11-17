@@ -58,7 +58,10 @@ jobs:
               { owner: context.repo.owner, repo: context.repo.repo,
                 issue_number: pr.number, per_page: 100 }
             );
+            // Only this workflow's GitHub Actions bot comment is authoritative.
+            // PR authors and other users can otherwise spoof the public marker.
             const alreadyRequested = comments.some(comment =>
+              comment.user?.login === "github-actions[bot]" &&
               comment.body?.includes(marker)
             );
 
@@ -67,7 +70,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr.number,
-                body: `@codex review\n\nRequested by @${actor} via the ${label} label.\n\n${marker}`
+                body: `@codex review\\n\\nRequested by @${actor} via the ${label} label.\\n\\n${marker}`
               });
               core.notice(
                 "Posted @codex review command. Codex response is handled by " +
