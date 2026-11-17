@@ -81,6 +81,7 @@ class MergeGateTests(unittest.TestCase):
             {
                 "user": {"login": "reviewer"},
                 "state": "CHANGES_REQUESTED",
+                "commit_id": "a" * 40,
                 "submitted_at": "2026-11-17T11:00:00Z",
             }
         ]
@@ -108,11 +109,13 @@ class MergeGateTests(unittest.TestCase):
             {
                 "user": {"login": "reviewer"},
                 "state": "CHANGES_REQUESTED",
+                "commit_id": "a" * 40,
                 "submitted_at": "2026-11-17T10:00:00Z",
             },
             {
                 "user": {"login": "reviewer"},
                 "state": "APPROVED",
+                "commit_id": "a" * 40,
                 "submitted_at": "2026-11-17T11:00:00Z",
             },
         ]
