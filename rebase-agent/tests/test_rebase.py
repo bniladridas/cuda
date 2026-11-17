@@ -76,7 +76,7 @@ class OperationTests(unittest.TestCase):
 
     def test_remote_movement_before_rebase_stops(self):
         calls = []
-        responses = [(0, "", ""), (0, "feature/fix", ""), (0, "", ""), (0, NEW, "")]
+        responses = [(0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, NEW, "")]
         with self.assertRaisesRegex(rebase.RebaseError, "moved before rebase"):
             rebase.rebase_and_push(".", request(), fake_runner(responses, calls))
         self.assertFalse(any(args and args[0] in {"rebase", "push"} for args in calls))
@@ -95,7 +95,7 @@ class OperationTests(unittest.TestCase):
     def test_remote_movement_after_rebase_stops(self):
         calls = []
         responses = [
-            (0, "", ""), (0, "feature/fix", ""), (0, "", ""), (0, OLD, ""),
+            (0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, OLD, ""),
             (0, "", ""), (0, "", ""), (0, NEW, ""),
         ]
         with self.assertRaisesRegex(rebase.RebaseError, "moved during rebase"):
@@ -104,7 +104,7 @@ class OperationTests(unittest.TestCase):
 
     def test_push_uses_exact_force_with_lease(self):
         result, calls = self.invoke([
-            (0, "", ""), (0, "feature/fix", ""), (0, "", ""), (0, OLD, ""),
+            (0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, OLD, ""),
             (0, "", ""), (0, "", ""), (0, OLD, ""), (0, "", ""), (0, NEW, ""),
         ])
         push = next(args for args in calls if args and args[0] == "push")
