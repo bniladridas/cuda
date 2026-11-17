@@ -77,7 +77,8 @@ void rejects_invalid_values() {
   std::string error;
   const auto unknown = bench_options::parse_options({"--unknown"}, &options, &error);
   check(unknown == bench_options::ParseStatus::kError, "unknown option accepted");
-  check(error.find("--unknown") != std::string::npos, "unknown-option error omitted option");
+  check(error.find("--unknown") != std::string::npos,
+        "unknown-option error omitted option");
 }
 
 void rejects_excessive_combined_work() {
