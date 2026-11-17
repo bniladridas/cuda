@@ -86,7 +86,7 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
           test "$(git rev-parse HEAD)" = "$HEAD_SHA"
-          test "$(git rev-parse refs/remotes/origin/$BASE_BRANCH)" = "$BASE_SHA"
+          test "$(git rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
           git archive --format=tar HEAD > source.tar
           git diff --binary --full-index "$BASE_SHA...$HEAD_SHA" > pr.diff
           git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
@@ -197,7 +197,7 @@ jobs:
           git add -A -f
           git commit -m "fix: apply reviewed PR repair proposal"
           git fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
-          test "$(git rev-parse refs/remotes/origin/$BASE_BRANCH)" = "$BASE_SHA"
+          test "$(git rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
           if [ "$OPERATION" = rebase ]; then
             git rebase "$BASE_SHA"
           elif [ "$OPERATION" = merge ]; then
@@ -226,6 +226,7 @@ jobs:
           git diff --name-only --no-renames -z "$BASE_SHA...HEAD" > final-files.txt
           git rev-parse HEAD > prepared-sha.txt
           git rev-parse HEAD^{tree} > prepared-tree.txt
+          # shellcheck disable=SC1083
           python3 - <<'PY'
           import json
           json.dump({
@@ -429,7 +430,7 @@ jobs:
           RESULT_SHA: ${{ needs.prepare.outputs.result_sha }}
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             gh api "repos/$GITHUB_REPOSITORY/commits/$RESULT_SHA/check-runs" > checks.json
             if python3 - <<'PY'
           import json, sys
