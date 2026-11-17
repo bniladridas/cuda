@@ -44,11 +44,13 @@ class MergeIntegrationTests(unittest.TestCase):
         git(self.repo, "commit", "-m", "feature")
         git(self.repo, "push", "-u", "origin", "feature")
         self.head_sha = git(self.repo, "rev-parse", "HEAD")
+        git(self.repo, "switch", "main")
         (self.repo / "base.txt").write_text("base updated\n", encoding="utf-8")
         git(self.repo, "add", "base.txt")
         git(self.repo, "commit", "-m", "base update")
         git(self.repo, "push", "origin", "main")
         self.base_sha = git(self.repo, "rev-parse", "HEAD")
+        git(self.repo, "switch", "feature")
         git(self.repo, "reset", "--hard", "origin/feature")
 
     def tearDown(self):
@@ -87,12 +89,13 @@ class MergeIntegrationTests(unittest.TestCase):
         git(self.repo, "commit", "-m", "feature conflicting edit")
         git(self.repo, "push", "origin", "feature")
         self.head_sha = git(self.repo, "rev-parse", "HEAD")
-        self.request_head = self.head_sha
+        git(self.repo, "switch", "main")
         (self.repo / "base.txt").write_text("base conflicting edit\n", encoding="utf-8")
         git(self.repo, "add", "base.txt")
         git(self.repo, "commit", "-m", "base conflicting edit")
         git(self.repo, "push", "origin", "main")
         self.base_sha = git(self.repo, "rev-parse", "HEAD")
+        git(self.repo, "switch", "feature")
         git(self.repo, "reset", "--hard", "origin/feature")
         before = git(self.remote, "rev-parse", "refs/heads/feature")
         with self.assertRaisesRegex(merge_agent.MergeError, "human resolution"):
