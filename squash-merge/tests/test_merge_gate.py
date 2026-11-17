@@ -28,12 +28,11 @@ class MergeGateTests(unittest.TestCase):
             {
                 "user": {"login": "reviewer"},
                 "state": "APPROVED",
+                "commit_id": "a" * 40,
                 "submitted_at": "2026-11-17T10:00:00Z",
             }
         ]
-        self.checks = [
-            {"name": "CI", "status": "completed", "conclusion": "success"}
-        ]
+        self.checks = [{"name": "CI", "status": "completed", "conclusion": "success"}]
         self.status = {"state": "success", "statuses": [{"context": "CI"}]}
         self.policy = {
             "repo": "bniladridas/cuda",
@@ -117,7 +116,30 @@ class MergeGateTests(unittest.TestCase):
                 "submitted_at": "2026-11-17T11:00:00Z",
             },
         ]
-        self.assertEqual(latest_review_states(reviews)["reviewer"], "APPROVED")
+        self.assertEqual(latest_review_states(reviews, "a" * 40)["reviewer"], "APPROVED")
+
+    def test_stale_approval_for_previous_head_does_not_count(self):
+        reviews = [
+            {
+                "user": {"login": "reviewer"},
+                "state": "APPROVED",
+                "commit_id": "b" * 40,
+                "submitted_at": "2026-11-17T10:00:00Z",
+            }
+        ]
+        errors = self.errors(reviews=reviews)
+        self.assertTrue(any("non-author" in error for error in errors))
+
+    def test_approval_for_current_head_counts(self):
+        reviews = [
+            {
+                "user": {"login": "reviewer"},
+                "state": "APPROVED",
+                "commit_id": "a" * 40,
+                "submitted_at": "2026-11-17T10:00:00Z",
+            }
+        ]
+        self.assertEqual(self.errors(reviews=reviews), [])
 
     def test_fork_pr_fails(self):
         head = {"sha": "a" * 40, "repo": {"full_name": "someone/fork"}}
@@ -130,9 +152,7 @@ class MergeGateTests(unittest.TestCase):
 
     def test_draft_and_conflict_fail(self):
         draft_errors = self.errors(pr={**self.pr, "draft": True})
-        conflict_errors = self.errors(
-            pr={**self.pr, "mergeable_state": "dirty"}
-        )
+        conflict_errors = self.errors(pr={**self.pr, "mergeable_state": "dirty"})
         self.assertTrue(any("Draft" in error for error in draft_errors))
         self.assertTrue(any("mergeable state" in error for error in conflict_errors))
 
