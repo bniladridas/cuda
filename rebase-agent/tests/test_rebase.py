@@ -76,38 +76,58 @@ class OperationTests(unittest.TestCase):
         self.assertFalse(any(args and args[0] == "fetch" for args in calls))
 
     def test_remote_movement_before_rebase_stops(self):
-        calls = []
-        responses = [(0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, NEW, "")]
+        calls = [(0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, NEW, "")]
+        recorded = []
         with self.assertRaisesRegex(rebase.RebaseError, "moved before rebase"):
-            rebase.rebase_and_push(".", request(), fake_runner(responses, calls))
-        self.assertFalse(any(args and args[0] in {"rebase", "push"} for args in calls))
+            rebase.rebase_and_push(".", request(), fake_runner(calls, recorded))
+        self.assertFalse(any(args and args[0] in {"rebase", "push"} for args in recorded))
 
     def test_conflict_aborts_and_never_pushes(self):
-        calls = []
         responses = [
-            (0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, OLD, ""),
-            (1, "", "CONFLICT"), (0, "", ""),
+            (0, "", ""),
+            (0, "feature/fix", ""),
+            (0, OLD, ""),
+            (0, "", ""),
+            (0, OLD, ""),
+            (1, "", "CONFLICT"),
+            (0, "", ""),
         ]
+        calls = []
         with self.assertRaisesRegex(rebase.RebaseError, "human resolution"):
             rebase.rebase_and_push(".", request(), fake_runner(responses, calls))
         self.assertIn(["rebase", "--abort"], calls)
         self.assertFalse(any(args and args[0] == "push" for args in calls))
 
     def test_remote_movement_after_rebase_stops(self):
-        calls = []
         responses = [
-            (0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, OLD, ""),
-            (0, "", ""), (0, "", ""), (0, NEW, ""),
+            (0, "", ""),
+            (0, "feature/fix", ""),
+            (0, OLD, ""),
+            (0, "", ""),
+            (0, OLD, ""),
+            (0, "", ""),
+            (0, "", ""),
+            (0, NEW, ""),
         ]
+        calls = []
         with self.assertRaisesRegex(rebase.RebaseError, "moved during rebase"):
             rebase.rebase_and_push(".", request(), fake_runner(responses, calls))
         self.assertFalse(any(args and args[0] == "push" for args in calls))
 
     def test_push_uses_exact_force_with_lease(self):
-        result, calls = self.invoke([
-            (0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, OLD, ""),
-            (0, "", ""), (0, "", ""), (0, OLD, ""), (0, "", ""), (0, NEW, ""),
-        ])
+        responses = [
+            (0, "", ""),
+            (0, "feature/fix", ""),
+            (0, OLD, ""),
+            (0, "", ""),
+            (0, OLD, ""),
+            (0, "", ""),
+            (0, "", ""),
+            (0, OLD, ""),
+            (0, "", ""),
+            (0, NEW, ""),
+        ]
+        result, calls = self.invoke(responses)
         push = next(args for args in calls if args and args[0] == "push")
         self.assertIn("--force-with-lease=refs/heads/feature/fix:" + OLD, push)
         self.assertEqual(result["old_sha"], OLD)
