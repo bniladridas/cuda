@@ -1,0 +1,22 @@
+name: formatter-preview
+
+on:
+  push:
+    branches: [fix/cuda-device-detection-errors]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+      - name: Format changed C++ files
+        run: |
+          python -m pip install --disable-pip-version-check --quiet clang-format==22.1.8
+          clang-format --version
+          clang-format -i src/device_status.h tests/test_device_status.cpp tests/test_vecadd.cpp tests/test_reduce.cpp benchmarks/main_bench.cpp
+          git diff -- src/device_status.h tests/test_device_status.cpp tests/test_vecadd.cpp tests/test_reduce.cpp benchmarks/main_bench.cpp
