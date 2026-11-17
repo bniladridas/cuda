@@ -100,6 +100,23 @@ class PolicyTests(unittest.TestCase):
 
 
 class ReportTests(unittest.TestCase):
+    def test_source_bytes_rejects_contents_api_encoding_none(self):
+        payload = {"type": "file", "encoding": "none", "content": ""}
+        with mock.patch.object(fr, "api_json", return_value=(payload, "")):
+            with self.assertRaisesRegex(fr.RepairError, "did not return base64 source content"):
+                fr.source_bytes(REPO, "src/large.cpp", HEAD, "token")
+
+    def test_source_bytes_decodes_base64_payload(self):
+        payload = {"type": "file", "encoding": "base64", "content": "aW50IG1haW4oKSB7fQ=="}
+        with mock.patch.object(fr, "api_json", return_value=(payload, "")):
+            self.assertEqual(fr.source_bytes(REPO, "src/a.cpp", HEAD, "token"), b"int main() {}")
+
+    def test_source_bytes_rejects_invalid_base64(self):
+        payload = {"type": "file", "encoding": "base64", "content": "not base64!"}
+        with mock.patch.object(fr, "api_json", return_value=(payload, "")):
+            with self.assertRaisesRegex(fr.RepairError, "invalid base64"):
+                fr.source_bytes(REPO, "src/a.cpp", HEAD, "token")
+
     def test_replacement_offsets_become_line_numbers(self):
         source = b"int main() {\n  return 0;\n}\n"
         xml = '<replacements><replacement offset="14" length="1" replacement=""/><replacement offset="25" length="1" replacement=""/></replacements>'
