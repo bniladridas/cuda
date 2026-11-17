@@ -65,3 +65,27 @@ Git-operation primitive, not a GitHub workflow or the complete model-assisted
 repair agent. End-to-end orchestration, trusted metadata acquisition, sandbox
 isolation, validation-before-write enforcement, and post-update CI reporting
 remain required before autonomous use.
+
+
+## GitHub API tree inspection
+
+The read-only inspector uses the GitHub REST Git Commits and Git Trees APIs.
+For the base, PR head, and merge-base commits it resolves each commit's tree
+SHA, fetches the complete recursive tree, and rejects truncated responses.
+It compares leaf paths changed on each side of the merge base, reports
+overlapping paths as diagnostics only, and checks the PR files API inventory
+against the tree-derived head changes. Patchless files are explicitly listed.
+
+Run it with a read-only token:
+
+    GITHUB_TOKEN=... python3 rebase-agent/engine/tree_inspector.py \
+      --repository owner/repo --pull-request 123 \
+      --output conflict-inspection.json
+
+The `conflict:inspect` label triggers the read-only
+`.github/workflows/conflict-inspection.yml` workflow. It checks out only the
+trusted base SHA, has read-only repository permissions, executes no PR code,
+and uploads the JSON report as an artifact. It does not update a branch.
+
+Tree overlap is not proof of a textual or semantic conflict. The report
+distinguishes tree inventory from actual Git rebase/merge outcomes.
