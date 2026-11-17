@@ -25,6 +25,12 @@ class RepairError(Exception):
     pass
 
 
+def validate_repo(repo):
+    if not isinstance(repo, str) or not REPO.fullmatch(repo) or ".." in repo.split("/"):
+        raise RepairError("invalid repository owner/name")
+    return repo
+
+
 def require_path(path):
     if not isinstance(path, str) or not path or any(c in path for c in ("\x00", "\n", "\r", "\\")):
         raise RepairError("invalid changed-file path")
@@ -143,6 +149,7 @@ def changed_files(repo, number, token):
 
 
 def source_bytes(repo, path, sha, token):
+    validate_repo(repo)
     url = "%s/repos/%s/contents/%s?ref=%s" % (API, repo, urllib.parse.quote(path, safe="/"), sha)
     data, _ = api_json(url, token)
     if not isinstance(data, dict) or data.get("type") != "file" or not isinstance(data.get("content"), str):
@@ -175,7 +182,8 @@ def inspect(path, source, style_file):
 
 def make_report(repo, pr, files, cfg, token, style_file):
     info = pr_info(pr, repo)
-    if not isinstance(pr.get("changed_files"), int) or len(files) != pr["changed_files"]:
+    if (isinstance(pr.get("changed_files"), bool) or not isinstance(pr.get("changed_files"), int)
+            or len(files) != pr["changed_files"]):
         raise RepairError("changed-file coverage is incomplete")
     checked, skipped = [], []
     for item in files:
@@ -242,6 +250,9 @@ def run_repair(args, cfg, token):
     if not paths:
         raise RepairError("no eligible changed source files")
     work = Path(args.workdir).resolve()
+    current = subprocess.run(["git", "rev-parse", "HEAD"], cwd=work, capture_output=True, check=True)
+    if current.stdout.decode().strip() != info["sha"]:
+        raise RepairError("worktree does not match the approved PR head SHA")
     for path in paths:
         candidate = work / path
         if candidate.is_symlink() or work not in candidate.resolve().parents or not candidate.is_file():
@@ -308,8 +319,9 @@ def main():
     parser.add_argument("--workdir", default=".")
     args = parser.parse_args()
     try:
-        if not REPO.fullmatch(args.repo) or args.pr < 1:
-            raise RepairError("invalid repository or pull request number")
+        validate_repo(args.repo)
+        if args.pr < 1:
+            raise RepairError("invalid pull request number")
         import yaml  # noqa: F401
         cfg = load_config(args.config)
         token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
