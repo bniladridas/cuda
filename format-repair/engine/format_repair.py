@@ -443,9 +443,9 @@ def run_repair(args, cfg, token):
             "changed_files": changed,
             "formatter_version": cfg["formatter_version"],
             "formatter_versions": {
-                    "clang-format": cfg["formatter_version"],
-                    "ruff": cfg["python_formatter_version"],
-                },
+                "clang-format": cfg["formatter_version"],
+                "ruff": cfg["python_formatter_version"],
+            },
             "validation": "configured formatters completed and git diff --check passed",
         },
     )
