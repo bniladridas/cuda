@@ -144,6 +144,18 @@ def pr_info(pr, repo, expected=None, same_repo=False):
     return {"sha": sha, "head_repo": head_repo, "branch": branch, "base": base["ref"]}
 
 
+def authorize_repair(pr, repo, actor, expected_sha, cfg, default_branch):
+    if not isinstance(actor, str) or actor.lower() not in cfg["maintainers"]:
+        raise RepairError("actor is not authorized to approve formatting repairs")
+    info = pr_info(pr, repo, expected_sha, same_repo=True)
+    labels = {x.get("name") for x in pr.get("labels", []) if isinstance(x, dict)}
+    if cfg["approval_label"] not in labels:
+        raise RepairError("approval label is missing")
+    if info["base"] != default_branch:
+        raise RepairError("pull request must target the configured default-branch")
+    return info
+
+
 def changed_files(repo, number, token):
     return pages("%s/repos/%s/pulls/%d/files?per_page=100" % (API, repo, number), token)
 
@@ -235,13 +247,8 @@ def run_report(args, cfg, token):
 
 
 def run_repair(args, cfg, token):
-    if args.actor.lower() not in cfg["maintainers"]:
-        raise RepairError("actor is not authorized to approve formatting repairs")
     pr = fetch_pr(args.repo, args.pr, token)
-    info = pr_info(pr, args.repo, args.event_head_sha, same_repo=True)
-    labels = {x.get("name") for x in pr.get("labels", []) if isinstance(x, dict)}
-    if cfg["approval_label"] not in labels or info["base"] != args.default_branch:
-        raise RepairError("approval label or default-branch requirement is not satisfied")
+    info = authorize_repair(pr, args.repo, args.actor, args.event_head_sha, cfg, args.default_branch)
     files = changed_files(args.repo, args.pr, token)
     if not isinstance(pr.get("changed_files"), int) or len(files) != pr["changed_files"]:
         raise RepairError("changed-file coverage is incomplete; no repair")
