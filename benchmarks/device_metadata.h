@@ -9,9 +9,10 @@ namespace bench_metadata {
 // host-only tests without a CUDA toolkit.
 template <typename Status, typename RuntimeQuery, typename DriverQuery,
           typename ErrorString>
-bool query_versions(Status success, RuntimeQuery runtime_query, DriverQuery driver_query,
-                    ErrorString error_string, int* runtime_version,
-                    int* driver_version, std::string* error) {
+bool query_versions(Status success, RuntimeQuery runtime_query,
+                    DriverQuery driver_query, ErrorString error_string,
+                    int* runtime_version, int* driver_version,
+                    std::string* error) {
   int runtime = 0;
   const Status runtime_status = runtime_query(&runtime);
   if (runtime_status != success) {
@@ -32,8 +33,7 @@ bool query_versions(Status success, RuntimeQuery runtime_query, DriverQuery driv
 }
 
 inline std::string format_version(int version) {
-  return std::to_string(version / 1000) + "." +
-         std::to_string((version % 1000) / 10);
+  return std::to_string(version / 1000) + "." + std::to_string((version % 1000) / 10);
 }
 
 }  // namespace bench_metadata
