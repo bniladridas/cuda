@@ -235,6 +235,10 @@ issue-landing/          issue landing report engine and offline tests
   and covers `tests/test_host.cpp` and the CUDA-free public headers only. CodeQL
   is kept as a scheduled check for when query coverage improves.
 
+## Review automation
+
+- `codex-review`: apply `codex:review` to request a Codex PR review. The workflow posts `@codex review` and consumes the label after posting. Codex must be connected and enabled; confirm that it responds to a bot-authored command comment during the first smoke test. Setup in [`docs/codex-review.md`](docs/codex-review.md).
+
 ## Roadmap
 
 Done: vector add, parallel reduction, correctness harness, benchmark harness,
