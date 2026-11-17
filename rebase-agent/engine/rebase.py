@@ -78,6 +78,8 @@ def rebase_and_push(repo, request, runner=subprocess.run):
         raise RebaseError("worktree is not clean; refusing to rebase")
     if run_git(repo, ["branch", "--show-current"], runner) != branch:
         raise RebaseError("checked-out branch does not match the authorized PR branch")
+    if run_git(repo, ["rev-parse", "HEAD"], runner) != expected:
+        raise RebaseError("local branch HEAD does not match the approved PR head SHA")
 
     run_git(repo, ["fetch", "--no-tags", "origin", branch, base_branch], runner)
     if current_remote_sha(repo, branch, runner) != expected:

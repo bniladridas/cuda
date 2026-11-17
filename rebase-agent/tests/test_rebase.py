@@ -67,6 +67,13 @@ class OperationTests(unittest.TestCase):
         result = rebase.rebase_and_push(".", request(), fake_runner(responses, calls))
         return result, calls
 
+    def test_local_head_must_match_approved_sha(self):
+        calls = []
+        responses = [(0, "", ""), (0, "feature/fix", ""), (0, NEW, "")]
+        with self.assertRaisesRegex(rebase.RebaseError, "local branch HEAD"):
+            rebase.rebase_and_push(".", request(), fake_runner(responses, calls))
+        self.assertFalse(any(args and args[0] == "fetch" for args in calls))
+
     def test_remote_movement_before_rebase_stops(self):
         calls = []
         responses = [(0, "", ""), (0, "feature/fix", ""), (0, "", ""), (0, NEW, "")]
@@ -77,7 +84,7 @@ class OperationTests(unittest.TestCase):
     def test_conflict_aborts_and_never_pushes(self):
         calls = []
         responses = [
-            (0, "", ""), (0, "feature/fix", ""), (0, "", ""), (0, OLD, ""),
+            (0, "", ""), (0, "feature/fix", ""), (0, OLD, ""), (0, "", ""), (0, OLD, ""),
             (1, "", "CONFLICT"), (0, "", ""),
         ]
         with self.assertRaisesRegex(rebase.RebaseError, "human resolution"):
