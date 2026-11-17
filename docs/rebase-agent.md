@@ -125,9 +125,11 @@ because the operation is part of the confirmation string.
 The workflow separates trust boundaries:
 
 1. Snapshot job exports the PR source and complete diff without executing it.
-2. Agent job checks out trusted workflow code, treats the PR snapshot as data,
-   and uses only bounded read/search/diff/patch tools. It has the model secret
-   but no GitHub write token and does not execute PR code.
+2. Agent job checks out trusted workflow code, runs the read-only Git Trees API
+   inspector against live PR metadata, and verifies the inspected head/base
+   SHAs match the approval. It then treats the PR snapshot as data and uses only
+   bounded read/search/diff/patch tools. It has read-only GitHub API access and
+   the model secret, but no GitHub write permission and does not execute PR code.
 3. Validation job applies the proposed patch and performs rebase or merge in an
    unprivileged runner with no model secret or write credential. It runs Python
    tests and a CPU-only CMake build/test. GPU validation remains unavailable
