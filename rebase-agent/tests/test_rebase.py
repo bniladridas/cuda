@@ -10,6 +10,7 @@ import rebase
 
 OLD = "1" * 40
 NEW = "2" * 40
+BASE = "3" * 40
 
 
 def request(**changes):
@@ -21,6 +22,7 @@ def request(**changes):
         "default_branch": "main",
         "protected_branches": ["release"],
         "expected_remote_sha": OLD,
+        "expected_base_sha": BASE,
         "authorization": True,
         "rebase_enabled": True,
     }
@@ -89,6 +91,7 @@ class OperationTests(unittest.TestCase):
             (0, OLD, ""),
             (0, "", ""),
             (0, OLD, ""),
+            (0, BASE, ""),
             (1, "", "CONFLICT"),
             (0, "", ""),
         ]
@@ -105,8 +108,11 @@ class OperationTests(unittest.TestCase):
             (0, OLD, ""),
             (0, "", ""),
             (0, OLD, ""),
+            (0, BASE, ""),
             (0, "", ""),
             (0, "", ""),
+            (0, OLD, ""),
+            (0, BASE, ""),
             (0, NEW, ""),
         ]
         calls = []
@@ -121,9 +127,11 @@ class OperationTests(unittest.TestCase):
             (0, OLD, ""),
             (0, "", ""),
             (0, OLD, ""),
+            (0, BASE, ""),
             (0, "", ""),
             (0, "", ""),
             (0, OLD, ""),
+            (0, BASE, ""),
             (0, "", ""),
             (0, NEW, ""),
         ]
