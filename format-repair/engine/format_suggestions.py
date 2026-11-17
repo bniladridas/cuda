@@ -75,9 +75,7 @@ def formatted_source(path, source):
         ]
     result = subprocess.run(command, input=source, capture_output=True, check=False)
     if result.returncode:
-        raise SuggestionError(
-            "formatter failed for %s: %s" % (path, result.stderr.decode("utf-8", "replace")[:300])
-        )
+        raise SuggestionError("formatter failed for %s: %s" % (path, result.stderr.decode("utf-8", "replace")[:300]))
     return result.stdout
 
 
