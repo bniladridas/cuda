@@ -19,8 +19,15 @@ void successful_queries_preserve_versions() {
   int driver = 0;
   std::string error;
   const bool ok = bench_metadata::query_versions(
-      0, [](int* value) { *value = 12080; return 0; },
-      [](int* value) { *value = 12060; return 0; },
+      0,
+      [](int* value) {
+        *value = 12080;
+        return 0;
+      },
+      [](int* value) {
+        *value = 12060;
+        return 0;
+      },
       [](int) { return std::string("unexpected"); }, &runtime, &driver, &error);
   check(ok, "successful version queries failed");
   check(runtime == 12080, "runtime version was not retained");
@@ -39,7 +46,10 @@ void runtime_failure_stops_before_driver_query() {
   std::string error;
   const bool ok = bench_metadata::query_versions(
       0, [](int*) { return 1; },
-      [&driver_called](int*) { driver_called = true; return 0; },
+      [&driver_called](int*) {
+        driver_called = true;
+        return 0;
+      },
       [](int status) { return "mock error " + std::to_string(status); },
       &runtime, &driver, &error);
   check(!ok, "runtime query failure was accepted");
@@ -57,7 +67,11 @@ void driver_failure_is_reported() {
   int driver = -1;
   std::string error;
   const bool ok = bench_metadata::query_versions(
-      0, [](int* value) { *value = 12080; return 0; },
+      0,
+      [](int* value) {
+        *value = 12080;
+        return 0;
+      },
       [](int*) { return 2; },
       [](int status) { return "mock error " + std::to_string(status); },
       &runtime, &driver, &error);
