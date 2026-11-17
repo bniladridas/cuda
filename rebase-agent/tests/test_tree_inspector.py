@@ -11,6 +11,9 @@ import tree_inspector
 BASE = "1" * 40
 HEAD = "2" * 40
 MERGE = "3" * 40
+TREE_BASE = "4" * 40
+TREE_HEAD = "5" * 40
+TREE_MERGE = "6" * 40
 
 
 class FakeAPI:
@@ -39,8 +42,9 @@ def entry(path, sha):
 class TreeTests(unittest.TestCase):
     def test_tree_rejects_truncated_and_wrong_sha(self):
         api = FakeAPI({
-            "/repos/owner/repo/git/trees/" + BASE + "?recursive=1":
-                {"sha": BASE, "truncated": True, "tree": []}
+            "/repos/owner/repo/git/commits/" + BASE: {"tree": {"sha": TREE_BASE}},
+            "/repos/owner/repo/git/trees/" + TREE_BASE + "?recursive=1":
+                {"sha": TREE_BASE, "truncated": True, "tree": []}
         })
         with self.assertRaisesRegex(tree_inspector.InspectionError, "truncated"):
             tree_inspector.fetch_tree(api, "owner/repo", BASE)
@@ -61,12 +65,15 @@ class TreeTests(unittest.TestCase):
             prefix + "/compare/main..." + HEAD: {
                 "status": "diverged", "merge_base_commit": {"sha": MERGE}
             },
-            prefix + "/git/trees/" + BASE + "?recursive=1":
-                tree(BASE, [entry("both.txt", "base"), entry("base-only.txt", "base")]),
-            prefix + "/git/trees/" + HEAD + "?recursive=1":
-                tree(HEAD, [entry("both.txt", "head"), entry("head-only.txt", "head")]),
-            prefix + "/git/trees/" + MERGE + "?recursive=1":
-                tree(MERGE, [entry("both.txt", "common")]),
+            prefix + "/git/commits/" + BASE: {"tree": {"sha": TREE_BASE}},
+            prefix + "/git/commits/" + HEAD: {"tree": {"sha": TREE_HEAD}},
+            prefix + "/git/commits/" + MERGE: {"tree": {"sha": TREE_MERGE}},
+            prefix + "/git/trees/" + TREE_BASE + "?recursive=1":
+                tree(TREE_BASE, [entry("both.txt", "base"), entry("base-only.txt", "base")]),
+            prefix + "/git/trees/" + TREE_HEAD + "?recursive=1":
+                tree(TREE_HEAD, [entry("both.txt", "head"), entry("head-only.txt", "head")]),
+            prefix + "/git/trees/" + TREE_MERGE + "?recursive=1":
+                tree(TREE_MERGE, [entry("both.txt", "common")]),
             prefix + "/pulls/7/files?per_page=100&page=1": [
                 {"filename": "both.txt", "status": "modified", "additions": 1, "deletions": 1, "patch": "@@"},
                 {"filename": "head-only.txt", "status": "added", "additions": 1, "deletions": 0},
