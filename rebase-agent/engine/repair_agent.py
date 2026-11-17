@@ -74,7 +74,7 @@ def validate_patch_paths(patch):
                 continue
             if value.startswith(("a/", "b/")):
                 value = value[2:]
-            if not value or value.startswith("/") or "\\" in value or any(p in {"", ".", ".."} for p in value.split("/")):
+            if not value or value.startswith("/") or "\\" in value or value.split("/")[0] == ".git" or any(p in {"", ".", ".."} for p in value.split("/")):
                 raise AgentError("patch contains an unsafe path")
             paths.append(value)
     if not paths:
