@@ -80,6 +80,18 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(fr.RepairError, "head changed"):
             fr.pr_info(pr(), REPO, expected=BASE, same_repo=True)
 
+    def test_accepts_valid_git_branch_characters(self):
+        value = pr()
+        value["head"]["ref"] = "feature/foo+bar"
+        self.assertEqual(fr.pr_info(value, REPO)["branch"], "feature/foo+bar")
+
+    def test_rejects_invalid_git_branch_names(self):
+        for branch in ("bad..name", "bad name", "bad\\\\name", "bad@{name}", "bad/"):
+            with self.subTest(branch=branch), self.assertRaisesRegex(fr.RepairError, "invalid pull request branch"):
+                value = pr()
+                value["head"]["ref"] = branch
+                fr.pr_info(value, REPO)
+
     def test_rejects_unauthorized_actor(self):
         with self.assertRaisesRegex(fr.RepairError, "not authorized"):
             fr.authorize_repair(pr(), REPO, "contributor", HEAD, config(), "main")
