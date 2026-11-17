@@ -88,6 +88,22 @@ class MergeGateTests(unittest.TestCase):
         errors = self.errors(reviews=reviews)
         self.assertTrue(any("change-request" in error for error in errors))
 
+    def test_dismissed_approval_does_not_count(self):
+        reviews = [
+            {
+                "user": {"login": "reviewer"},
+                "state": "APPROVED",
+                "submitted_at": "2026-11-17T10:00:00Z",
+            },
+            {
+                "user": {"login": "reviewer"},
+                "state": "DISMISSED",
+                "submitted_at": "2026-11-17T11:00:00Z",
+            },
+        ]
+        errors = self.errors(reviews=reviews)
+        self.assertTrue(any("non-author" in error for error in errors))
+
     def test_latest_approval_supersedes_older_request(self):
         reviews = [
             {
