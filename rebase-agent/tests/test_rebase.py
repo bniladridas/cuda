@@ -111,9 +111,8 @@ class OperationTests(unittest.TestCase):
             (0, BASE, ""),
             (0, "", ""),
             (0, "", ""),
-            (0, OLD, ""),
-            (0, BASE, ""),
             (0, NEW, ""),
+            (0, BASE, ""),
         ]
         calls = []
         with self.assertRaisesRegex(rebase.RebaseError, "moved during rebase"):
