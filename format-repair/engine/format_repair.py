@@ -185,7 +185,9 @@ def source_bytes(repo, path, sha, token):
         or data.get("encoding") != "base64"
         or not isinstance(data.get("content"), str)
     ):
-        raise RepairError("GitHub did not return base64 source content for %s; refusing an incomplete formatting check" % path)
+        raise RepairError(
+            "GitHub did not return base64 source content for %s; refusing an incomplete formatting check" % path
+        )
     try:
         return base64.b64decode("".join(data["content"].split()), validate=True)
     except (ValueError, base64.binascii.Error) as exc:
