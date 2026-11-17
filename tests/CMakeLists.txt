@@ -9,6 +9,12 @@ target_include_directories(test_host PRIVATE
 cuda_kernels_set_host_warnings(test_host)
 add_test(NAME host_reference COMMAND test_host)
 
+add_executable(test_benchmark_options test_benchmark_options.cpp)
+target_include_directories(test_benchmark_options PRIVATE
+  ${PROJECT_SOURCE_DIR}/benchmarks)
+cuda_kernels_set_host_warnings(test_benchmark_options)
+add_test(NAME benchmark_options COMMAND test_benchmark_options)
+
 if(CUDA_KERNELS_HAVE_CUDA)
   foreach(name IN ITEMS vecadd reduce)
     add_executable(test_${name} test_${name}.cpp)
