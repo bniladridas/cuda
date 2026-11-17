@@ -67,6 +67,9 @@ jobs:
       - name: Test GitHub API tree inspection
         run: python3 -m unittest discover -s rebase-agent/tests -p 'test_tree_inspector.py'
 
+      - name: Test bounded repair agent
+        run: python3 -m unittest discover -s rebase-agent/tests -p 'test_repair_agent.py'
+
       - name: Test runner skip handling
         run: bash tests/test_runner.sh
 
