@@ -231,7 +231,15 @@ jobs:
           json.dump({
               "ruff_check": "passed",
               "ruff_format": "passed",
-              "python_test_suites": ["rebase-agent", "label-review", "issue-landing", "pr-confidence", "pr-scope-guard", "format-repair", "benchmarks-if-present"],
+              "python_test_suites": [
+                  "rebase-agent",
+                  "label-review",
+                  "issue-landing",
+                  "pr-confidence",
+                  "pr-scope-guard",
+                  "format-repair",
+                  "benchmarks-if-present",
+              ],
               "cmake_cpu_configure": "passed",
               "cmake_cpu_build": "passed",
               "ctest_cpu": "passed",
@@ -297,7 +305,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 rebase-agent/engine/repair_agent.py \
-            --source source --diff input/final.diff --files input/final-files.txt --report final-review.json --review-only
+            --source source --diff input/final.diff \
+            --files input/final-files.txt --report final-review.json --review-only
           python3 - <<'PY'
           import json
           report = json.load(open("final-review.json", encoding="utf-8"))
@@ -361,7 +370,9 @@ jobs:
           if any(x.get("severity") in {"critical", "high"} for x in report.get("findings", [])):
               raise SystemExit("final review found critical or high severity issues")
           PY
-          git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+          git fetch --no-tags origin \
+            "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" \
+            "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
           test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
           test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
           git bundle verify prepared/prepared.bundle
@@ -370,7 +381,9 @@ jobs:
           test "$(git rev-parse "refs/repair/prepared^{tree}")" = "$RESULT_TREE"
           if [ "$OPERATION" = rebase ]; then
             git merge-base --is-ancestor "$EXPECTED_BASE" "$RESULT_SHA"
-            git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+            git fetch --no-tags origin \
+              "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" \
+              "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
             test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
             test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
             git push --force-with-lease="refs/heads/$BRANCH:$EXPECTED_HEAD" origin "$RESULT_SHA:refs/heads/$BRANCH"
@@ -429,11 +442,16 @@ jobs:
           python3 - <<'PY'
           import json
           checks = json.load(open("checks.json", encoding="utf-8")).get("check_runs", [])
-          summary = [{"name": x.get("name"), "status": x.get("status"), "conclusion": x.get("conclusion")} for x in checks]
+          summary = [
+              {"name": x.get("name"), "status": x.get("status"), "conclusion": x.get("conclusion")}
+              for x in checks
+          ]
           audit = json.load(open("audit.json", encoding="utf-8"))
           audit["post_update_checks"] = summary
           audit["all_checks_completed"] = bool(checks) and all(x["status"] == "completed" for x in checks)
-          audit["all_required_checks_passed"] = bool(checks) and all(x["conclusion"] in {"success", "skipped", "neutral"} for x in checks)
+          audit["all_required_checks_passed"] = bool(checks) and all(
+              x["conclusion"] in {"success", "skipped", "neutral"} for x in checks
+          )
           json.dump(audit, open("audit.json", "w", encoding="utf-8"), indent=2, sort_keys=True)
           if not audit["all_checks_completed"] or not audit["all_required_checks_passed"]:
               raise SystemExit("post-update checks are pending or failing; inspect audit artifact")
