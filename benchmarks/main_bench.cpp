@@ -40,14 +40,13 @@ bool device_strings(std::string* name, std::string* capability, std::string* run
   cudaDeviceProp prop{};
   if (!bench::check_cuda(cudaGetDevice(&device), "cudaGetDevice")) return false;
   if (!bench::check_cuda(cudaGetDeviceProperties(&prop, device),
-                          "cudaGetDeviceProperties"))
+                         "cudaGetDeviceProperties"))
     return false;
 
   int runtime_version = 0;
   int driver_version = 0;
   if (!bench_metadata::query_versions(
-          cudaSuccess,
-          [](int* version) { return cudaRuntimeGetVersion(version); },
+          cudaSuccess, [](int* version) { return cudaRuntimeGetVersion(version); },
           [](int* version) { return cudaDriverGetVersion(version); },
           [](cudaError_t status) { return std::string(cudaGetErrorString(status)); },
           &runtime_version, &driver_version, error)) {
