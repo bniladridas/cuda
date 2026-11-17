@@ -81,10 +81,15 @@ def validate_changed_paths(changed, selected):
 
 
 def api_json(url, token):
-    req = urllib.request.Request(url, headers={
-        "Accept": "application/vnd.github+json", "Authorization": "Bearer " + token,
-        "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "cuda-format-repair",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": "Bearer " + token,
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "cuda-format-repair",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
             body, link = response.read().decode(), response.headers.get("Link", "")
@@ -126,7 +131,12 @@ def fetch_pr(repo, number, token):
 def pr_info(pr, repo, expected=None, same_repo=False):
     head, base = pr.get("head") or {}, pr.get("base") or {}
     sha, base_sha = head.get("sha"), base.get("sha")
-    if not isinstance(sha, str) or not SHA.fullmatch(sha) or not isinstance(base_sha, str) or not SHA.fullmatch(base_sha):
+    if (
+        not isinstance(sha, str)
+        or not SHA.fullmatch(sha)
+        or not isinstance(base_sha, str)
+        or not SHA.fullmatch(base_sha)
+    ):
         raise RepairError("invalid pull request SHA")
     head_repo = (head.get("repo") or {}).get("full_name")
     if (base.get("repo") or {}).get("full_name") != repo:
@@ -136,8 +146,13 @@ def pr_info(pr, repo, expected=None, same_repo=False):
     if expected and sha != expected:
         raise RepairError("pull request head changed; apply approval again")
     branch = head.get("ref")
-    if (not isinstance(branch, str) or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch)
-            or any(p in ("", ".", "..") for p in branch.split("/")) or branch.endswith((".", ".lock")) or "@{" in branch):
+    if (
+        not isinstance(branch, str)
+        or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch)
+        or any(p in ("", ".", "..") for p in branch.split("/"))
+        or branch.endswith((".", ".lock"))
+        or "@{" in branch
+    ):
         raise RepairError("invalid pull request branch")
     if pr.get("state") != "open" or not base.get("ref"):
         raise RepairError("pull request is not open or has no base branch")
@@ -182,9 +197,15 @@ def line_numbers(source, xml_text):
 
 def inspect(path, source, style_file):
     result = subprocess.run(
-        ["clang-format", "--style=file:" + str(Path(style_file).resolve()),
-         "--output-replacements-xml", "--assume-filename=" + path],
-        input=source, capture_output=True, check=False,
+        [
+            "clang-format",
+            "--style=file:" + str(Path(style_file).resolve()),
+            "--output-replacements-xml",
+            "--assume-filename=" + path,
+        ],
+        input=source,
+        capture_output=True,
+        check=False,
     )
     if result.returncode:
         raise RepairError("clang-format failed for %s: %s" % (path, result.stderr.decode("utf-8", "replace")[:400]))
@@ -194,8 +215,11 @@ def inspect(path, source, style_file):
 
 def make_report(repo, pr, files, cfg, token, style_file):
     info = pr_info(pr, repo)
-    if (isinstance(pr.get("changed_files"), bool) or not isinstance(pr.get("changed_files"), int)
-            or len(files) != pr["changed_files"]):
+    if (
+        isinstance(pr.get("changed_files"), bool)
+        or not isinstance(pr.get("changed_files"), int)
+        or len(files) != pr["changed_files"]
+    ):
         raise RepairError("changed-file coverage is incomplete")
     checked, skipped = [], []
     for item in files:
@@ -208,18 +232,30 @@ def make_report(repo, pr, files, cfg, token, style_file):
             skipped.append(path)
     violations = [item for item in checked if not item["formatted"]]
     return {
-        "version": 1, "repo": repo, "pr_number": pr["number"], "head_sha": info["sha"],
+        "version": 1,
+        "repo": repo,
+        "pr_number": pr["number"],
+        "head_sha": info["sha"],
         "head_repo": info["head_repo"],
         "coverage": {"expected_files": pr["changed_files"], "fetched_files": len(files), "complete": True},
-        "formatter_version": cfg["formatter_version"], "approval_label": cfg["approval_label"],
+        "formatter_version": cfg["formatter_version"],
+        "approval_label": cfg["approval_label"],
         "repair_eligible": info["head_repo"] == repo,
-        "files_checked": checked, "files_skipped": skipped, "violations": violations, "clean": not violations,
+        "files_checked": checked,
+        "files_skipped": skipped,
+        "violations": violations,
+        "clean": not violations,
     }
 
 
 def report_markdown(report):
-    lines = ["## Formatting check", "", "Formatter: clang-format %s" % report["formatter_version"],
-             "Files checked: %d. Outside allowlist: %d." % (len(report["files_checked"]), len(report["files_skipped"])), ""]
+    lines = [
+        "## Formatting check",
+        "",
+        "Formatter: clang-format %s" % report["formatter_version"],
+        "Files checked: %d. Outside allowlist: %d." % (len(report["files_checked"]), len(report["files_skipped"])),
+        "",
+    ]
     if report["clean"]:
         lines.append("No formatting violations found.")
     else:
@@ -227,7 +263,10 @@ def report_markdown(report):
         for item in report["violations"][:50]:
             nums = ", ".join(str(n) for n in item["lines"][:20]) or "line unavailable"
             lines.append("- %s: replacement required near line(s) %s." % (item["path"], nums))
-        lines += ["", "An authorized maintainer can request a formatting-only repair with label %s." % report["approval_label"]]
+        lines += [
+            "",
+            "An authorized maintainer can request a formatting-only repair with label %s." % report["approval_label"],
+        ]
     if not report["repair_eligible"]:
         lines += ["", "Fork pull request: report-only, no automated push."]
     lines += ["", "This report is advisory. Normal CI remains authoritative."]
@@ -252,8 +291,13 @@ def run_repair(args, cfg, token):
     files = changed_files(args.repo, args.pr, token)
     if not isinstance(pr.get("changed_files"), int) or len(files) != pr["changed_files"]:
         raise RepairError("changed-file coverage is incomplete; no repair")
-    paths = sorted({require_path(x.get("filename")) for x in files
-                    if x.get("status") != "removed" and allowed(x.get("filename"), cfg)})
+    paths = sorted(
+        {
+            require_path(x.get("filename"))
+            for x in files
+            if x.get("status") != "removed" and allowed(x.get("filename"), cfg)
+        }
+    )
     if not paths:
         raise RepairError("no eligible changed source files")
     work = Path(args.workdir).resolve()
@@ -265,9 +309,10 @@ def run_repair(args, cfg, token):
         if candidate.is_symlink() or work not in candidate.resolve().parents or not candidate.is_file():
             raise RepairError("unsafe or missing worktree file: %s" % path)
         result = subprocess.run(
-            ["clang-format", "--style=file:" + str(Path(args.style_file).resolve()),
-             "--assume-filename=" + path],
-            input=candidate.read_bytes(), capture_output=True, check=False,
+            ["clang-format", "--style=file:" + str(Path(args.style_file).resolve()), "--assume-filename=" + path],
+            input=candidate.read_bytes(),
+            capture_output=True,
+            check=False,
         )
         if result.returncode:
             raise RepairError("clang-format failed for %s" % path)
@@ -275,11 +320,15 @@ def run_repair(args, cfg, token):
     diff = subprocess.run(["git", "diff", "--name-only"], cwd=work, capture_output=True, check=True)
     changed = validate_changed_paths(diff.stdout.decode().splitlines(), paths)
     if not changed:
-        write_json(args.artifact, {
-            "status": "no_changes", "formatter_version": cfg["formatter_version"],
-            "validation": "clang-format completed; no formatting changes were needed",
-            "changed_files": [],
-        })
+        write_json(
+            args.artifact,
+            {
+                "status": "no_changes",
+                "formatter_version": cfg["formatter_version"],
+                "validation": "clang-format completed; no formatting changes were needed",
+                "changed_files": [],
+            },
+        )
         return
     check = subprocess.run(["git", "diff", "--check"], cwd=work, capture_output=True)
     if check.returncode:
@@ -287,10 +336,16 @@ def run_repair(args, cfg, token):
     latest = fetch_pr(args.repo, args.pr, token)
     latest_info = pr_info(latest, args.repo, args.event_head_sha, same_repo=True)
     latest_labels = {x.get("name") for x in latest.get("labels", []) if isinstance(x, dict)}
-    if latest_info["branch"] != info["branch"] or latest_info["base"] != info["base"] or cfg["approval_label"] not in latest_labels:
+    if (
+        latest_info["branch"] != info["branch"]
+        or latest_info["base"] != info["base"]
+        or cfg["approval_label"] not in latest_labels
+    ):
         raise RepairError("PR state or approval changed before commit")
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], cwd=work, check=True
+    )
     subprocess.run(["git", "add", "--", *changed], cwd=work, check=True)
     staged = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=work, capture_output=True, check=True)
     if sorted(staged.stdout.decode().splitlines()) != changed:
@@ -302,13 +357,22 @@ def run_repair(args, cfg, token):
     subprocess.run(["git", "remote", "set-url", "origin", remote], cwd=work, check=True)
     push = subprocess.run(["git", "push", "origin", "HEAD:refs/heads/" + info["branch"]], cwd=work, capture_output=True)
     if push.returncode:
-        raise RepairError("non-force push failed; PR branch may have advanced: " + push.stderr.decode("utf-8", "replace")[:500])
-    commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=work, capture_output=True, check=True).stdout.decode().strip()
-    write_json(args.artifact, {
-        "status": "pushed", "commit_sha": commit, "changed_files": changed,
-        "formatter_version": cfg["formatter_version"],
-        "validation": "clang-format completed and git diff --check passed",
-    })
+        raise RepairError(
+            "non-force push failed; PR branch may have advanced: " + push.stderr.decode("utf-8", "replace")[:500]
+        )
+    commit = (
+        subprocess.run(["git", "rev-parse", "HEAD"], cwd=work, capture_output=True, check=True).stdout.decode().strip()
+    )
+    write_json(
+        args.artifact,
+        {
+            "status": "pushed",
+            "commit_sha": commit,
+            "changed_files": changed,
+            "formatter_version": cfg["formatter_version"],
+            "validation": "clang-format completed and git diff --check passed",
+        },
+    )
 
 
 def main():
@@ -330,6 +394,7 @@ def main():
         if args.pr < 1:
             raise RepairError("invalid pull request number")
         import yaml  # noqa: F401
+
         cfg = load_config(args.config)
         token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
         if not token:
