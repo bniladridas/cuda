@@ -7,6 +7,7 @@
 #include <cuda_runtime.h>
 
 #include "cuda_kernels/vecadd.cuh"
+#include "device_status.h"
 #include "host_utils.h"
 
 namespace {
@@ -67,9 +68,18 @@ void run_case(std::size_t n, const char* label) {
 
 int main() {
   int devices = 0;
-  if (cudaGetDeviceCount(&devices) != cudaSuccess || devices == 0) {
+  const cudaError_t device_status = cudaGetDeviceCount(&devices);
+  const cuda_device::Availability availability =
+      cuda_device::classify_device_count(device_status, devices, cudaSuccess,
+                                         cudaErrorNoDevice);
+  if (availability == cuda_device::Availability::kUnavailable) {
     std::printf("SKIPPED [%s]: no CUDA device\n", kTest);
     return 0;
+  }
+  if (availability == cuda_device::Availability::kError) {
+    std::fprintf(stderr, "ERROR [%s]: cudaGetDeviceCount failed: %s\n", kTest,
+                 cudaGetErrorString(device_status));
+    return 1;
   }
 
   // 0 (no-op), 1 (sub-warp), 255/256/257 (block boundary), 1Mi (grid stride),
