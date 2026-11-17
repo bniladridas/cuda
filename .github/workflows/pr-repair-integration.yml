@@ -1,0 +1,186 @@
+name: PR repair integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: PR number
+        required: true
+        type: number
+      operation:
+        description: Explicit integration mode
+        required: true
+        type: choice
+        options: [rebase, merge]
+      expected_head_sha:
+        description: Exact approved PR head SHA
+        required: true
+        type: string
+      expected_base_sha:
+        description: Exact approved base SHA
+        required: true
+        type: string
+      approval:
+        description: Type UPDATE <PR> <HEAD_SHA> <BASE_SHA> <OPERATION>
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-repair-${{ inputs.pull_request }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      branch: ${{ steps.gate.outputs.branch }}
+      base_branch: ${{ steps.gate.outputs.base_branch }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+      base_sha: ${{ steps.gate.outputs.base_sha }}
+      operation: ${{ steps.gate.outputs.operation }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          OPERATION: ${{ inputs.operation }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          EXPECTED_BASE_SHA: ${{ inputs.expected_base_sha }}
+          APPROVAL: ${{ inputs.approval }}
+          REPAIR_MAINTAINERS: ${{ vars.REPAIR_MAINTAINERS }}
+          REPAIR_REBASE_ENABLED: ${{ vars.REPAIR_REBASE_ENABLED }}
+          REPAIR_MERGE_ENABLED: ${{ vars.REPAIR_MERGE_ENABLED }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/authorization_gate.py > gate.env
+          cat gate.env >> "$GITHUB_OUTPUT"
+
+  prepare:
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      result_sha: ${{ steps.prepare.outputs.result_sha }}
+      result_tree: ${{ steps.prepare.outputs.result_tree }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.authorize.outputs.head_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Prepare and validate in an unprivileged runner
+        id: prepare
+        env:
+          BRANCH: ${{ needs.authorize.outputs.branch }}
+          BASE_BRANCH: ${{ needs.authorize.outputs.base_branch }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          BASE_SHA: ${{ needs.authorize.outputs.base_sha }}
+          OPERATION: ${{ needs.authorize.outputs.operation }}
+        run: |
+          set -euo pipefail
+          git config user.name "cuda-pr-repair"
+          git config user.email "cuda-pr-repair@users.noreply.github.com"
+          git fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
+          if [ "$OPERATION" = rebase ]; then
+            git rebase "$BASE_SHA"
+          elif [ "$OPERATION" = merge ]; then
+            git merge --no-ff --no-edit "$BASE_SHA"
+          else
+            echo "unsupported operation" >&2
+            exit 1
+          fi
+          # CPU-only validation. PR code runs here without write credentials or secrets.
+          python3 -m unittest discover -s rebase-agent/tests
+          python3 -m unittest discover -s label-review/tests
+          python3 -m unittest discover -s pr-confidence/tests
+          python3 -m unittest discover -s pr-scope-guard/tests
+          python3 -m unittest discover -s format-repair/tests
+          python3 -m unittest discover -s benchmarks/tests
+          git diff --check "$BASE_SHA"...HEAD
+          git diff --stat "$BASE_SHA"...HEAD > prepared-diff-stat.txt
+          git rev-parse HEAD > prepared-sha.txt
+          git rev-parse HEAD^{tree} > prepared-tree.txt
+          git bundle create prepared.bundle HEAD
+          echo "result_sha=$(cat prepared-sha.txt)" >> "$GITHUB_OUTPUT"
+          echo "result_tree=$(cat prepared-tree.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prepared-pr-integration
+          path: |
+            prepared.bundle
+            prepared-sha.txt
+            prepared-tree.txt
+            prepared-diff-stat.txt
+          if-no-files-found: error
+          retention-days: 2
+
+  publish:
+    needs: [authorize, prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: prepared-pr-integration
+          path: prepared
+      - name: Verify artifact and update only the approved PR branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.authorize.outputs.branch }}
+          BASE_BRANCH: ${{ needs.authorize.outputs.base_branch }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+          OPERATION: ${{ needs.authorize.outputs.operation }}
+          RESULT_SHA: ${{ needs.prepare.outputs.result_sha }}
+          RESULT_TREE: ${{ needs.prepare.outputs.result_tree }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+          test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
+          git bundle verify prepared/prepared.bundle
+          git fetch prepared/prepared.bundle "$RESULT_SHA"
+          test "$(git rev-parse "$RESULT_SHA^{tree}")" = "$RESULT_TREE"
+          if [ "$OPERATION" = rebase ]; then
+            git merge-base --is-ancestor "$EXPECTED_BASE" "$RESULT_SHA"
+            git merge-base --is-ancestor "$RESULT_SHA" "$RESULT_SHA"
+            git push --force-with-lease="refs/heads/$BRANCH:$EXPECTED_HEAD" origin "$RESULT_SHA:refs/heads/$BRANCH"
+          elif [ "$OPERATION" = merge ]; then
+            read -r commit parent1 parent2 extra < <(git rev-list --parents -n 1 "$RESULT_SHA")
+            test "$commit" = "$RESULT_SHA"
+            test "$parent1" = "$EXPECTED_HEAD"
+            test "$parent2" = "$EXPECTED_BASE"
+            test -z "${extra:-}"
+            git push origin "$RESULT_SHA:refs/heads/$BRANCH"
+          else
+            echo "unsupported operation" >&2
+            exit 1
+          fi
+          echo "Updated PR #$PR_NUMBER using $OPERATION"
+          echo "old_head=$EXPECTED_HEAD"
+          echo "new_head=$RESULT_SHA"
+          echo "base=$EXPECTED_BASE"
+          echo "tree=$RESULT_TREE"
