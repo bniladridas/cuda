@@ -27,7 +27,18 @@ class RepairAgentTests(unittest.TestCase):
         subprocess.run(["git", "-C", str(self.root), "init", "-q"], check=True)
         subprocess.run(["git", "-C", str(self.root), "add", "-A"], check=True)
         subprocess.run(
-            ["git", "-C", str(self.root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "base"],
+            [
+                "git",
+                "-C",
+                str(self.root),
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.invalid",
+                "commit",
+                "-qm",
+                "base",
+            ],
             check=True,
         )
         self.agent = repair_agent.Agent(self.root, self.diff, self.report)
@@ -71,21 +82,27 @@ class RepairAgentTests(unittest.TestCase):
 
     def test_review_cannot_finish_before_full_diff_is_read(self):
         with self.assertRaisesRegex(repair_agent.AgentError, "complete diff coverage"):
-            self.agent.execute("submit_review", {
-                "summary": "reviewed",
-                "ready_for_validation": False,
-                "findings": [],
-            })
+            self.agent.execute(
+                "submit_review",
+                {
+                    "summary": "reviewed",
+                    "ready_for_validation": False,
+                    "findings": [],
+                },
+            )
         chunk = self.agent.execute("get_diff", {"offset": 0, "limit": 8000})
         self.assertTrue(chunk["complete"])
         inventory = self.agent.execute("list_changed_files", {"offset": 0, "limit": 100})
         self.assertTrue(inventory["complete"])
         self.agent.execute("read_file", {"path": "src/example.cpp", "offset": 0, "limit": 7000})
-        result = self.agent.execute("submit_review", {
-            "summary": "reviewed",
-            "ready_for_validation": False,
-            "findings": [],
-        })
+        result = self.agent.execute(
+            "submit_review",
+            {
+                "summary": "reviewed",
+                "ready_for_validation": False,
+                "findings": [],
+            },
+        )
         self.assertTrue(result["review_saved"])
 
     def test_tool_allowlist_rejects_arbitrary_commands(self):
