@@ -17,7 +17,7 @@ from pathlib import Path
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openrouter/free"
-MAX_ROUNDS = 12
+MAX_ROUNDS = 20
 MAX_TOOL_OUTPUT = 18000
 MAX_DIFF_BYTES = 180000
 SHA_PATH = re.compile(r"^[A-Za-z0-9_./+-]+$")
@@ -92,11 +92,12 @@ class Agent:
         self.files = changed_files(self.diff)
         self.tool_log = []
         self.applied = False
+        self.diff_ranges = []
 
     def tools(self):
         items = [
             {"type": "function", "function": {"name": "list_changed_files", "description": "List every file in the supplied PR diff.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
-            {"type": "function", "function": {"name": "get_diff", "description": "Return the complete supplied PR diff. It may be large.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
+            {"type": "function", "function": {"name": "get_diff", "description": "Read a chunk of the complete PR diff. Request consecutive chunks until all characters have been read.", "parameters": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 8000}}, "required": ["offset", "limit"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "read_file", "description": "Read a UTF-8 file from the supplied PR source snapshot.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "search_text", "description": "Search literal text in tracked source files in the supplied snapshot.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "submit_review", "description": "Finish the review. Report concrete findings and whether the resulting patch is ready for independent validation.", "parameters": {"type": "object", "properties": {"summary": {"type": "string"}, "ready_for_validation": {"type": "boolean"}, "findings": {"type": "array", "items": {"type": "object", "properties": {"severity": {"type": "string", "enum": ["critical", "high", "medium", "low", "info"]}, "path": {"type": "string"}, "line": {"type": "integer"}, "reason": {"type": "string"}}, "required": ["severity", "path", "line", "reason"], "additionalProperties": False}}, "additionalProperties": False}, "required": ["summary", "ready_for_validation", "findings"]}}},
@@ -111,7 +112,17 @@ class Agent:
         if name == "list_changed_files":
             return {"files": self.files, "count": len(self.files)}
         if name == "get_diff":
-            return {"diff": self.diff}
+            offset = args.get("offset")
+            limit = args.get("limit")
+            if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+                raise AgentError("diff offset must be a non-negative integer")
+            if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 8000:
+                raise AgentError("diff chunk limit must be between 1 and 8000")
+            end = min(len(self.diff), offset + limit)
+            if offset > len(self.diff):
+                raise AgentError("diff offset is past end of diff")
+            self.diff_ranges.append((offset, end))
+            return {"offset": offset, "end": end, "total_chars": len(self.diff), "complete": end == len(self.diff), "diff": self.diff[offset:end]}
         if name == "read_file":
             path = safe_path(self.root, args.get("path"))
             if not path.is_file():
@@ -157,6 +168,13 @@ class Agent:
         if name == "submit_review":
             summary = args.get("summary")
             findings = args.get("findings")
+            covered = 0
+            for start, end in sorted(self.diff_ranges):
+                if start > covered:
+                    break
+                covered = max(covered, end)
+            if covered < len(self.diff):
+                raise AgentError("complete diff coverage is required before submitting the review")
             if not isinstance(summary, str) or not isinstance(findings, list) or not isinstance(args.get("ready_for_validation"), bool):
                 raise AgentError("review result does not match schema")
             for finding in findings:
@@ -170,7 +188,8 @@ class Agent:
                 "ready_for_validation": args["ready_for_validation"],
                 "findings": findings,
                 "changed_files": self.files,
-                "complete_diff_supplied": True,
+                "complete_diff_supplied": covered >= len(self.diff),
+            "diff_chars": len(self.diff),
                 "patch_applied": self.applied,
                 "tool_calls": self.tool_log,
             }
@@ -187,7 +206,7 @@ class Agent:
             "messages": messages,
             "tools": self.tools(),
             "tool_choice": "auto",
-            "parallel_tool_calls": False,
+            "parallel_tool_calls": True,
             "max_tokens": 5000,
             "temperature": 0,
             "provider": {"data_collection": "deny"},
