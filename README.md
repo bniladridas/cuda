@@ -218,6 +218,7 @@ issue-landing/          issue landing report engine and offline tests
   `.github/pr-scopes.json` and `.github/pr-scope-guard.yml`, then writes a
   summary and JSON artifact. It never comments, labels, approves, blocks or
   merges. Findings do not fail the check.
+- `squash-merge`: explicit maintainer approval via `squash-merge:approved` triggers a guarded squash-only merge attempt. It validates the maintainer, same-repository target, exact head SHA, independent reviewer approval, and observed checks. GitHub remains authoritative for branch protection and required checks. Formatting approval never authorizes a merge. Setup in [`docs/squash-merge.md`](docs/squash-merge.md).
 - `lock-merged-pr`: runs when a pull request closes and locks the conversation
   with reason `resolved` only when the pull request was merged. It uses
   `pull_request_target` so the workflow comes from the base branch, needs only

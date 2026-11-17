@@ -41,6 +41,10 @@
       "description": "The PR Scope Guard engine, its scope path map, and its reporting workflow."
     },
     {
+      "name": "squash-merge",
+      "description": "The maintainer-approved squash-merge policy engine and workflow."
+    },
+    {
       "name": "tests",
       "description": "Test cases, fixtures, and correctness coverage."
     }

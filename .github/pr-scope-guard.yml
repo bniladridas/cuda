@@ -67,5 +67,10 @@ scopes:
     - ".github/pr-scope-guard.yml"
     - ".github/workflows/pr-scope-guard.yml"
     - "docs/pr-scope-guard.md"
+  squash-merge:
+    - "squash-merge/**"
+    - ".github/squash-merge.json"
+    - ".github/workflows/squash-merge.yml"
+    - "docs/squash-merge.md"
   tests:
     - "tests/**"
