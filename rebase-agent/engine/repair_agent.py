@@ -154,7 +154,7 @@ class Agent:
             if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
                 raise AgentError("file offset must be a non-negative integer")
             if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 7000:
-                raise AgentError("file chunk limit must be between 1 and 12000")
+                raise AgentError("file chunk limit must be between 1 and 7000")
             path = safe_path(self.root, raw_path)
             if not path.is_file():
                 raise AgentError("file is absent or not regular; use mark_file_skipped with a reason")
@@ -193,7 +193,7 @@ class Agent:
                         results.append({"path": path.relative_to(self.root).as_posix(), "line": number, "text": line[:500]})
                         if len(results) >= 20:
                             break
-            return {"matches": results, "truncated": len(results) >= 80}
+            return {"matches": results, "truncated": len(results) >= 20}
         if name == "apply_patch":
             if not self.allow_patch:
                 raise AgentError("patching is disabled during final-diff review")
@@ -224,6 +224,28 @@ class Agent:
                 covered = max(covered, end)
             if covered < len(self.diff):
                 raise AgentError("complete diff coverage is required before submitting the review")
+            listed = 0
+            for start, end in sorted(self.file_list_ranges):
+                if start > listed:
+                    break
+                listed = max(listed, end)
+            if listed < len(self.files):
+                raise AgentError("complete changed-file inventory is required before submitting the review")
+            inspected = []
+            for path in self.files:
+                ranges = self.file_ranges.get(path, [])
+                total = ranges[0][2] if ranges else None
+                file_covered = 0
+                for start, end, size in sorted(ranges):
+                    if total != size:
+                        raise AgentError("file changed while being reviewed: " + path)
+                    if start > file_covered:
+                        break
+                    file_covered = max(file_covered, end)
+                if total is not None and file_covered >= total:
+                    inspected.append(path)
+                elif path not in self.skipped_files:
+                    raise AgentError("every changed file must be read completely or explicitly skipped: " + path)
             if not isinstance(summary, str) or not isinstance(findings, list) or not isinstance(args.get("ready_for_validation"), bool):
                 raise AgentError("review result does not match schema")
             for finding in findings:
@@ -238,9 +260,10 @@ class Agent:
                 "findings": findings,
                 "changed_files": self.files,
                 "complete_diff_supplied": covered >= len(self.diff),
-            "diff_chars": len(self.diff),
-            "files_inspected": inspected,
-            "files_skipped": self.skipped_files,
+                "diff_chars": len(self.diff),
+                "complete_file_inventory": listed >= len(self.files),
+                "files_inspected": inspected,
+                "files_skipped": self.skipped_files,
                 "patch_applied": self.applied,
                 "tool_calls": self.tool_log,
             }
