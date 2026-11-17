@@ -22,6 +22,16 @@ scopes:
     - ".github/CONTRIBUTING.md"
     - ".github/pr-scope-guard.yml"
     - ".github/workflows/ci.yml"
+  format-repair:
+    - "format-repair/**"
+    - ".github/format-repair.yml"
+    - ".github/workflows/format-repair.yml"
+    - "docs/format-repair.md"
+    - "README.md"
+    - ".github/CONTRIBUTING.md"
+    - ".github/pr-scope-guard.yml"
+    - ".github/workflows/ci.yml"
+    - ".github/pr-scopes.json"
   benchmarks:
     - "benchmarks/**"
   build:
