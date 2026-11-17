@@ -35,7 +35,10 @@ class WorkflowPolicyTests(unittest.TestCase):
         repair = self.read(WORKFLOW)["jobs"]["repair"]
         self.assertIn("github.event.action == 'labeled'", repair["if"])
         self.assertIn("github.event.label.name == 'format-fix:approved'", repair["if"])
-        self.assertEqual(repair["permissions"], {"actions": "write", "contents": "write", "issues": "write", "pull-requests": "read"})
+        self.assertEqual(
+            repair["permissions"],
+            {"actions": "write", "contents": "write", "issues": "write", "pull-requests": "read"},
+        )
 
     def test_default_branch_code_is_checked_out_without_credentials(self):
         workflow = self.read(WORKFLOW)
