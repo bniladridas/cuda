@@ -4,6 +4,7 @@
 // of CUDA so validation can be tested in CPU-only builds.
 
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <system_error>
