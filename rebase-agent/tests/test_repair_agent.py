@@ -78,6 +78,8 @@ class RepairAgentTests(unittest.TestCase):
             })
         chunk = self.agent.execute("get_diff", {"offset": 0, "limit": 8000})
         self.assertTrue(chunk["complete"])
+        inventory = self.agent.execute("list_changed_files", {"offset": 0, "limit": 100})
+        self.assertTrue(inventory["complete"])
         self.agent.execute("read_file", {"path": "src/example.cpp", "offset": 0, "limit": 7000})
         result = self.agent.execute("submit_review", {
             "summary": "reviewed",
