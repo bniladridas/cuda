@@ -19,7 +19,7 @@ approve, or change labels.
 
 ## Approval and repair
 
-An authorized maintainer can apply the format-fix:approved label. The repair
+Before first use, create the repository label format-fix:approved in the Issues > Labels settings. The workflow does not create labels. An authorized maintainer can then apply it. The repair
 job checks the event actor against the maintainers allowlist in
 .github/format-repair.yml. The label requests a formatting-only commit. It
 does not approve the pull request.
