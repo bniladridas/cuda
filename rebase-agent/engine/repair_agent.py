@@ -100,7 +100,7 @@ class Agent:
         items = [
             {"type": "function", "function": {"name": "list_changed_files", "description": "List every file in the supplied PR diff.", "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
             {"type": "function", "function": {"name": "get_diff", "description": "Read a chunk of the complete PR diff. Request consecutive chunks until all characters have been read.", "parameters": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 8000}}, "required": ["offset", "limit"], "additionalProperties": False}}},
-            {"type": "function", "function": {"name": "read_file", "description": "Read a chunk of a UTF-8 changed file. Read consecutive chunks until complete; mark deleted or binary files skipped with a reason.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 12000}}, "required": ["path", "offset", "limit"], "additionalProperties": False}}},
+            {"type": "function", "function": {"name": "read_file", "description": "Read a chunk of a UTF-8 changed file. Read consecutive chunks until complete; mark deleted or binary files skipped with a reason.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 7000}}, "required": ["path", "offset", "limit"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "mark_file_skipped", "description": "Record why a changed file cannot be read, such as deletion, binary content, or generated output.", "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "reason": {"type": "string"}}, "required": ["path", "reason"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "search_text", "description": "Search literal text in tracked source files in the supplied snapshot.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"], "additionalProperties": False}}},
             {"type": "function", "function": {"name": "submit_review", "description": "Finish the review. Report concrete findings and whether the resulting patch is ready for independent validation.", "parameters": {"type": "object", "properties": {"summary": {"type": "string"}, "ready_for_validation": {"type": "boolean"}, "findings": {"type": "array", "items": {"type": "object", "properties": {"severity": {"type": "string", "enum": ["critical", "high", "medium", "low", "info"]}, "path": {"type": "string"}, "line": {"type": "integer"}, "reason": {"type": "string"}}, "required": ["severity", "path", "line", "reason"], "additionalProperties": False}}, "additionalProperties": False}, "required": ["summary", "ready_for_validation", "findings"]}}},
@@ -134,7 +134,7 @@ class Agent:
             limit = args.get("limit")
             if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
                 raise AgentError("file offset must be a non-negative integer")
-            if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 12000:
+            if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 7000:
                 raise AgentError("file chunk limit must be between 1 and 12000")
             path = safe_path(self.root, raw_path)
             if not path.is_file():
@@ -161,7 +161,7 @@ class Agent:
                 raise AgentError("search query must be 1 to 300 characters")
             results = []
             for path in self.root.rglob("*"):
-                if len(results) >= 80:
+                if len(results) >= 20:
                     break
                 if not path.is_file() or path.is_symlink() or ".git" in path.parts:
                     continue
@@ -172,7 +172,7 @@ class Agent:
                 for number, line in enumerate(content.splitlines(), 1):
                     if query in line:
                         results.append({"path": path.relative_to(self.root).as_posix(), "line": number, "text": line[:500]})
-                        if len(results) >= 80:
+                        if len(results) >= 20:
                             break
             return {"matches": results, "truncated": len(results) >= 80}
         if name == "apply_patch":
@@ -293,7 +293,7 @@ class Agent:
                 except (ValueError, AgentError, OSError) as exc:
                     result = {"error": str(exc)}
                     self.tool_log.append({"tool": name, "ok": False, "error": str(exc)[:300]})
-                messages.append({"role": "tool", "tool_call_id": call.get("id"), "content": json.dumps(result)[:MAX_TOOL_OUTPUT]})
+                messages.append({"role": "tool", "tool_call_id": call.get("id"), "content": json.dumps(result, ensure_ascii=False)[:MAX_TOOL_OUTPUT]})
                 if name == "submit_review" and result.get("review_saved"):
                     report = json.loads(self.report_path.read_text(encoding="utf-8"))
                     report["model"] = model_used
