@@ -44,6 +44,27 @@ def api_url(repo, path):
     return "%s/repos/%s/%s" % (API, repo, path.lstrip("/"))
 
 
+def changed_files(repo, pr_number, token, expected_count):
+    files = []
+    page = 1
+    while True:
+        batch = request_json(
+            api_url(repo, "pulls/%s/files?per_page=100&page=%s" % (pr_number, page)),
+            token,
+        )
+        if not isinstance(batch, list):
+            raise SuggestionError("changed-file response is invalid")
+        files.extend(batch)
+        if len(files) > expected_count:
+            raise SuggestionError("changed-file count exceeds the PR metadata")
+        if len(batch) < 100:
+            break
+        page += 1
+    if len(files) != expected_count:
+        raise SuggestionError("changed-file coverage is incomplete")
+    return files
+
+
 def changed_right_lines(patch):
     changed = set()
     current = None
@@ -125,9 +146,7 @@ def main():
     if not isinstance(head_repo, str):
         raise SuggestionError("PR head repository is unavailable")
 
-    files = request_json(api_url(repo, "pulls/%s/files?per_page=100" % pr_number), token)
-    if not isinstance(files, list) or len(files) != pr.get("changed_files"):
-        raise SuggestionError("changed-file coverage is incomplete")
+    files = changed_files(repo, pr_number, token, pr.get("changed_files"))
     existing = request_json(api_url(repo, "pulls/%s/comments?per_page=100" % pr_number), token)
     existing_bodies = {item.get("body", "") for item in existing if isinstance(item, dict)}
     comments = []
