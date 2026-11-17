@@ -69,6 +69,22 @@ class RepairAgentTests(unittest.TestCase):
         with self.assertRaisesRegex(repair_agent.AgentError, "not allowlisted"):
             final.execute("apply_patch", {"patch": "anything"})
 
+    def test_review_cannot_finish_before_full_diff_is_read(self):
+        with self.assertRaisesRegex(repair_agent.AgentError, "complete diff coverage"):
+            self.agent.execute("submit_review", {
+                "summary": "reviewed",
+                "ready_for_validation": False,
+                "findings": [],
+            })
+        chunk = self.agent.execute("get_diff", {"offset": 0, "limit": 8000})
+        self.assertTrue(chunk["complete"])
+        result = self.agent.execute("submit_review", {
+            "summary": "reviewed",
+            "ready_for_validation": False,
+            "findings": [],
+        })
+        self.assertTrue(result["review_saved"])
+
     def test_tool_allowlist_rejects_arbitrary_commands(self):
         with self.assertRaisesRegex(repair_agent.AgentError, "not allowlisted"):
             self.agent.execute("shell", {"command": "rm -rf /"})
