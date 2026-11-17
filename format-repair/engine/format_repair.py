@@ -146,13 +146,14 @@ def pr_info(pr, repo, expected=None, same_repo=False):
     if expected and sha != expected:
         raise RepairError("pull request head changed; apply approval again")
     branch = head.get("ref")
-    if (
-        not isinstance(branch, str)
-        or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch)
-        or any(p in ("", ".", "..") for p in branch.split("/"))
-        or branch.endswith((".", ".lock"))
-        or "@{" in branch
-    ):
+    if not isinstance(branch, str) or not branch:
+        raise RepairError("invalid pull request branch")
+    ref_check = subprocess.run(
+        ["git", "check-ref-format", "--branch", branch],
+        capture_output=True,
+        check=False,
+    )
+    if ref_check.returncode:
         raise RepairError("invalid pull request branch")
     if pr.get("state") != "open" or not base.get("ref"):
         raise RepairError("pull request is not open or has no base branch")
