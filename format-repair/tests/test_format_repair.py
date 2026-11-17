@@ -101,13 +101,30 @@ class ReportTests(unittest.TestCase):
         with self.assertRaises(fr.RepairError):
             fr.line_numbers(b"x", "<broken>")
 
+    def test_formatter_failure_fails_closed(self):
+        failed = mock.Mock(returncode=2, stdout=b"", stderr=b"formatter failed")
+        with mock.patch.object(fr.subprocess, "run", return_value=failed):
+            with self.assertRaisesRegex(fr.RepairError, "clang-format failed"):
+                fr.inspect("src/a.cpp", b"source", ".clang-format")
+
+    def test_clean_formatter_output_is_reported_clean(self):
+        clean = mock.Mock(returncode=0, stdout=b"<replacements/>", stderr=b"")
+        with mock.patch.object(fr.subprocess, "run", return_value=clean):
+            result = fr.inspect("src/a.cpp", b"source", ".clang-format")
+        self.assertTrue(result["formatted"])
+        self.assertEqual(result["lines"], [])
+
+    def test_duplicate_label_event_after_removal_fails_closed(self):
+        with self.assertRaisesRegex(fr.RepairError, "approval label"):
+            fr.authorize_repair(pr(labels=[]), REPO, "maintainer", HEAD, config(), "main")
+
     def test_report_checks_only_allowlisted_files(self):
         files = [{"filename": "src/a.cpp", "status": "modified"},
                  {"filename": "docs/readme.cpp", "status": "modified"}]
         result = {"path": "src/a.cpp", "lines": [4], "formatted": False}
         with mock.patch.object(fr, "source_bytes", return_value=b"source") as source:
             with mock.patch.object(fr, "inspect", return_value=result):
-                report = fr.make_report(REPO, pr(changed_files=2), files, config(), "token")
+                report = fr.make_report(REPO, pr(changed_files=2), files, config(), "token", ".clang-format")
         source.assert_called_once()
         self.assertEqual(report["files_skipped"], ["docs/readme.cpp"])
         self.assertEqual(report["violations"], [result])
