@@ -55,16 +55,22 @@ def load(path):
             or len(commit) not in (40, 64)
             or any(char not in "0123456789abcdef" for char in commit)
         ):
-            raise ValueError(f"{path}: field 'git_commit' must be a full hexadecimal commit or null")
+            raise ValueError(
+                f"{path}: field 'git_commit' must be a full hexadecimal commit or null"
+            )
         timestamp = data["timestamp_utc"]
         if not isinstance(timestamp, str) or not timestamp.endswith("Z"):
-            raise ValueError(f"{path}: field 'timestamp_utc' must be a UTC timestamp ending in Z")
+            raise ValueError(
+                f"{path}: field 'timestamp_utc' must be a UTC timestamp ending in Z"
+            )
         try:
             from datetime import datetime
 
             datetime.fromisoformat(timestamp[:-1] + "+00:00")
         except ValueError as exc:
-            raise ValueError(f"{path}: field 'timestamp_utc' must be a valid ISO 8601 timestamp") from exc
+            raise ValueError(
+                f"{path}: field 'timestamp_utc' must be a valid ISO 8601 timestamp"
+            ) from exc
 
     results = data["results"]
     if not isinstance(results, list) or not results:
@@ -181,7 +187,8 @@ def main():
     else:
         provenance = "legacy result without embedded provenance"
     ax.set_title(
-        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\\nachieved versus peak memory bandwidth\\n{provenance}",
+        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\\n"
+        f"achieved versus peak memory bandwidth\\n{provenance}",
         fontsize=9,
     )
     fig.tight_layout()
