@@ -29,8 +29,8 @@ void accepts_valid_options() {
   options = {};
   error.clear();
   status = bench_options::parse_options(
-      {"--iterations", "12", "--reps", "3", "--warmup", "4", "--json"},
-      &options, &error);
+      {"--iterations", "12", "--reps", "3", "--warmup", "4", "--json"}, &options,
+      &error);
   check(status == bench_options::ParseStatus::kOk, "valid options rejected");
   check(options.iterations == 12 && options.reps == 3 && options.warmup == 4,
         "valid values not retained");
@@ -39,8 +39,8 @@ void accepts_valid_options() {
   options = {};
   error.clear();
   status = bench_options::parse_options(
-      {"--iterations", "100000", "--reps", "1", "--warmup", "100000"},
-      &options, &error);
+      {"--iterations", "100000", "--reps", "1", "--warmup", "100000"}, &options,
+      &error);
   check(status == bench_options::ParseStatus::kOk, "documented maximum values rejected");
 }
 
