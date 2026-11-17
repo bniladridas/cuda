@@ -89,13 +89,16 @@ jobs:
           test "$(git rev-parse refs/remotes/origin/$BASE_BRANCH)" = "$BASE_SHA"
           git archive --format=tar HEAD > source.tar
           git diff --binary --full-index "$BASE_SHA...$HEAD_SHA" > pr.diff
+          git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
           test -s pr.diff
+          test -s pr-files.txt
       - uses: actions/upload-artifact@v4
         with:
           name: pr-source-snapshot
           path: |
             source.tar
             pr.diff
+            pr-files.txt
           if-no-files-found: error
           retention-days: 2
 
@@ -140,7 +143,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 rebase-agent/engine/repair_agent.py \
-            --source source --diff input/pr.diff --report agent-report.json
+            --source source --diff input/pr.diff --files input/pr-files.txt --report agent-report.json
           git -C source diff --binary --full-index > proposed.patch
           test -s proposed.patch
           python3 - <<'PY'
@@ -215,6 +218,7 @@ jobs:
           git diff --check "$BASE_SHA"...HEAD
           git archive --format=tar HEAD > final-source.tar
           git diff --binary --full-index "$BASE_SHA...HEAD" > final.diff
+          git diff --name-only --no-renames -z "$BASE_SHA...HEAD" > final-files.txt
           git rev-parse HEAD > prepared-sha.txt
           git rev-parse HEAD^{tree} > prepared-tree.txt
           git bundle create prepared.bundle HEAD
@@ -229,6 +233,7 @@ jobs:
             prepared-tree.txt
             final-source.tar
             final.diff
+            final-files.txt
           if-no-files-found: error
           retention-days: 2
 
@@ -273,7 +278,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 rebase-agent/engine/repair_agent.py \
-            --source source --diff input/final.diff --report final-review.json --review-only
+            --source source --diff input/final.diff --files input/final-files.txt --report final-review.json --review-only
           python3 - <<'PY'
           import json
           report = json.load(open("final-review.json", encoding="utf-8"))
