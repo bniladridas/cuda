@@ -27,7 +27,8 @@ void usage(const char* argv0) {
               "  --reps        timed batches to summarise (default %d)\n"
               "  --warmup      untimed launches before measuring (default %d)\n"
               "  --json        emit machine-readable results instead of a table\n",
-              argv0, kDefaultIterations, kDefaultReps, kDefaultWarmup);
+              argv0, bench_options::kDefaultIterations, bench_options::kDefaultReps,
+              bench_options::kDefaultWarmup);
 }
 
 bool device_strings(std::string* name, std::string* capability, std::string* driver) {
