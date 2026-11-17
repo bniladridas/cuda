@@ -41,3 +41,27 @@ returned by GitHub immediately before the operation.
 - A merge-commit fallback requires separate explicit authorization and audit.
 - Offline policy and command-sequence tests are included. End-to-end Git
   integration tests and workflow integration remain follow-up work.
+
+
+## Separate merge-based integration mode
+
+The merge helper is a separate operation, not a rebase fallback:
+
+    python3 rebase-agent/engine/merge_agent.py \
+      --repo /path/to/dedicated-worktree \
+      --request /path/to/trusted-merge-request.json
+
+Its request uses `expected_head_sha`, `expected_base_sha`,
+`merge_authorization`, and `merge_enabled`. Merge authorization is
+independent of rebase authorization. The helper refuses fork, default, and
+protected branches; dirty worktrees; stale head/base SHAs; and ambiguous
+conflicts. It creates a two-parent merge commit with the PR head first and
+base second, then performs a normal non-force push. It never force-pushes.
+
+The helper does not resolve conflicts or decide that a merge is preferable.
+The caller must validate the merge result and inspect its complete diff before
+the operation is authorized to update a PR branch. The helper itself is a
+Git-operation primitive, not a GitHub workflow or the complete model-assisted
+repair agent. End-to-end orchestration, trusted metadata acquisition, sandbox
+isolation, validation-before-write enforcement, and post-update CI reporting
+remain required before autonomous use.
