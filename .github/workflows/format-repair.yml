@@ -60,6 +60,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --pr "$PR_NUMBER" \
             --config .github/format-repair.yml \
+            --style-file .clang-format \
             --artifact "$ARTIFACT" \
             --summary "$GITHUB_STEP_SUMMARY"
 
@@ -165,6 +166,7 @@ jobs:
             --event-head-sha "$EVENT_HEAD_SHA" \
             --default-branch "$DEFAULT_BRANCH" \
             --config steward/.github/format-repair.yml \
+            --style-file steward/.clang-format \
             --workdir work \
             --artifact "$ARTIFACT"
 
