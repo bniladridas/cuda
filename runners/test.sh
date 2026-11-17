@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Runs the test suite. Host-only checks always run. CUDA tests report SKIPPED
-# rather than passing when no device is present.
+# Runs the test suite once. Host-only checks always run. CUDA tests report
+# SKIPPED rather than passing when no device is present.
 #
 # A skipped test exits 0, so CTest counts it as passed and normally hides its
-# output. This script therefore re-runs every test verbosely and marks any test
-# whose output contains SKIPPED as "*** SKIPPED (not a pass) ***", then refuses
-# to describe a run containing skips as successful.
+# output. Run CTest verbosely once, capture its output, and classify tests that
+# emitted the explicit SKIPPED marker without executing them again.
 #
 # Environment:
 #   BUILD_DIR     build directory (default: build)
 #   GPU_REQUIRED  set to 1 to fail when GPU tests are skipped (use in CI on a
 #                 machine that is supposed to have a device)
 #
-# Exit codes: 0 every test executed and passed,
+# Exit codes: 0 tests passed (optional GPU skips are reported),
 #             1 a test failed, or a GPU test was skipped while GPU_REQUIRED=1,
+#               or no GPU tests are registered while GPU_REQUIRED=1,
 #             2 no build directory.
 set -euo pipefail
 
@@ -30,14 +30,36 @@ LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
 
 status=0
-ctest --test-dir "$BUILD_DIR" --output-on-failure 2>&1 | tee "$LOG" || status=$?
+ctest --test-dir "$BUILD_DIR" --output-on-failure --verbose 2>&1 | tee "$LOG" || status=$?
 
-# A build without a toolkit never defines the GPU test targets, so they are not
-# registered at all and the skip detection below has nothing to find. Without
-# this check a GPU_REQUIRED=1 run on such a build exits 0 having run only the
-# host tests, which is exactly the run the flag exists to reject.
-gpu_registered="$(ctest --test-dir "$BUILD_DIR" -N -L gpu 2>/dev/null \
-  | sed -n 's/^ *Test *#[0-9][0-9]*: //p' | wc -l | tr -d ' ')"
+# A build without a toolkit never defines the GPU test targets. Keep this
+# registration guard separate from execution so GPU_REQUIRED cannot silently
+# pass after running only host tests.
+gpu_tests="$(ctest --test-dir "$BUILD_DIR" -N -L gpu 2>/dev/null \
+  | sed -n 's/^ *Test *#[0-9][0-9]*: //p')"
+gpu_registered="$(printf '%s\n' "$gpu_tests" | awk 'NF { count++ } END { print count + 0 }')"
+
+# GPU test binaries print `SKIPPED [name]: ...` and return success when no
+# device is present. Match those names against the CTest gpu label so a skip
+# cannot be mistaken for an ordinary passing test.
+skipped_tests="$(sed -n 's/.*SKIPPED \[\([^]]*\)\].*/\1/p' "$LOG" | sort -u)"
+skipped=()
+gpu_skipped=()
+other_skipped=()
+while IFS= read -r test; do
+  [ -n "$test" ] || continue
+  skipped+=("$test")
+  if printf '%s\n' "$gpu_tests" | grep -Fxq -- "$test"; then
+    gpu_skipped+=("$test")
+  else
+    other_skipped+=("$test")
+  fi
+done <<< "$skipped_tests"
+
+for test in "${skipped[@]}"; do
+  echo "*** SKIPPED (not a pass): $test"
+done
+
 if [ "$GPU_REQUIRED" = "1" ] && [ "$gpu_registered" -eq 0 ]; then
   echo
   echo "FAILED: GPU_REQUIRED=1 but no GPU tests are registered in $BUILD_DIR."
@@ -46,36 +68,25 @@ if [ "$GPU_REQUIRED" = "1" ] && [ "$gpu_registered" -eq 0 ]; then
   exit 1
 fi
 
-skipped=()
-failed=0
-# Each test is re-run on its own and verbosely, because that is the only way
-# CTest will show the output of a test that exited 0 after skipping.
-while IFS= read -r test; do
-  test_status=0
-  output="$(ctest --test-dir "$BUILD_DIR" -R "^${test}\$" -V 2>&1)" || test_status=$?
-  if grep -q "SKIPPED" <<<"$output"; then
-    skipped+=("$test")
-    echo "*** SKIPPED (not a pass): $test"
-    sed -n 's/^[0-9]*: \(.*SKIPPED.*\)$/    \1/p' <<<"$output"
-  elif [ "$test_status" -ne 0 ]; then
-    failed=$((failed + 1))
-  fi
-done < <(ctest --test-dir "$BUILD_DIR" -N \
-  | sed -n 's/^ *Test *#[0-9][0-9]*: //p')
-
-if [ "$failed" -ne 0 ] || [ "$status" -ne 0 ]; then
+if [ "$status" -ne 0 ]; then
   echo
-  echo "FAILED: $failed test(s) did not pass; see output above."
+  echo "FAILED: CTest reported one or more test failures; see output above."
   exit 1
 fi
 
-if [ "${#skipped[@]}" -ne 0 ]; then
+if [ "${#gpu_skipped[@]}" -ne 0 ]; then
   echo
-  echo "WARNING: ${#skipped[@]} test(s) skipped because no CUDA device was available:"
-  printf '         %s\n' "${skipped[@]}"
+  echo "WARNING: ${#gpu_skipped[@]} GPU test(s) skipped because no CUDA device was available:"
+  printf '         %s\n' "${gpu_skipped[@]}"
   echo "         The GPU kernels were NOT verified by this run."
   if [ "$GPU_REQUIRED" = "1" ]; then
     echo "         GPU_REQUIRED=1, so this is a failure."
     exit 1
   fi
+fi
+
+if [ "${#other_skipped[@]}" -ne 0 ]; then
+  echo
+  echo "WARNING: non-GPU test(s) emitted SKIPPED:"
+  printf '         %s\n' "${other_skipped[@]}"
 fi
