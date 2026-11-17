@@ -393,7 +393,10 @@ def run_repair(args, cfg, token):
             {
                 "status": "no_changes",
                 "formatter_version": cfg["formatter_version"],
-                "formatter_versions": {"clang-format": cfg["formatter_version"], "ruff": cfg["python_formatter_version"]},
+                "formatter_versions": {
+                    "clang-format": cfg["formatter_version"],
+                    "ruff": cfg["python_formatter_version"],
+                },
                 "validation": "configured formatters completed; no formatting changes were needed",
                 "changed_files": [],
             },
@@ -439,7 +442,10 @@ def run_repair(args, cfg, token):
             "commit_sha": commit,
             "changed_files": changed,
             "formatter_version": cfg["formatter_version"],
-            "formatter_versions": {"clang-format": cfg["formatter_version"], "ruff": cfg["python_formatter_version"]},
+            "formatter_versions": {
+                    "clang-format": cfg["formatter_version"],
+                    "ruff": cfg["python_formatter_version"],
+                },
             "validation": "configured formatters completed and git diff --check passed",
         },
     )
