@@ -91,7 +91,7 @@ class Agent:
         self.diff = read_diff(diff_path)
         if files_path:
             raw = Path(files_path).read_bytes()
-            self.files = [item.decode("utf-8") for item in raw.split(b"\\0") if item]
+            self.files = [item.decode("utf-8") for item in raw.split(b"\0") if item]
             if len(self.files) != len(set(self.files)):
                 raise AgentError("changed-file manifest contains duplicate paths")
             for item in self.files:
