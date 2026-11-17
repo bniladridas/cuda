@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
     return 0;
   }
   if (parse_status == bench_options::ParseStatus::kError) {
-    std::fprintf(stderr, "%s\\n", parse_error.c_str());
+    std::fprintf(stderr, "%s\n", parse_error.c_str());
     usage(argv[0]);
     return 2;
   }
