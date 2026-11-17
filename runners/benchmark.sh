@@ -85,6 +85,10 @@ then
   exit 1
 fi
 
+# Refresh the temp file's mtime after the benchmark finishes. The plotter uses
+# nanosecond mtimes, so concurrent runs finishing in the same second stay ordered.
+touch "$tmp"
+
 # link(2) creates the final name atomically and fails rather than overwriting
 # an existing result. The temporary file and final file are on one filesystem.
 suffix="${tmp##*.tmp.}"
