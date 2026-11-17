@@ -53,6 +53,8 @@ def main():
             raise GateError("dispatch actor is not in the trusted REPAIR_MAINTAINERS allowlist")
         if operation not in {"rebase", "merge"}:
             raise GateError("operation must be rebase or merge")
+        if os.environ.get("REPAIR_WRITE_ENVIRONMENT_CONFIRMED") != "true":
+            raise GateError("the protected pr-repair-write environment must be configured and confirmed by a repository admin")
         if not SHA.fullmatch(expected_head) or not SHA.fullmatch(expected_base):
             raise GateError("both approved SHAs must be full 40-character commit SHAs")
         expected_phrase = "UPDATE %d %s %s %s" % (number, expected_head, expected_base, operation)
