@@ -85,7 +85,7 @@ class TreeTests(unittest.TestCase):
         self.assertFalse(report["overlap_is_conflict_proof"])
         self.assertEqual(report["pr_files_missing_patch"], ["head-only.txt"])
         self.assertTrue(report["tree_inventory_complete"])
-        self.assertFalse(report["pr_file_inventory_matches_head_tree"])
+        self.assertTrue(report["pr_file_inventory_matches_head_tree"])
         self.assertEqual(report["branch_mutation"], "not_attempted")
 
     def test_rejects_incomplete_compare_metadata(self):
