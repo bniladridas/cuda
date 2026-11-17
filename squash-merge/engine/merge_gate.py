@@ -18,7 +18,7 @@ def latest_review_states(reviews: list[dict[str, Any]]) -> dict[str, str]:
         login = (review.get("user") or {}).get("login", "")
         state = str(review.get("state", "")).upper()
         submitted = str(review.get("submitted_at") or "")
-        if not login or state in {"PENDING", "DISMISSED"}:
+        if not login or state == "PENDING":
             continue
         if login not in latest or submitted >= latest[login][0]:
             latest[login] = (submitted, state)
