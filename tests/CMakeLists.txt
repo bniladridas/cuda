@@ -9,6 +9,11 @@ target_include_directories(test_host PRIVATE
 cuda_kernels_set_host_warnings(test_host)
 add_test(NAME host_reference COMMAND test_host)
 
+add_executable(test_device_status test_device_status.cpp)
+target_include_directories(test_device_status PRIVATE ${PROJECT_SOURCE_DIR}/src)
+cuda_kernels_set_host_warnings(test_device_status)
+add_test(NAME device_status COMMAND test_device_status)
+
 add_executable(test_benchmark_options test_benchmark_options.cpp)
 target_include_directories(test_benchmark_options PRIVATE
   ${PROJECT_SOURCE_DIR}/benchmarks)
