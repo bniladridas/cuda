@@ -187,8 +187,8 @@ def main():
     else:
         provenance = "legacy result without embedded provenance"
     ax.set_title(
-        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\\n"
-        f"achieved versus peak memory bandwidth\\n{provenance}",
+        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\n"
+        f"achieved versus peak memory bandwidth\n{provenance}",
         fontsize=9,
     )
     fig.tight_layout()
