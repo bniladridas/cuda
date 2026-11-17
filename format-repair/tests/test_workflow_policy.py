@@ -35,55 +35,60 @@ class WorkflowPolicyTests(unittest.TestCase):
         repair = self.read(WORKFLOW)["jobs"]["repair"]
         self.assertIn("github.event.action == 'labeled'", repair["if"])
         self.assertIn("github.event.label.name == 'format-fix:approved'", repair["if"])
-        self.assertEqual(repair["permissions"], {
-            "contents": "write", "issues": "write", "pull-requests": "read"
-        })
+        self.assertEqual(repair["permissions"], {"contents": "write", "issues": "write", "pull-requests": "read"})
 
     def test_default_branch_code_is_checked_out_without_credentials(self):
         workflow = self.read(WORKFLOW)
         for name in ("report", "repair"):
-            step = next(x for x in workflow["jobs"][name]["steps"]
-                        if x.get("name") == "Check out trusted default branch")
+            step = next(
+                x for x in workflow["jobs"][name]["steps"] if x.get("name") == "Check out trusted default branch"
+            )
             self.assertIn("default_branch", step["with"]["ref"])
             self.assertIs(step["with"]["persist-credentials"], False)
 
     def test_same_repo_and_head_are_checked_before_pr_checkout(self):
         steps = self.read(WORKFLOW)["jobs"]["repair"]["steps"]
         preflight = next(x for x in steps if x.get("name") == "Revalidate same-repository head before checkout")
-        checkout = next(i for i, x in enumerate(steps)
-                        if x.get("name") == "Check out the approved PR head as data")
+        checkout = next(i for i, x in enumerate(steps) if x.get("name") == "Check out the approved PR head as data")
         self.assertLess(steps.index(preflight), checkout)
         self.assertIn("HEAD_REPO", preflight["run"])
         self.assertIn("EVENT_HEAD_SHA", preflight["run"])
         self.assertIn("HAS_LABEL", preflight["run"])
 
     def test_pr_checkout_is_data_only_and_credentials_are_disabled(self):
-        step = next(x for x in self.read(WORKFLOW)["jobs"]["repair"]["steps"]
-                    if x.get("name") == "Check out the approved PR head as data")
+        step = next(
+            x
+            for x in self.read(WORKFLOW)["jobs"]["repair"]["steps"]
+            if x.get("name") == "Check out the approved PR head as data"
+        )
         self.assertEqual(step["with"]["path"], "work")
         self.assertIs(step["with"]["persist-credentials"], False)
 
     def test_engine_runs_from_trusted_checkout(self):
         workflow = self.read(WORKFLOW)
-        self.assertTrue(any("format_repair.py report" in x.get("run", "")
-                            for x in workflow["jobs"]["report"]["steps"]))
-        self.assertTrue(any("steward/format-repair/engine/format_repair.py repair" in x.get("run", "")
-                            for x in workflow["jobs"]["repair"]["steps"]))
+        self.assertTrue(any("format_repair.py report" in x.get("run", "") for x in workflow["jobs"]["report"]["steps"]))
+        self.assertTrue(
+            any(
+                "steward/format-repair/engine/format_repair.py repair" in x.get("run", "")
+                for x in workflow["jobs"]["repair"]["steps"]
+            )
+        )
 
     def test_formatter_uses_trusted_base_branch_style_file(self):
         workflow = self.read(WORKFLOW)
-        report_run = next(x["run"] for x in workflow["jobs"]["report"]["steps"]
-                          if "format_repair.py report" in x.get("run", ""))
-        repair_run = next(x["run"] for x in workflow["jobs"]["repair"]["steps"]
-                          if "format_repair.py repair" in x.get("run", ""))
+        report_run = next(
+            x["run"] for x in workflow["jobs"]["report"]["steps"] if "format_repair.py report" in x.get("run", "")
+        )
+        repair_run = next(
+            x["run"] for x in workflow["jobs"]["repair"]["steps"] if "format_repair.py repair" in x.get("run", "")
+        )
         self.assertIn("--style-file .clang-format", report_run)
         self.assertIn("--style-file steward/.clang-format", repair_run)
 
     def test_formatter_pin_matches_configuration(self):
         version = self.read(CONFIG)["formatter_version"]
         for job in ("report", "repair"):
-            step = next(x for x in self.read(WORKFLOW)["jobs"][job]["steps"]
-                        if "clang-format==" in x.get("run", ""))
+            step = next(x for x in self.read(WORKFLOW)["jobs"][job]["steps"] if "clang-format==" in x.get("run", ""))
             self.assertIn("clang-format==" + version, step["run"])
 
     def test_success_removes_only_approval_label_and_acknowledges(self):
