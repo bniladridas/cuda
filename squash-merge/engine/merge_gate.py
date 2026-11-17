@@ -92,10 +92,7 @@ def validate_state(
     states = latest_review_states(reviews, expected_head)
     blocking_reviewers = outstanding_change_request_reviewers(reviews)
     if blocking_reviewers:
-        errors.append(
-            "Outstanding change-request review remains from: "
-            + ", ".join(sorted(blocking_reviewers))
-        )
+        errors.append("Outstanding change-request review remains from: " + ", ".join(sorted(blocking_reviewers)))
     approvals = {
         login
         for login, state in states.items()
