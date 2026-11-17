@@ -63,6 +63,13 @@ class RepairAgentTests(unittest.TestCase):
                 "diff --git a/etc/passwd b/etc/passwd\n--- a/etc/passwd\n+++ /etc/passwd\n"
             )
 
+    def test_text_files_cannot_be_skipped(self):
+        with self.assertRaisesRegex(repair_agent.AgentError, "must be read completely"):
+            self.agent.execute(
+                "mark_file_skipped",
+                {"path": "src/example.cpp", "reason": "not reviewed"},
+            )
+
     def test_patch_tool_applies_only_in_snapshot(self):
         patch = (
             "diff --git a/src/example.cpp b/src/example.cpp\n"
