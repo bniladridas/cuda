@@ -40,7 +40,8 @@ bool device_strings(std::string* name, std::string* capability, std::string* run
   cudaDeviceProp prop{};
   if (!bench::check_cuda(cudaGetDevice(&device), "cudaGetDevice")) return false;
   if (!bench::check_cuda(cudaGetDeviceProperties(&prop, device),
-                         "cudaGetDeviceProperties")) return false;
+                          "cudaGetDeviceProperties"))
+    return false;
 
   int runtime_version = 0;
   int driver_version = 0;
@@ -48,9 +49,7 @@ bool device_strings(std::string* name, std::string* capability, std::string* run
           cudaSuccess,
           [](int* version) { return cudaRuntimeGetVersion(version); },
           [](int* version) { return cudaDriverGetVersion(version); },
-          [](cudaError_t status) {
-            return std::string(cudaGetErrorString(status));
-          },
+          [](cudaError_t status) { return std::string(cudaGetErrorString(status)); },
           &runtime_version, &driver_version, error)) {
     return false;
   }
@@ -170,8 +169,7 @@ int main(int argc, char** argv) {
   }
 
   std::string gpu_name, capability, runtime, driver, metadata_error;
-  if (!device_strings(&gpu_name, &capability, &runtime, &driver,
-                      &metadata_error)) {
+  if (!device_strings(&gpu_name, &capability, &runtime, &driver, &metadata_error)) {
     if (!metadata_error.empty()) {
       std::fprintf(stderr, "could not query benchmark metadata: %s\n",
                    metadata_error.c_str());
