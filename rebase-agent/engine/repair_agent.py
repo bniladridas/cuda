@@ -198,6 +198,9 @@ class Agent:
             applied = subprocess.run(["git", "-C", str(self.root), "apply", "--whitespace=error"], input=patch, text=True, capture_output=True, check=False)
             if applied.returncode:
                 raise AgentError("patch application failed: " + (applied.stderr or applied.stdout)[:1000])
+            staged = subprocess.run(["git", "-C", str(self.root), "add", "-A", "-f"], capture_output=True, text=True, check=False)
+            if staged.returncode:
+                raise AgentError("could not stage the isolated patch for artifact export: " + (staged.stderr or staged.stdout)[:1000])
             self.applied = True
             return {"applied": True, "paths": paths}
         if name == "submit_review":
