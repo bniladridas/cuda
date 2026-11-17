@@ -11,7 +11,7 @@ int failures = 0;
 
 void check(bool condition, const std::string& message) {
   if (!condition) {
-    std::fprintf(stderr, "FAIL [benchmark_options] %s\n", message.c_str());
+    std::fprintf(stderr, "FAIL [benchmark_options] %s\\n", message.c_str());
     ++failures;
   }
 }
@@ -28,9 +28,9 @@ void accepts_valid_options() {
 
   options = {};
   error.clear();
-  status = bench_options::parse_options(
-      {"--iterations", "12", "--reps", "3", "--warmup", "4", "--json"},
-      &options, &error);
+  const std::vector<std::string> valid_args = {
+      "--iterations", "12", "--reps", "3", "--warmup", "4", "--json"};
+  status = bench_options::parse_options(valid_args, &options, &error);
   check(status == bench_options::ParseStatus::kOk, "valid options rejected");
   check(options.iterations == 12 && options.reps == 3 && options.warmup == 4,
         "valid values not retained");
@@ -38,9 +38,9 @@ void accepts_valid_options() {
 
   options = {};
   error.clear();
-  status = bench_options::parse_options(
-      {"--iterations", "100000", "--reps", "1", "--warmup", "100000"},
-      &options, &error);
+  const std::vector<std::string> maximum_args = {
+      "--iterations", "100000", "--reps", "1", "--warmup", "100000"};
+  status = bench_options::parse_options(maximum_args, &options, &error);
   check(status == bench_options::ParseStatus::kOk, "documented maximum values rejected");
 }
 
@@ -108,9 +108,9 @@ int main() {
   rejects_excessive_combined_work();
   recognizes_help();
   if (failures != 0) {
-    std::fprintf(stderr, "benchmark_options: %d failure(s)\n", failures);
+    std::fprintf(stderr, "benchmark_options: %d failure(s)\\n", failures);
     return 1;
   }
-  std::printf("OK [benchmark_options] all parser checks passed\n");
+  std::printf("OK [benchmark_options] all parser checks passed\\n");
   return 0;
 }
