@@ -18,6 +18,20 @@ class SuggestionTests(unittest.TestCase):
         patch = "@@ -1 +1,2 @@\n-old\n+new\n keep\n@@ -8 +9 @@\n-old\n+newer\n"
         self.assertEqual(fs.changed_right_lines(patch), {1, 9})
 
+    def test_changed_files_fetches_all_pages(self):
+        first_page = [{"filename": "file-%03d.py" % index} for index in range(100)]
+        second_page = [{"filename": "file-100.py"}]
+        with mock.patch.object(fs, "request_json", side_effect=[first_page, second_page]) as request:
+            files = fs.changed_files("owner/repo", 7, "token", 101)
+        self.assertEqual(len(files), 101)
+        self.assertIn("page=1", request.call_args_list[0].args[0])
+        self.assertIn("page=2", request.call_args_list[1].args[0])
+
+    def test_changed_files_rejects_incomplete_pagination(self):
+        with unittest.mock.patch.object(fs, "request_json", return_value=[{"filename": "one.py"}]):
+            with self.assertRaises(fs.SuggestionError):
+                fs.changed_files("owner/repo", 7, "token", 2)
+
     def test_suggestion_is_limited_to_changed_lines(self):
         source = b"answer=42\nkeep = 1\n"
         formatted = b"answer = 42\nkeep = 1\n"
