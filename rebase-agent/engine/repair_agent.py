@@ -323,6 +323,14 @@ class Agent:
             reason = args.get("reason")
             if raw_path not in self.files or not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
                 raise AgentError("skip requires a changed path and a concise reason")
+            path = safe_path(self.root, raw_path)
+            if path.is_file():
+                try:
+                    path.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    pass
+                else:
+                    raise AgentError("UTF-8 text files must be read completely, not skipped")
             self.skipped_files[raw_path] = reason.strip()
             return {"skipped": raw_path, "reason": reason.strip()}
         if name == "search_text":
