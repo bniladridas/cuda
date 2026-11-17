@@ -206,8 +206,12 @@ jobs:
             echo "unsupported operation" >&2
             exit 1
           fi
+          python3 -m pip install --disable-pip-version-check --quiet -r requirements-dev.txt
+          ruff check .
+          ruff format --check .
           python3 -m unittest discover -s rebase-agent/tests
           python3 -m unittest discover -s label-review/tests
+          python3 -m unittest discover -s issue-landing/tests
           python3 -m unittest discover -s pr-confidence/tests
           python3 -m unittest discover -s pr-scope-guard/tests
           python3 -m unittest discover -s format-repair/tests
@@ -216,11 +220,24 @@ jobs:
           cmake --build build-cpu -j"$(nproc)"
           ctest --test-dir build-cpu --output-on-failure
           git diff --check "$BASE_SHA"...HEAD
+          git diff --stat "$BASE_SHA"...HEAD > prepared-diff-stat.txt
           git archive --format=tar HEAD > final-source.tar
           git diff --binary --full-index "$BASE_SHA...HEAD" > final.diff
           git diff --name-only --no-renames -z "$BASE_SHA...HEAD" > final-files.txt
           git rev-parse HEAD > prepared-sha.txt
           git rev-parse HEAD^{tree} > prepared-tree.txt
+          python3 - <<'PY'
+          import json
+          json.dump({
+              "ruff_check": "passed",
+              "ruff_format": "passed",
+              "python_test_suites": ["rebase-agent", "label-review", "issue-landing", "pr-confidence", "pr-scope-guard", "format-repair", "benchmarks-if-present"],
+              "cmake_cpu_configure": "passed",
+              "cmake_cpu_build": "passed",
+              "ctest_cpu": "passed",
+              "gpu_validation": "not_run_no_gpu_runner",
+          }, open("validation.json", "w", encoding="utf-8"), indent=2)
+          PY
           git bundle create prepared.bundle HEAD
           echo "result_sha=$(cat prepared-sha.txt)" >> "$GITHUB_OUTPUT"
           echo "result_tree=$(cat prepared-tree.txt)" >> "$GITHUB_OUTPUT"
@@ -231,6 +248,8 @@ jobs:
             prepared.bundle
             prepared-sha.txt
             prepared-tree.txt
+            validation.json
+            prepared-diff-stat.txt
             final-source.tar
             final.diff
             final-files.txt
@@ -317,6 +336,10 @@ jobs:
         with:
           name: final-review
           path: review
+      - uses: actions/download-artifact@v4
+        with:
+          name: repair-proposal
+          path: proposal
       - name: Verify review, bundle, and exact refs before branch update
         env:
           GH_TOKEN: ${{ github.token }}
@@ -371,7 +394,10 @@ jobs:
               "base_sha": os.environ["EXPECTED_BASE"],
               "tree_sha": os.environ["RESULT_TREE"],
               "force_with_lease": os.environ["OPERATION"] == "rebase",
+              "initial_agent_review": json.load(open("proposal/agent-report.json", encoding="utf-8")),
               "final_review": report,
+              "validation": json.load(open("prepared/validation.json", encoding="utf-8")),
+              "diff_stat": open("prepared/prepared-diff-stat.txt", encoding="utf-8").read(),
               "post_update_checks": "pending",
           }
           json.dump(audit, open("audit.json", "w", encoding="utf-8"), indent=2, sort_keys=True)
