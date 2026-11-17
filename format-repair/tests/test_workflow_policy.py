@@ -70,6 +70,15 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertTrue(any("steward/format-repair/engine/format_repair.py repair" in x.get("run", "")
                             for x in workflow["jobs"]["repair"]["steps"]))
 
+    def test_formatter_uses_trusted_base_branch_style_file(self):
+        workflow = self.read(WORKFLOW)
+        report_run = next(x["run"] for x in workflow["jobs"]["report"]["steps"]
+                          if "format_repair.py report" in x.get("run", ""))
+        repair_run = next(x["run"] for x in workflow["jobs"]["repair"]["steps"]
+                          if "format_repair.py repair" in x.get("run", ""))
+        self.assertIn("--style-file .clang-format", report_run)
+        self.assertIn("--style-file steward/.clang-format", repair_run)
+
     def test_formatter_pin_matches_configuration(self):
         version = self.read(CONFIG)["formatter_version"]
         for job in ("report", "repair"):
