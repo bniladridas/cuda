@@ -24,7 +24,6 @@ fi
 # Compare the full-resolution filesystem timestamps. GNU stat's %Y only
 # exposes whole seconds, which can misorder concurrent benchmark publications.
 latest="$(python3 - "$RESULTS_DIR" <<'PY'
-import os
 import sys
 from pathlib import Path
 
