@@ -124,6 +124,8 @@ def main():
         raise SuggestionError("invalid PR head SHA")
     if (base.get("repo") or {}).get("full_name") != repo:
         raise SuggestionError("PR base repository mismatch")
+    if not isinstance(head_repo, str):
+        raise SuggestionError("PR head repository is unavailable")
 
     files = request_json(api_url(repo, "pulls/%s/files?per_page=100" % pr_number), token)
     if not isinstance(files, list) or len(files) != pr.get("changed_files"):
@@ -143,7 +145,7 @@ def main():
         if not changed_lines:
             continue
         encoded = request_json(
-            api_url(repo, "contents/%s?ref=%s" % (urllib.parse.quote(path, safe="/"), head_sha)),
+            api_url(head_repo, "contents/%s?ref=%s" % (urllib.parse.quote(path, safe="/"), head_sha)),
             token,
         )
         if encoded.get("type") != "file" or encoded.get("encoding") != "base64":
