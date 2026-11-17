@@ -13,22 +13,12 @@
 #include <cuda_runtime.h>
 
 #include "bench.h"
+#include "options.h"
 #include "cuda_kernels/reduce.cuh"
 #include "cuda_kernels/vecadd.cuh"
 #include "host_utils.h"
 
 namespace {
-
-constexpr int kDefaultIterations = 200;
-constexpr int kDefaultReps = 7;
-constexpr int kDefaultWarmup = 20;
-
-struct Options {
-  int iterations = kDefaultIterations;
-  int reps = kDefaultReps;
-  int warmup = kDefaultWarmup;
-  bool json = false;
-};
 
 void usage(const char* argv0) {
   std::printf("usage: %s [--iterations N] [--reps R] [--warmup W] [--json]\n"
@@ -36,35 +26,11 @@ void usage(const char* argv0) {
               "  --iterations  launches per timed batch (default %d)\n"
               "  --reps        timed batches to summarise (default %d)\n"
               "  --warmup      untimed launches before measuring (default %d)\n"
+              "  limits        iterations/warmup <= 100000, reps <= 1000, "
+              "iterations * reps <= 100000\n"
               "  --json        emit machine-readable results instead of a table\n",
-              argv0, kDefaultIterations, kDefaultReps, kDefaultWarmup);
-}
-
-bool parse_options(int argc, char** argv, Options* opts) {
-  for (int i = 1; i < argc; ++i) {
-    const std::string arg = argv[i];
-    auto next = [&](int* dst) {
-      if (i + 1 >= argc) return false;
-      *dst = std::atoi(argv[++i]);
-      return *dst > 0;
-    };
-    if (arg == "--help" || arg == "-h") {
-      usage(argv[0]);
-      std::exit(0);
-    } else if (arg == "--json") {
-      opts->json = true;
-    } else if (arg == "--iterations") {
-      if (!next(&opts->iterations)) return false;
-    } else if (arg == "--reps") {
-      if (!next(&opts->reps)) return false;
-    } else if (arg == "--warmup") {
-      if (!next(&opts->warmup)) return false;
-    } else {
-      std::fprintf(stderr, "unknown argument: %s\n", arg.c_str());
-      return false;
-    }
-  }
-  return true;
+              argv0, bench_options::kDefaultIterations, bench_options::kDefaultReps,
+              bench_options::kDefaultWarmup);
 }
 
 bool device_strings(std::string* name, std::string* capability, std::string* driver) {
@@ -150,8 +116,21 @@ struct Row {
 }  // namespace
 
 int main(int argc, char** argv) {
-  Options opts;
-  if (!parse_options(argc, argv, &opts)) {
+  bench_options::Options opts;
+  std::vector<std::string> arguments;
+  arguments.reserve(static_cast<std::size_t>(argc > 1 ? argc - 1 : 0));
+  for (int i = 1; i < argc; ++i) {
+    arguments.emplace_back(argv[i]);
+  }
+  std::string parse_error;
+  const bench_options::ParseStatus parse_status =
+      bench_options::parse_options(arguments, &opts, &parse_error);
+  if (parse_status == bench_options::ParseStatus::kHelp) {
+    usage(argv[0]);
+    return 0;
+  }
+  if (parse_status == bench_options::ParseStatus::kError) {
+    std::fprintf(stderr, "%s\n", parse_error.c_str());
     usage(argv[0]);
     return 2;
   }
