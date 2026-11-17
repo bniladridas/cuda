@@ -8,9 +8,9 @@ namespace {
 
 int failures = 0;
 
-void check(bool condition, const char* message) {
+void check(bool condition, const std::string& message) {
   if (!condition) {
-    std::fprintf(stderr, "FAIL [benchmark_options] %s\n", message);
+    std::fprintf(stderr, "FAIL [benchmark_options] %s\n", message.c_str());
     ++failures;
   }
 }
@@ -18,56 +18,64 @@ void check(bool condition, const char* message) {
 void accepts_valid_options() {
   bench_options::Options options;
   std::string error;
-  const auto status = bench_options::parse_options(
-      {"--iterations", "12", "--reps", "3", "--warmup", "0"}, &options, &error);
-  check(status == bench_options::ParseStatus::kError,
-        "zero warmup must be rejected");
-  check(error.find("--warmup") != std::string::npos,
-        "zero warmup error should name its option");
+  auto status = bench_options::parse_options({}, &options, &error);
+  check(status == bench_options::ParseStatus::kOk, "defaults rejected");
+  check(options.iterations == bench_options::kDefaultIterations &&
+            options.reps == bench_options::kDefaultReps &&
+            options.warmup == bench_options::kDefaultWarmup,
+        "defaults changed");
 
   options = {};
   error.clear();
-  const auto valid = bench_options::parse_options(
+  status = bench_options::parse_options(
       {"--iterations", "12", "--reps", "3", "--warmup", "4", "--json"},
       &options, &error);
-  check(valid == bench_options::ParseStatus::kOk, "valid options rejected");
+  check(status == bench_options::ParseStatus::kOk, "valid options rejected");
   check(options.iterations == 12 && options.reps == 3 && options.warmup == 4,
         "valid values not retained");
   check(options.json, "--json not retained");
 
   options = {};
   error.clear();
-  const auto defaults = bench_options::parse_options({}, &options, &error);
-  check(defaults == bench_options::ParseStatus::kOk, "defaults rejected");
-  check(options.iterations == bench_options::kDefaultIterations &&
-            options.reps == bench_options::kDefaultReps &&
-            options.warmup == bench_options::kDefaultWarmup,
-        "defaults changed");
+  status = bench_options::parse_options(
+      {"--iterations", "100000", "--reps", "1", "--warmup", "100000"},
+      &options, &error);
+  check(status == bench_options::ParseStatus::kOk, "documented maximum values rejected");
 }
 
 void rejects_invalid_values() {
-  const std::vector<std::string> invalid_values = {
-      "", "12junk", "-1", "+1", "0", "2147483648", "100001"};
-  for (const std::string& value : invalid_values) {
+  const std::vector<std::pair<std::string, std::vector<std::string>>> cases = {
+      {"--iterations", {"", "12junk", "-1", "+1", "0", "2147483648", "100001"}},
+      {"--reps", {"", "3tail", "-1", "+1", "0", "2147483648", "1001"}},
+      {"--warmup", {"", "3tail", "-1", "+1", "0", "2147483648", "100001"}},
+  };
+
+  for (const auto& test_case : cases) {
+    for (const std::string& value : test_case.second) {
+      bench_options::Options options;
+      std::string error;
+      const auto status =
+          bench_options::parse_options({test_case.first, value}, &options, &error);
+      check(status == bench_options::ParseStatus::kError,
+            "accepted invalid " + test_case.first + " value: " + value);
+      check(error.find(test_case.first) != std::string::npos,
+            "error omitted " + test_case.first + " for value: " + value);
+    }
+
     bench_options::Options options;
     std::string error;
-    const auto status = bench_options::parse_options(
-        {"--iterations", value}, &options, &error);
-    check(status == bench_options::ParseStatus::kError,
-          ("accepted invalid --iterations value: " + value).c_str());
-    check(error.find("--iterations") != std::string::npos,
-          ("error omitted --iterations for value: " + value).c_str());
+    const auto missing =
+        bench_options::parse_options({test_case.first}, &options, &error);
+    check(missing == bench_options::ParseStatus::kError,
+          "accepted missing value for " + test_case.first);
+    check(error.find(test_case.first) != std::string::npos,
+          "missing-value error omitted " + test_case.first);
   }
 
   bench_options::Options options;
   std::string error;
-  auto status = bench_options::parse_options({"--reps"}, &options, &error);
-  check(status == bench_options::ParseStatus::kError, "missing --reps value accepted");
-  check(error.find("--reps") != std::string::npos, "missing-value error omitted --reps");
-
-  error.clear();
-  status = bench_options::parse_options({"--unknown"}, &options, &error);
-  check(status == bench_options::ParseStatus::kError, "unknown option accepted");
+  const auto unknown = bench_options::parse_options({"--unknown"}, &options, &error);
+  check(unknown == bench_options::ParseStatus::kError, "unknown option accepted");
   check(error.find("--unknown") != std::string::npos, "unknown-option error omitted option");
 }
 
