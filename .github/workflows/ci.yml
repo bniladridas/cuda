@@ -20,8 +20,8 @@ jobs:
   # the host references are correct, C++ and CUDA sources are formatted, host
   # C++ passes clang-tidy, the CUDA test binaries are absent rather than
   # silently passing, the workflow and repository YAML pass actionlint and
-  # yamllint, and the label-review, PR confidence and PR Scope Guard engines
-  # pass their tests.
+  # yamllint, and the label-review, PR confidence, PR Scope Guard and formatting repair
+  # engines pass their tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
@@ -54,6 +54,9 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2 jsonschema==4.23.0
           python3 -m unittest discover -s pr-scope-guard/tests
+
+      - name: Test the formatting repair engine
+        run: python3 -m unittest discover -s format-repair/tests
 
       - name: Test runner skip handling
         run: bash tests/test_runner.sh
@@ -129,7 +132,7 @@ jobs:
           set -euo pipefail
           coverage erase
           ran=0
-          for suite in pr-confidence label-review pr-scope-guard benchmarks; do
+          for suite in pr-confidence label-review pr-scope-guard format-repair benchmarks; do
             if [ ! -d "$suite/tests" ]; then
               echo "Skipping $suite: tests directory not present"
               continue

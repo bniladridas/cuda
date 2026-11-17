@@ -188,6 +188,7 @@ pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
 docs/                   hardware, methodology, C++ quality, PR confidence, label review and PR Scope Guard
 label-review/           reusable issue label review engine and tests
+format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
 ```
 
@@ -195,8 +196,7 @@ issue-landing/          issue landing report engine and offline tests
 
 - `cpu`: GitHub-hosted, runs on every push. CPU-only configure and build, host
   reference checks, clang-format over C++ and CUDA files, host-side clang-tidy,
-  the label-review engine tests, the PR confidence engine tests, and the PR
-  Scope Guard tests. CUDA sources are formatted but not compiled or analyzed
+  the label-review, PR confidence, PR Scope Guard and format-repair engine tests. CUDA sources are formatted but not compiled or analyzed
   here.
 - `python`: GitHub-hosted, runs Ruff lint and format checks, every Python test
   suite present in the checkout, and coverage. Dependency versions are pinned in
@@ -209,6 +209,10 @@ issue-landing/          issue landing report engine and offline tests
   no secrets. Treat the score as advisory alongside the checks it reads. The
   check activates for later pull requests after this workflow merges. Rubric and
   setup in [`docs/pr-confidence.md`](docs/pr-confidence.md).
+- `format-repair`: read-only C/C++/CUDA and Python formatting reports on pull-request activity;
+  formatting commits require the `format-fix:approved` label from an
+  authorized maintainer. Fork PRs remain report-only. It never approves or
+  merges a pull request. Details in `docs/format-repair.md`.
 - `pr-scope-guard`: read-only and advisory. On pull request activity it
   compares the title's declared scope with the changed files using
   `.github/pr-scopes.json` and `.github/pr-scope-guard.yml`, then writes a
