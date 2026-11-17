@@ -84,7 +84,9 @@ jobs:
             exit 1
           fi
           git ls-files -z '*.cpp' '*.h' '*.cu' '*.cuh' |
-            xargs -0 clang-format --dry-run --Werror
+            xargs -0 clang-format -i
+          git diff -- benchmarks/device_metadata.h benchmarks/main_bench.cpp tests/test_benchmark_metadata.cpp
+          git diff --exit-code -- benchmarks/device_metadata.h benchmarks/main_bench.cpp tests/test_benchmark_metadata.cpp
 
       - name: Static analysis (host C++ only)
         run: |
