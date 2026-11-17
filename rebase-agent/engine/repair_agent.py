@@ -218,8 +218,9 @@ class Agent:
                                         "path": {"type": "string"},
                                         "line": {"type": "integer"},
                                         "reason": {"type": "string"},
+                                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
                                     },
-                                    "required": ["severity", "path", "line", "reason"],
+                                    "required": ["severity", "path", "line", "reason", "confidence"],
                                     "additionalProperties": False,
                                 },
                             },
@@ -425,6 +426,8 @@ class Agent:
                     raise AgentError("findings must reference a changed file")
                 if not isinstance(finding.get("line"), int) or finding["line"] < 1:
                     raise AgentError("finding line must be a positive integer")
+                if finding.get("confidence") not in {"low", "medium", "high"}:
+                    raise AgentError("finding confidence must be low, medium, or high")
             report = {
                 "model": MODEL,
                 "summary": summary,
