@@ -1,0 +1,16 @@
+version: 1
+formatter_version: "22.1.8"
+approval_label: "format-fix:approved"
+maintainers:
+  - bniladridas
+allowed_extensions:
+  - .cpp
+  - .h
+  - .cu
+  - .cuh
+allowed_paths:
+  - "src/**"
+  - "include/**"
+  - "kernels/**"
+  - "tests/**"
+  - "benchmarks/**"
