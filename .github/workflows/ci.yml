@@ -20,8 +20,8 @@ jobs:
   # the host references are correct, C++ and CUDA sources are formatted, host
   # C++ passes clang-tidy, the CUDA test binaries are absent rather than
   # silently passing, the workflow and repository YAML pass actionlint and
-  # yamllint, and the label-review, PR confidence and PR Scope Guard engines
-  # pass their tests.
+  # yamllint, and the label-review, PR confidence, PR Scope Guard and formatting repair
+  # engines pass their tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
