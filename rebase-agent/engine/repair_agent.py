@@ -83,13 +83,21 @@ def validate_patch_paths(patch):
 
 
 class Agent:
-    def __init__(self, root, diff_path, report_path, allow_patch=True):
+    def __init__(self, root, diff_path, report_path, allow_patch=True, files_path=None):
         self.root = root.resolve()
         self.diff_path = diff_path
         self.report_path = report_path
         self.allow_patch = allow_patch
         self.diff = read_diff(diff_path)
-        self.files = changed_files(self.diff)
+        if files_path:
+            raw = Path(files_path).read_bytes()
+            self.files = [item.decode("utf-8") for item in raw.split(b"\\0") if item]
+            if len(self.files) != len(set(self.files)):
+                raise AgentError("changed-file manifest contains duplicate paths")
+            for item in self.files:
+                safe_path(self.root, item)
+        else:
+            self.files = changed_files(self.diff)
         self.tool_log = []
         self.applied = False
         self.diff_ranges = []
@@ -309,10 +317,11 @@ def main():
     parser.add_argument("--source", required=True)
     parser.add_argument("--diff", required=True)
     parser.add_argument("--report", required=True)
+    parser.add_argument("--files")
     parser.add_argument("--review-only", action="store_true")
     args = parser.parse_args()
     try:
-        result = Agent(Path(args.source), Path(args.diff), Path(args.report), allow_patch=not args.review_only).run()
+        result = Agent(Path(args.source), Path(args.diff), Path(args.report), allow_patch=not args.review_only, files_path=args.files).run()
         print(json.dumps({"ready_for_validation": result["ready_for_validation"], "patch_applied": result["patch_applied"], "model": result["model"], "usage_total_tokens": result["usage_total_tokens"]}))
     except (OSError, AgentError) as exc:
         print("repair-agent: " + str(exc), file=sys.stderr)
