@@ -89,3 +89,76 @@ and uploads the JSON report as an artifact. It does not update a branch.
 
 Tree overlap is not proof of a textual or semantic conflict. The report
 distinguishes tree inventory from actual Git rebase/merge outcomes.
+
+
+## Maintainer-dispatched repair workflow
+
+The end-to-end caller is `.github/workflows/pr-repair-integration.yml`.
+It is a manual workflow and is available for dispatch only after the workflow
+has landed on the repository's default branch.
+
+Configure these repository variables before dispatch:
+
+- `REPAIR_MAINTAINERS`: JSON array of exact GitHub login names allowed to
+  authorize branch updates, for example `["maintainer-a","maintainer-b"]`.
+- `REPAIR_REBASE_ENABLED`: set to the literal string `true` only when rebase
+  updates are permitted.
+- `REPAIR_MERGE_ENABLED`: set to the literal string `true` only when
+  merge-based updates are permitted.
+
+Configure the existing `OPENROUTER_API_KEY` repository secret. The agent
+uses only `openrouter/free`, requests provider data-collection denial, has a
+bounded tool loop and token budget, and stops if tool calling is unavailable.
+There is no paid fallback.
+
+Dispatch requires the PR number, operation, exact current head SHA, exact
+current base SHA, and this exact confirmation string:
+
+    UPDATE <PR> <HEAD_SHA> <BASE_SHA> <OPERATION>
+
+The authorization job verifies the dispatch actor against the allowlist,
+re-reads the live PR through the GitHub API, rejects fork/draft/closed/merged
+PRs, verifies both SHAs, checks that the head branch is not protected, and
+checks the operation-specific policy. Rebase and merge approvals are distinct
+because the operation is part of the confirmation string.
+
+The workflow separates trust boundaries:
+
+1. Snapshot job exports the PR source and complete diff without executing it.
+2. Agent job checks out trusted workflow code, treats the PR snapshot as data,
+   and uses only bounded read/search/diff/patch tools. It has the model secret
+   but no GitHub write token and does not execute PR code.
+3. Validation job applies the proposed patch and performs rebase or merge in an
+   unprivileged runner with no model secret or write credential. It runs Python
+   tests and a CPU-only CMake build/test. GPU validation remains unavailable
+   unless a GPU runner is configured.
+4. Final-review job re-reads the complete final diff and every changed text
+   file. It has the model secret but does not execute repository code or write
+   branches. Incomplete coverage, unavailable model routing, or critical/high
+   findings blocks publication.
+5. Publish job runs trusted workflow code only. It verifies the original PR
+   head and base refs again, verifies the prepared Git bundle and commit tree,
+   and updates only the approved PR branch. Rebase uses the exact
+   `--force-with-lease`; merge uses a normal non-force push and checks the
+   two-parent order.
+6. The workflow polls checks on the updated head and uploads an audit artifact
+   with the actor, operation, old/new SHAs, tree, model report, and check
+   conclusions. Skipped GPU checks are not GPU validation.
+
+The repair agent never executes shell commands requested by the model. Its
+allowlisted tools are bounded file listing, complete diff chunks, changed-file
+reads, literal text search, constrained unified-diff application, and final
+structured review. Repository code is executed only in the isolated validation
+job, without secrets or write credentials.
+
+A failed or unavailable model call, incomplete file/diff coverage, failed
+validation, stale branch/base SHA, conflict, or failed post-update checks stops
+the run and produces no claim of success. A push can succeed before a later
+post-update CI failure is discovered; in that case the audit artifact reports
+the failure and a maintainer must decide whether to revert or repair. The
+workflow never approves or merges the PR.
+
+This workflow is an initial bounded implementation, not a guarantee of
+semantic correctness. Model review is advisory. Deterministic tests, exact
+SHA gates, independent human review, and repository branch protections remain
+necessary. The first successful run should be on a low-risk CPU-only PR.
