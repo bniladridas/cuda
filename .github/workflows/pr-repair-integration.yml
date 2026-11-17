@@ -24,6 +24,10 @@ on:
         description: Type UPDATE <PR> <HEAD_SHA> <BASE_SHA> <OPERATION>
         required: true
         type: string
+      review_feedback:
+        description: Optional reviewer comment or requested change, up to 10000 bytes
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -147,10 +151,13 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          REVIEW_FEEDBACK: ${{ inputs.review_feedback }}
         run: |
           set -euo pipefail
+          python3 rebase-agent/engine/write_feedback.py feedback.txt
           python3 rebase-agent/engine/repair_agent.py \
-            --source source --diff input/pr.diff --files input/pr-files.txt --report agent-report.json
+            --source source --diff input/pr.diff --files input/pr-files.txt \
+            --feedback feedback.txt --report agent-report.json
           git -C source diff --cached --binary --full-index > proposed.patch
           test -s proposed.patch
           python3 rebase-agent/engine/verify_agent_report.py agent-report.json
