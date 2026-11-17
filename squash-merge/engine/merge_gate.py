@@ -109,18 +109,26 @@ def collect_state(
     repo: str, pr_number: int, head_sha: str
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     pr = gh_json(f"repos/{repo}/pulls/{pr_number}")
-    reviews = gh_json(f"repos/{repo}/pulls/{pr_number}/reviews?per_page=100")
-    checks = gh_json(
-        f"repos/{repo}/commits/{head_sha}/check-runs?per_page=100",
+    review_pages = gh_json(
+        f"repos/{repo}/pulls/{pr_number}/reviews",
+        "--paginate",
+        "--slurp",
+    )
+    reviews = [review for page in review_pages for review in page]
+    check_pages = gh_json(
+        f"repos/{repo}/commits/{head_sha}/check-runs",
+        "--paginate",
+        "--slurp",
         "-H",
         "Accept: application/vnd.github+json",
-    ).get("check_runs", [])
+    )
     checks = [
         run
-        for run in checks
+        for page in check_pages
+        for run in page.get("check_runs", [])
         if run.get("name") != "squash-merge approval gate"
     ]
-    status = gh_json(f"repos/{repo}/commits/{head_sha}/status")
+    status = gh_json(f"repos/{repo}/commits/{head_sha}/status?per_page=100")
     return pr, reviews, checks, status
 
 
