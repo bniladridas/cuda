@@ -1,6 +1,7 @@
 """Tests for trusted workflow verification helpers."""
 
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -65,6 +66,39 @@ class WorkflowHelperTests(unittest.TestCase):
         recorded = json.loads(audit.read_text(encoding="utf-8"))
         self.assertFalse(recorded["all_reported_checks_acceptable"])
         self.assertFalse(recorded["branch_protection_required_checks_verified"])
+
+    def test_review_feedback_extractor_keeps_inline_context(self):
+        event = {
+            "action": "created",
+            "comment": {
+                "body": "Please handle this edge case",
+                "path": "src/kernel.cu",
+                "line": 42,
+                "diff_hunk": "@@ -1 +1 @@",
+                "commit_id": "a" * 40,
+                "user": {"login": "reviewer"},
+            },
+            "pull_request": {
+                "number": 12,
+                "head": {"sha": "b" * 40},
+                "base": {"sha": "c" * 40},
+            },
+        }
+        event_path = self.root / "event.json"
+        output = self.root / "feedback.json"
+        event_path.write_text(json.dumps(event), encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(ENGINE / "extract_review_feedback.py"), str(output)],
+            env=dict(os.environ, GITHUB_EVENT_PATH=str(event_path)),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        feedback = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(feedback["body"], "Please handle this edge case")
+        self.assertEqual(feedback["path"], "src/kernel.cu")
+        self.assertEqual(feedback["line"], 42)
 
     def test_archive_extractor_rejects_symlinks(self):
         archive_path = self.root / "unsafe.tar"
