@@ -29,6 +29,13 @@ if [ ! -x "$BIN" ]; then
   exit 2
 fi
 
+# JSON validation below uses Python. Check before probing or running the GPU
+# benchmark so a missing runtime cannot discard a completed result.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required for benchmark result validation; install it before benchmarking" >&2
+  exit 2
+fi
+
 if command -v nvidia-smi >/dev/null 2>&1; then
   if ! nvidia-smi -L | grep -q "GPU"; then
     echo "nvidia-smi reports no GPU; refusing to benchmark" >&2
