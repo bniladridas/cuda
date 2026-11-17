@@ -370,6 +370,9 @@ jobs:
           test "$(git rev-parse "refs/repair/prepared^{tree}")" = "$RESULT_TREE"
           if [ "$OPERATION" = rebase ]; then
             git merge-base --is-ancestor "$EXPECTED_BASE" "$RESULT_SHA"
+            git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+            test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
+            test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
             git push --force-with-lease="refs/heads/$BRANCH:$EXPECTED_HEAD" origin "$RESULT_SHA:refs/heads/$BRANCH"
           elif [ "$OPERATION" = merge ]; then
             read -r commit parent1 parent2 extra < <(git rev-list --parents -n 1 "$RESULT_SHA")
@@ -377,6 +380,9 @@ jobs:
             git merge-base --is-ancestor "$EXPECTED_HEAD" "$parent1"
             test "$parent2" = "$EXPECTED_BASE"
             test -z "${extra:-}"
+            git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+            test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
+            test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
             git push origin "$RESULT_SHA:refs/heads/$BRANCH"
           else
             echo "unsupported operation" >&2
