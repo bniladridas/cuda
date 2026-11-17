@@ -78,10 +78,13 @@ class MergeIntegrationTests(unittest.TestCase):
         self.assertEqual(result["parents"], [self.head_sha, self.base_sha])
         self.assertFalse(result["force_push"])
         self.assertEqual(git(self.remote, "rev-parse", "refs/heads/feature"), result["new_sha"])
-        self.assertEqual(git(self.repo, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:], [
-            self.head_sha,
-            self.base_sha,
-        ])
+        self.assertEqual(
+            git(self.repo, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:],
+            [
+                self.head_sha,
+                self.base_sha,
+            ],
+        )
 
     def test_conflict_aborts_without_updating_remote(self):
         (self.repo / "base.txt").write_text("feature conflicting edit\n", encoding="utf-8")
