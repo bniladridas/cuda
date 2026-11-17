@@ -78,7 +78,7 @@ python3 -m pip install -r requirements-dev.txt
 ruff check .
 ruff format --check .
 coverage erase
-for suite in pr-confidence label-review pr-scope-guard; do
+for suite in pr-confidence label-review pr-scope-guard format-repair; do
   if [ -d "$suite/tests" ]; then
     coverage run --append -m unittest discover -s "$suite/tests"
   fi
