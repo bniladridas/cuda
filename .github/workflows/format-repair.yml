@@ -11,7 +11,7 @@ on:
         type: number
 
 concurrency:
-  group: format-repair-${{ github.event.pull_request.number || github.event.inputs.pr_number }}-${{ github.event.action || 'manual' }}-${{ github.event.pull_request.head.sha || '' }}
+  group: format-repair-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -19,7 +19,9 @@ permissions:
 
 jobs:
   report:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request_target' && github.event.action != 'labeled')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_target' && github.event.action != 'labeled')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -74,7 +76,10 @@ jobs:
           retention-days: 30
 
   repair:
-    if: github.event_name == 'pull_request_target' && github.event.action == 'labeled' && github.event.label.name == 'format-fix:approved'
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'format-fix:approved'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -131,7 +136,10 @@ jobs:
             echo "Fork pull requests are report-only; no repair checkout or push is allowed" >&2
             exit 1
           fi
-          if [[ "$HEAD_SHA" != "$EVENT_HEAD_SHA" || "$STATE" != "open" || "$BASE_REF" != "$DEFAULT_BRANCH" || "$HAS_LABEL" != "true" ]]; then
+          if [[ "$HEAD_SHA" != "$EVENT_HEAD_SHA" \
+            || "$STATE" != "open" \
+            || "$BASE_REF" != "$DEFAULT_BRANCH" \
+            || "$HAS_LABEL" != "true" ]]; then
             echo "The approved PR state changed or no longer meets the repair policy" >&2
             exit 1
           fi
@@ -177,12 +185,23 @@ jobs:
           ARTIFACT: ${{ runner.temp }}/format-repair-result.json
           ACTOR: ${{ steps.target.outputs.actor }}
         run: |
-          STATUS=$(python -c 'import json,os; print(json.load(open(os.environ["ARTIFACT"], encoding="utf-8"))["status"])')
-          COMMIT=$(python -c 'import json,os; print(json.load(open(os.environ["ARTIFACT"], encoding="utf-8")).get("commit_sha", "none"))')
-          FILES=$(python -c 'import json,os; print(", ".join(json.load(open(os.environ["ARTIFACT"], encoding="utf-8")).get("changed_files", [])) or "none")')
-          FORMATTER=$(python -c 'import json,os; print(json.load(open(os.environ["ARTIFACT"], encoding="utf-8")).get("formatter_version", "unknown"))')
-          VALIDATION=$(python -c 'import json,os; print(json.load(open(os.environ["ARTIFACT"], encoding="utf-8")).get("validation", "not reported"))')
+          STATUS=$(jq -r '.status' "$ARTIFACT")
+          COMMIT=$(jq -r '.commit_sha // "none"' "$ARTIFACT")
+          FILES=$(jq -r '(.changed_files // []) | if length == 0 then "none" else join(", ") end' "$ARTIFACT")
+          FORMATTER=$(jq -r '.formatter_version // "unknown"' "$ARTIFACT")
+          VALIDATION=$(jq -r '.validation // "not reported"' "$ARTIFACT")
           gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "format-fix:approved"
-          printf 'Formatting repair result: %s\n\nFormatter: clang-format %s\nCommit: %s\nFiles: %s\nValidation: %s\nApproved by: @%s\n\nThe normal CI formatter check remains authoritative. This does not approve or merge the pull request.' \
-            "$STATUS" "$FORMATTER" "$COMMIT" "$FILES" "$VALIDATION" "$ACTOR" \
-            | gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+          BODY=$(cat <<EOF
+          Formatting repair result: $STATUS
+
+          Formatter: clang-format $FORMATTER
+          Commit: $COMMIT
+          Files: $FILES
+          Validation: $VALIDATION
+          Approved by: @$ACTOR
+
+          The normal CI formatter check remains authoritative. This does not
+          approve or merge the pull request.
+          EOF
+          )
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
