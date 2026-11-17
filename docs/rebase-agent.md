@@ -176,3 +176,19 @@ This workflow is an initial bounded implementation, not a guarantee of
 semantic correctness. Model review is advisory. Deterministic tests, exact
 SHA gates, independent human review, and repository branch protections remain
 necessary. The first successful run should be on a low-risk CPU-only PR.
+
+
+## Review-comment feedback proposals
+
+`.github/workflows/review-feedback.yml` runs on submitted PR reviews and
+new inline review comments for same-repository, non-draft PRs. It snapshots the
+exact event head/base SHAs without executing PR code, extracts the reviewer
+text and inline diff context, verifies the live Git Trees API state, and asks
+the bounded repair agent for a patch proposal. The result is uploaded as a
+`review-feedback-proposal` artifact. It does not push, approve, or merge.
+
+For a controlled branch update, a maintainer can dispatch
+`pr-repair-integration.yml` with the exact SHAs and copy the review request
+into its optional `review_feedback` input. The model treats that text as
+untrusted context and must still inspect the full diff and every changed text
+file. The final protected-environment approval remains mandatory.
