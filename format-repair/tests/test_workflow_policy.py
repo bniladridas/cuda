@@ -95,10 +95,12 @@ class WorkflowPolicyTests(unittest.TestCase):
         version = config["formatter_version"]
         python_version = config["python_formatter_version"]
         for job in ("report", "repair"):
-            step = next(x for x in self.read(WORKFLOW)["jobs"][job]["steps"] if "clang-format==" in x.get("run", ""))
-            self.assertIn("clang-format==" + version, step["run"])
-            self.assertIn("ruff==" + python_version, step["run"])
-            self.assertIn("--python-config-file", step["run"])
+            steps = self.read(WORKFLOW)["jobs"][job]["steps"]
+            install = next(x for x in steps if "clang-format==" in x.get("run", ""))
+            formatter = next(x for x in steps if "format_repair.py" in x.get("run", ""))
+            self.assertIn("clang-format==" + version, install["run"])
+            self.assertIn("ruff==" + python_version, install["run"])
+            self.assertIn("--python-config-file", formatter["run"])
 
     def test_formatter_commit_dispatches_ci_before_acknowledgement(self):
         workflow = self.read(WORKFLOW)

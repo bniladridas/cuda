@@ -298,9 +298,9 @@ def make_report(repo, pr, files, cfg, token, style_file, python_config_file):
         "coverage": {"expected_files": pr["changed_files"], "fetched_files": len(files), "complete": True},
         "formatter_version": cfg["formatter_version"],
         "formatter_versions": {
-                    "clang-format": cfg["formatter_version"],
-                    "ruff": cfg["python_formatter_version"],
-                },
+            "clang-format": cfg["formatter_version"],
+            "ruff": cfg["python_formatter_version"],
+        },
         "approval_label": cfg["approval_label"],
         "repair_eligible": info["head_repo"] == repo,
         "files_checked": checked,
