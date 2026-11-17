@@ -105,6 +105,10 @@ Configure these repository variables before dispatch:
   updates are permitted.
 - `REPAIR_MERGE_ENABLED`: set to the literal string `true` only when
   merge-based updates are permitted.
+- `REPAIR_WRITE_ENVIRONMENT_CONFIRMED`: set to `true` only after an admin
+  creates the `pr-repair-write` environment and configures required reviewers.
+  The workflow fails closed if this confirmation is absent. Enable the
+  environment's prevent-self-review option where available.
 
 Configure a protected GitHub environment named `pr-repair-write` with required
 reviewers. The initial dispatch authorization is not sufficient by itself:
