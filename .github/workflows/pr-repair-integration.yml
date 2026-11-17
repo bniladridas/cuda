@@ -108,6 +108,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -136,6 +137,26 @@ jobs:
           git -C source config user.email "repair-agent@users.noreply.github.com"
           git -C source add -A
           git -C source commit -qm "PR source snapshot"
+      - name: Inspect live GitHub trees using read-only API access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/tree_inspector.py \
+            --repository "$REPOSITORY" --pull-request "$PR_NUMBER" \
+            --output tree-inspection.json
+          python3 - <<'PY'
+          import json, os
+          report = json.load(open("tree-inspection.json", encoding="utf-8"))
+          if report["head"]["sha"] != os.environ["EXPECTED_HEAD"]:
+              raise SystemExit("tree inspection head SHA differs from approved PR head")
+          if report["base"]["sha"] != os.environ["EXPECTED_BASE"]:
+              raise SystemExit("tree inspection base SHA differs from approved base")
+          PY
       - name: Run bounded OpenRouter review and repair proposal
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -158,6 +179,7 @@ jobs:
           path: |
             proposed.patch
             agent-report.json
+            tree-inspection.json
           if-no-files-found: error
           retention-days: 2
 
@@ -397,6 +419,7 @@ jobs:
               "tree_sha": os.environ["RESULT_TREE"],
               "force_with_lease": os.environ["OPERATION"] == "rebase",
               "initial_agent_review": json.load(open("proposal/agent-report.json", encoding="utf-8")),
+              "tree_inspection": json.load(open("proposal/tree-inspection.json", encoding="utf-8")),
               "final_review": report,
               "validation": json.load(open("prepared/validation.json", encoding="utf-8")),
               "diff_stat": open("prepared/prepared-diff-stat.txt", encoding="utf-8").read(),
