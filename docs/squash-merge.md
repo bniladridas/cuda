@@ -39,8 +39,8 @@ rejects the squash merge, the workflow does not fall back to another method.
 The approval label is removed only after GitHub confirms the squash merge.
 The workflow then posts the approver, reviewed head SHA, independent approving
 reviewers, required checks and status contexts inspected, and merge commit SHA.
-A stale-head rejection preserves the label and explains that a fresh approval
-event is required after the maintainer reviews the updated head. A failed GitHub
+A stale-head rejection preserves the label and explains that the maintainer
+must remove it, review the updated head, and reapply it for fresh approval. A failed GitHub
 merge request preserves the label and writes an actionable failure summary.
 It does not close issues or publish releases.
 

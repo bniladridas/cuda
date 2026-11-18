@@ -286,7 +286,7 @@ def main() -> int:
     if errors:
         if any("head changed" in error for error in errors):
             errors.append(
-                "The approval label was preserved. Review the new head, then apply the label again to create a fresh approval event."
+                "The approval label was preserved. Remove it, review the new head, then reapply it to create a fresh approval event."
             )
         write_summary(
             "Squash merge not performed",
