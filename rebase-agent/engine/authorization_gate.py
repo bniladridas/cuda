@@ -80,11 +80,21 @@ def main():
             raise GateError("fork PR branches cannot be modified")
         if pr["head"]["sha"].lower() != expected_head:
             raise GateError("PR head changed since approval")
-        if pr["base"]["sha"].lower() != expected_base:
-            raise GateError("base SHA changed since approval")
         branch = pr["head"]["ref"]
         base_branch = pr["base"]["ref"]
         default_branch = repo["default_branch"]
+        base_info = api(
+            "/repos/%s/branches/%s"
+            % (
+                repository,
+                __import__("urllib.parse", fromlist=["quote"]).quote(base_branch, safe=""),
+            ),
+            token,
+        )
+        if not base_info:
+            raise GateError("PR base branch could not be verified")
+        if base_info["commit"]["sha"].lower() != expected_base:
+            raise GateError("live base branch head changed since approval")
         if branch == default_branch or branch == base_branch:
             raise GateError("default/base branch cannot be used as the PR head")
         branch_info = api(

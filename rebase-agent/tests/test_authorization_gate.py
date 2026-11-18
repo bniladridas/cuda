@@ -49,6 +49,7 @@ class AuthorizationGateTests(unittest.TestCase):
                     "ref": "feature",
                 },
             },
+            "/repos/owner/repo/branches/main": {"commit": {"sha": "b" * 40}},
             "/repos/owner/repo/branches/feature": {"protected": False},
         }
 
@@ -64,7 +65,8 @@ class AuthorizationGateTests(unittest.TestCase):
         self.assertIn("trusted default branch", stderr.getvalue())
         self.assertEqual(api.call_count, 1)
 
-    def test_accepts_dispatch_from_default_branch(self):
+    def test_accepts_dispatch_from_default_branch_with_stale_pr_base_snapshot(self):
+        self.api_responses["/repos/owner/repo/pulls/12"]["base"]["sha"] = "c" * 40
         with patch.dict(os.environ, self.environment, clear=True):
             with patch.object(GATE, "api", side_effect=self.api_responses.get):
                 stdout = io.StringIO()
@@ -72,6 +74,17 @@ class AuthorizationGateTests(unittest.TestCase):
                     GATE.main()
         self.assertIn("branch=feature", stdout.getvalue())
         self.assertIn("default_branch=main", stdout.getvalue())
+
+    def test_rejects_when_live_base_branch_moves(self):
+        self.api_responses["/repos/owner/repo/branches/main"]["commit"]["sha"] = "c" * 40
+        with patch.dict(os.environ, self.environment, clear=True):
+            with patch.object(GATE, "api", side_effect=self.api_responses.get):
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    with self.assertRaises(SystemExit) as raised:
+                        GATE.main()
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn("live base branch head changed", stderr.getvalue())
 
 
 if __name__ == "__main__":
