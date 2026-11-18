@@ -79,21 +79,20 @@ void failure_case(const char* name, Configure configure, int expected_creates,
 }
 
 void test_create_failures() {
-  failure_case("first create", [](FakeCudaEvents& api) { api.fail_create_at = 1; },
-               1, 0, 1);
-  failure_case("second create", [](FakeCudaEvents& api) { api.fail_create_at = 2; },
-               2, 1, 1);
+  failure_case(
+      "first create", [](FakeCudaEvents& api) { api.fail_create_at = 1; }, 1, 0, 1);
+  failure_case(
+      "second create", [](FakeCudaEvents& api) { api.fail_create_at = 2; }, 2, 1, 1);
 }
 
 void test_record_and_completion_failures() {
-  failure_case("start record", [](FakeCudaEvents& api) { api.fail_record_at = 1; },
-               2, 2, 2);
-  failure_case("stop record", [](FakeCudaEvents& api) { api.fail_record_at = 2; },
-               2, 2, 2);
-  failure_case("synchronize", [](FakeCudaEvents& api) { api.fail_synchronize = 1; },
-               2, 2, 3);
-  failure_case("elapsed", [](FakeCudaEvents& api) { api.fail_elapsed = 1; },
-               2, 2, 4);
+  failure_case(
+      "start record", [](FakeCudaEvents& api) { api.fail_record_at = 1; }, 2, 2, 2);
+  failure_case(
+      "stop record", [](FakeCudaEvents& api) { api.fail_record_at = 2; }, 2, 2, 2);
+  failure_case(
+      "synchronize", [](FakeCudaEvents& api) { api.fail_synchronize = 1; }, 2, 2, 3);
+  failure_case("elapsed", [](FakeCudaEvents& api) { api.fail_elapsed = 1; }, 2, 2, 4);
 }
 
 void test_success_and_cleanup_failure() {
@@ -103,8 +102,7 @@ void test_success_and_cleanup_failure() {
       api, [] {}, 3, &elapsed,
       [&api](int status, const char* operation) { api.report(status, operation); });
   check(ok, "successful timing failed");
-  check(api.creates == 2 && api.destroys == 2,
-        "success did not destroy both events");
+  check(api.creates == 2 && api.destroys == 2, "success did not destroy both events");
   check(api.records == 2 && api.synchronizes == 1 && api.elapsed_calls == 1,
         "success did not execute all timing operations");
   check(elapsed == 12.5, "success did not publish elapsed time");
@@ -118,12 +116,27 @@ void test_success_and_cleanup_failure() {
         cleanup_api.report(status, operation);
       });
   check(!cleanup_ok, "cleanup failure was accepted");
-  check(cleanup_api.destroys == 2,
-        "cleanup failure prevented second destroy");
+  check(cleanup_api.destroys == 2, "cleanup failure prevented second destroy");
   check(cleanup_api.errors.size() == 1 &&
             cleanup_api.errors.front().second == "cudaEventDestroy",
         "cleanup failure was not reported");
   check(elapsed == -1.0, "published elapsed time after cleanup failure");
+}
+
+void test_work_exception_releases_events() {
+  FakeCudaEvents api;
+  double elapsed = -1.0;
+  bool threw = false;
+  try {
+    bench::time_launches_with_api(
+        api, [] { throw 7; }, 3, &elapsed,
+        [&api](int status, const char* operation) { api.report(status, operation); });
+  } catch (int value) {
+    threw = value == 7;
+  }
+  check(threw, "work exception was not propagated");
+  check(api.destroys == 2, "work exception leaked an event");
+  check(elapsed == -1.0, "published elapsed time after work exception");
 }
 
 void test_primary_error_survives_cleanup_failure() {
@@ -135,14 +148,12 @@ void test_primary_error_survives_cleanup_failure() {
       api, [] {}, 3, &elapsed,
       [&api](int status, const char* operation) { api.report(status, operation); });
   check(!ok, "primary failure was accepted");
-  check(api.errors.size() == 2,
-        "primary and cleanup failures were not both reported");
+  check(api.errors.size() == 2, "primary and cleanup failures were not both reported");
   check(api.errors[0].first == 2 && api.errors[0].second == "cudaEventRecord",
         "cleanup failure replaced primary error");
   check(api.errors[1].first == 5 && api.errors[1].second == "cudaEventDestroy",
         "cleanup error was not reported after primary error");
-  check(api.destroys == 2,
-        "second event was not destroyed after first destroy failed");
+  check(api.destroys == 2, "second event was not destroyed after first destroy failed");
 }
 
 }  // namespace
@@ -151,6 +162,7 @@ int main() {
   test_create_failures();
   test_record_and_completion_failures();
   test_success_and_cleanup_failure();
+  test_work_exception_releases_events();
   test_primary_error_survives_cleanup_failure();
   if (failures != 0) {
     std::fprintf(stderr, "benchmark_event_timer: %d failure(s)\n", failures);

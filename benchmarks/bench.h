@@ -70,9 +70,7 @@ inline bool time_launches(const std::function<void()>& work, int iterations,
   CudaEventApi api;
   return time_launches_with_api(
       api, work, iterations, elapsed_ms,
-      [](cudaError_t err, const char* operation) {
-        check_cuda(err, operation);
-      });
+      [](cudaError_t err, const char* operation) { check_cuda(err, operation); });
 }
 
 // Repeats a timed batch `reps` times and summarises per-iteration times.

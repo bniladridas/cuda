@@ -6,8 +6,8 @@ namespace bench {
 // and destroy(). Keeping the operation table generic lets host tests inject
 // every CUDA failure without requiring a CUDA toolkit or device.
 template <typename Api, typename Work, typename ErrorHandler>
-bool time_launches_with_api(Api& api, Work&& work, int iterations,
-                            double* elapsed_ms, ErrorHandler&& report_error) {
+bool time_launches_with_api(Api& api, Work&& work, int iterations, double* elapsed_ms,
+                            ErrorHandler&& report_error) {
   using Event = typename Api::Event;
 
   Event start{};
@@ -52,7 +52,12 @@ bool time_launches_with_api(Api& api, Work&& work, int iterations,
 
   status = api.record(start);
   if (status != api.success()) return fail(status, "cudaEventRecord");
-  for (int i = 0; i < iterations; ++i) work();
+  try {
+    for (int i = 0; i < iterations; ++i) work();
+  } catch (...) {
+    cleanup();
+    throw;
+  }
 
   status = api.record(stop);
   if (status != api.success()) return fail(status, "cudaEventRecord");
