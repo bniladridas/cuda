@@ -192,14 +192,19 @@ def collect_state(
     return pr, reviews, checks, status
 
 
-def perform_squash_merge(repo: str, pr_number: int, head_sha: str, api=gh_json) -> tuple[dict[str, Any] | None, str | None]:
+def perform_squash_merge(
+    repo: str, pr_number: int, head_sha: str, api=gh_json
+) -> tuple[dict[str, Any] | None, str | None]:
     """Attempt exactly one SHA-pinned squash merge and return actionable failure text."""
     try:
         result = api(
             f"repos/{repo}/pulls/{pr_number}/merge",
-            "--method", "PUT",
-            "-f", f"sha={head_sha}",
-            "-f", "merge_method=squash",
+            "--method",
+            "PUT",
+            "-f",
+            f"sha={head_sha}",
+            "-f",
+            "merge_method=squash",
         )
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or str(exc)).strip()
@@ -272,7 +277,9 @@ def main() -> int:
     )
     if errors:
         if any("head changed" in error for error in errors):
-            errors.append("The approval label was preserved. Review the new head, then apply the label again to create a fresh approval event.")
+            errors.append(
+                "The approval label was preserved. Review the new head, then apply the label again to create a fresh approval event."
+            )
         write_summary("Squash merge not performed", errors, audit_details(args.actor, args.event_head, pr, reviews, checks, status))
         print("\n".join(errors), file=sys.stderr)
         return 1
@@ -318,12 +325,8 @@ def main() -> int:
         login for login, state in latest_review_states(latest_reviews, args.event_head).items()
         if state == "APPROVED" and login != (latest.get("user") or {}).get("login")
     )
-    required_run_report = sorted(
-        f"{name}: success" for name in policy["required_check_runs"]
-    )
-    required_status_report = sorted(
-        f"{name}: success" for name in policy["required_status_contexts"]
-    )
+    required_run_report = sorted(f"{name}: success" for name in policy["required_check_runs"])
+    required_status_report = sorted(f"{name}: success" for name in policy["required_status_contexts"])
     body = (
         "Squash merge completed.\n\n"
         f"- Approved by: @{args.actor}\n"

@@ -38,7 +38,7 @@ class MergeGateTests(unittest.TestCase):
             }
         ]
         self.checks = [{"name": "CI", "status": "completed", "conclusion": "success"}]
-        self.status = {"state": "success", "statuses": [{"context": "CI"}]}
+        self.status = {"state": "success", "statuses": [{"context": "CI", "state": "success"}]}
         self.policy = {
             "repo": "bniladridas/cuda",
             "target_branch": "main",
@@ -297,19 +297,33 @@ class MergeGateTests(unittest.TestCase):
         failed = [{"name": "CI", "status": "completed", "conclusion": "failure"}]
         running_errors = self.errors(check_runs=running)
         failed_errors = self.errors(check_runs=failed)
-        self.assertTrue(any("still running" in error for error in running_errors))
-        self.assertTrue(any("not passed" in error for error in failed_errors))
+        self.assertTrue(any("Required checks are not successful" in error for error in running_errors))
+        self.assertTrue(any("Required checks are not successful" in error for error in failed_errors))
 
     def test_optional_skipped_check_is_allowed(self):
-        errors = self.errors(check_runs=self.checks + [{
-            "name": "gpu", "status": "completed", "conclusion": "skipped",
-        }])
+        errors = self.errors(
+            check_runs=self.checks
+            + [
+                {
+                    "name": "gpu",
+                    "status": "completed",
+                    "conclusion": "skipped",
+                }
+            ]
+        )
         self.assertEqual(errors, [])
 
     def test_optional_neutral_check_is_allowed(self):
-        errors = self.errors(check_runs=self.checks + [{
-            "name": "docs-preview", "status": "completed", "conclusion": "neutral",
-        }])
+        errors = self.errors(
+            check_runs=self.checks
+            + [
+                {
+                    "name": "docs-preview",
+                    "status": "completed",
+                    "conclusion": "neutral",
+                }
+            ]
+        )
         self.assertEqual(errors, [])
 
     def test_missing_approval_label_fails(self):
@@ -352,12 +366,12 @@ if __name__ == "__main__":
         from unittest.mock import Mock
         import subprocess
 
-        api = Mock(side_effect=subprocess.CalledProcessError(
-            405, ["gh", "api"], stderr="Merge method not allowed"
-        ))
-        result, error = perform_squash_merge(
-            "bniladridas/cuda", 76, "a" * 40, api=api
+        api = Mock(
+            side_effect=subprocess.CalledProcessError(
+                405, ["gh", "api"], stderr="Merge method not allowed"
+            )
         )
+        result, error = perform_squash_merge("bniladridas/cuda", 76, "a" * 40, api=api)
         self.assertIsNone(result)
         self.assertIn("GitHub rejected the squash merge request", error)
         self.assertIn("Merge method not allowed", error)
