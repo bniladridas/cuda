@@ -219,6 +219,7 @@ issue-landing/          issue landing report engine and offline tests
   summary and JSON artifact. It never comments, labels, approves, blocks or
   merges. Findings do not fail the check.
 - `squash-merge`: explicit maintainer approval via `squash-merge:approved` triggers a guarded squash-only merge attempt. It validates the maintainer, same-repository target, exact head SHA, independent reviewer approval, and observed checks. GitHub remains authoritative for branch protection and required checks. Formatting approval never authorizes a merge. Setup in [`docs/squash-merge.md`](docs/squash-merge.md).
+
 - `lock-merged-pr`: runs when a pull request closes and locks the conversation
   with reason `resolved` only when the pull request was merged. It uses
   `pull_request_target` so the workflow comes from the base branch, needs only
@@ -239,6 +240,10 @@ issue-landing/          issue landing report engine and offline tests
   relied on as a safety net; the CPU job's host-side clang-tidy is complementary
   and covers `tests/test_host.cpp` and the CUDA-free public headers only. CodeQL
   is kept as a scheduled check for when query coverage improves.
+
+## Review automation
+
+- `codex-review`: apply `codex:review` to request a Codex PR review. The workflow posts `@codex review` and consumes the label after posting. Codex must be connected and enabled; confirm that it responds to a bot-authored command comment during the first smoke test. Setup in [`docs/codex-review.md`](docs/codex-review.md).
 
 ## Roadmap
 
