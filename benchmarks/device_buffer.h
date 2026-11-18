@@ -7,9 +7,8 @@ namespace bench {
 
 template <typename Api, typename T, typename ErrorHandler>
 class DeviceBuffer {
- public:
-  DeviceBuffer(Api& api, ErrorHandler report)
-      : api_(api), report_(std::move(report)) {}
+public:
+  DeviceBuffer(Api& api, ErrorHandler report) : api_(api), report_(std::move(report)) {}
 
   DeviceBuffer(const DeviceBuffer&) = delete;
   DeviceBuffer& operator=(const DeviceBuffer&) = delete;
@@ -40,6 +39,7 @@ class DeviceBuffer {
   }
 
   T* get() const { return pointer_; }
+
 
  private:
   Api& api_;
