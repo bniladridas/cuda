@@ -122,7 +122,10 @@ bool vecadd_correct(std::size_t n) {
                            "cudaMemcpy vecadd output (correctness)")) {
     return false;
   }
-  return got == expected;
+  bool cleanup_ok = d_a.reset();
+  cleanup_ok = d_b.reset() && cleanup_ok;
+  cleanup_ok = d_c.reset() && cleanup_ok;
+  return cleanup_ok && got == expected;
 }
 
 bool reduce_correct(std::size_t n) {
@@ -153,8 +156,11 @@ bool reduce_correct(std::size_t n) {
     return false;
   }
 
+  bool cleanup_ok = d_x.reset();
+  cleanup_ok = d_out.reset() && cleanup_ok;
+  cleanup_ok = d_scratch.reset() && cleanup_ok;
   const double ref = host::sum_reference(x);
-  return host::rel_error(ref, static_cast<double>(got), n) <= 1e-4;
+  return cleanup_ok && host::rel_error(ref, static_cast<double>(got), n) <= 1e-4;
 }
 
 struct Row {
@@ -274,7 +280,10 @@ int main(int argc, char** argv) {
       return 1;
     }
     rows.push_back(re);
-
+    bool cleanup_ok = d_x.reset();
+    cleanup_ok = d_out.reset() && cleanup_ok;
+    cleanup_ok = d_scratch.reset() && cleanup_ok;
+    if (!cleanup_ok) return 1;
   }
 
   if (opts.json) {
