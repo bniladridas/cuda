@@ -41,7 +41,7 @@ int failures = 0;
 
 void check(bool ok, const char* message) {
   if (!ok) {
-    std::fprintf(stderr, "FAIL [device_buffer] %s\\n", message);
+    std::fprintf(stderr, "FAIL [device_buffer] %s\n", message);
     ++failures;
   }
 }
