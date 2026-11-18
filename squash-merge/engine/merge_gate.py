@@ -180,7 +180,15 @@ def collect_state(
         for run in page.get("check_runs", [])
         if run.get("name") != "squash-merge approval gate"
     ]
-    status = gh_json(f"repos/{repo}/commits/{head_sha}/status?per_page=100")
+    status_pages = gh_json(
+        f"repos/{repo}/commits/{head_sha}/status",
+        "--paginate",
+        "--slurp",
+    )
+    status = {
+        "state": status_pages[0].get("state") if status_pages else None,
+        "statuses": [status for page in status_pages for status in page.get("statuses", [])],
+    }
     return pr, reviews, checks, status
 
 
@@ -203,9 +211,27 @@ def perform_squash_merge(repo: str, pr_number: int, head_sha: str, api=gh_json) 
     return result, None
 
 
-def write_summary(title: str, errors: list[str]) -> None:
-    summary = "# " + title + "\n\n" + "\n".join(f"- {error}" for error in errors) + "\n"
-    Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text(summary, encoding="utf-8")
+def write_summary(title: str, errors: list[str], details: list[str] | None = None) -> None:
+    lines = ["# " + title, "", *[f"- {error}" for error in errors]]
+    if details:
+        lines.extend(["", "## Audit", *[f"- {detail}" for detail in details]])
+    Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+
+
+def audit_details(actor: str, head_sha: str, pr: dict[str, Any], reviews: list[dict[str, Any]], checks: list[dict[str, Any]], status: dict[str, Any]) -> list[str]:
+    author = (pr.get("user") or {}).get("login")
+    reviewers = sorted(
+        login for login, state in latest_review_states(reviews, head_sha).items()
+        if state == "APPROVED" and login != author and not login.endswith("[bot]")
+    )
+    return [
+        f"Approval actor: @{actor}",
+        f"Event head SHA: {head_sha}",
+        f"Independent approving reviewers: {', '.join('@' + name for name in reviewers) or 'none'}",
+        f"Review submissions inspected: {len(reviews)}",
+        f"Check runs inspected: {len(checks)}",
+        f"Commit statuses inspected: {len(status.get('statuses', []))}",
+    ]
 
 
 def main() -> int:
@@ -247,7 +273,7 @@ def main() -> int:
     if errors:
         if any("head changed" in error for error in errors):
             errors.append("The approval label was preserved. Review the new head, then apply the label again to create a fresh approval event.")
-        write_summary("Squash merge not performed", errors)
+        write_summary("Squash merge not performed", errors, audit_details(args.actor, args.event_head, pr, reviews, checks, status))
         print("\n".join(errors), file=sys.stderr)
         return 1
 
@@ -264,13 +290,13 @@ def main() -> int:
     if errors:
         if any("head changed" in error for error in errors):
             errors.append("The approval label was preserved. Apply it again after reviewing the new head to create a fresh approval event.")
-        write_summary("Squash merge not performed: state changed", errors)
+        write_summary("Squash merge not performed: state changed", errors, audit_details(args.actor, args.event_head, latest, latest_reviews, latest_checks, latest_status))
         print("\n".join(errors), file=sys.stderr)
         return 1
 
     merge, merge_error = perform_squash_merge(args.repo, args.pr, args.event_head)
     if merge_error:
-        write_summary("Squash merge failed; approval label preserved", [merge_error])
+        write_summary("Squash merge failed; approval label preserved", [merge_error], audit_details(args.actor, args.event_head, latest, latest_reviews, latest_checks, latest_status))
         print(merge_error, file=sys.stderr)
         return 1
 
