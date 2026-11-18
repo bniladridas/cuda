@@ -215,7 +215,7 @@ def write_summary(title: str, errors: list[str], details: list[str] | None = Non
     lines = ["# " + title, "", *[f"- {error}" for error in errors]]
     if details:
         lines.extend(["", "## Audit", *[f"- {detail}" for detail in details]])
-    Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text("\\n".join(lines) + "\\n", encoding="utf-8")
+    Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def audit_details(actor: str, head_sha: str, pr: dict[str, Any], reviews: list[dict[str, Any]], checks: list[dict[str, Any]], status: dict[str, Any]) -> list[str]:
