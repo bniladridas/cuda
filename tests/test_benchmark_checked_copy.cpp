@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "checked_copy.h"
