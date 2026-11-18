@@ -38,6 +38,11 @@ target_include_directories(test_benchmark_event_timer PRIVATE
 cuda_kernels_set_host_warnings(test_benchmark_event_timer)
 add_test(NAME benchmark_event_timer COMMAND test_benchmark_event_timer)
 
+add_executable(test_benchmark_device_buffer test_benchmark_device_buffer.cpp)
+target_include_directories(test_benchmark_device_buffer PRIVATE ${PROJECT_SOURCE_DIR}/benchmarks)
+cuda_kernels_set_host_warnings(test_benchmark_device_buffer)
+add_test(NAME benchmark_device_buffer COMMAND test_benchmark_device_buffer)
+
 if(CUDA_KERNELS_HAVE_CUDA)
   foreach(name IN ITEMS vecadd reduce)
     add_executable(test_${name} test_${name}.cpp)
