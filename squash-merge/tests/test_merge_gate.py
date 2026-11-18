@@ -400,9 +400,7 @@ class CollectStatePaginationTests(unittest.TestCase):
             "merge_gate.gh_json",
             side_effect=[pr, review_pages, check_pages, status_pages],
         ) as api:
-            result_pr, reviews, checks, status = collect_state(
-                "bniladridas/cuda", 76, head
-            )
+            result_pr, reviews, checks, status = collect_state("bniladridas/cuda", 76, head)
 
         self.assertEqual(result_pr, pr)
         self.assertEqual([review["id"] for review in reviews], [1, 2])
