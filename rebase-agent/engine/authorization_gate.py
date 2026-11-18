@@ -63,9 +63,15 @@ def main():
         if approval != expected_phrase:
             raise GateError("approval phrase does not bind this PR, head SHA, base SHA, and operation")
         repo = api("/repos/" + repository, token)
+        if not repo:
+            raise GateError("repository not found")
+        default_branch = repo["default_branch"]
+        expected_ref = "refs/heads/" + default_branch
+        if os.environ.get("GITHUB_REF") != expected_ref:
+            raise GateError("workflow_dispatch must run from the trusted default branch")
         pr = api("/repos/" + repository + "/pulls/%d" % number, token)
-        if not repo or not pr:
-            raise GateError("repository or pull request not found")
+        if not pr:
+            raise GateError("pull request not found")
         if pr.get("state") != "open" or pr.get("merged") or pr.get("draft"):
             raise GateError("PR must be open, unmerged, and ready for review")
         if pr["base"]["repo"]["full_name"].lower() != repository.lower():
