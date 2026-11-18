@@ -343,7 +343,10 @@ jobs:
           set -euo pipefail
           assert_pr_open() {
             local current_number
-            current_number="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq 'select(.state == "open" and .merged == false) | .number')"
+            current_number="$(
+              gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" \
+                --jq 'select(.state == "open" and .merged == false) | .number'
+            )"
             if [ "$current_number" != "$PR_NUMBER" ]; then
               echo "PR is no longer open and unmerged; refusing to publish" >&2
               exit 1

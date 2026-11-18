@@ -10,9 +10,7 @@ from unittest.mock import patch
 
 
 ENGINE = Path(__file__).resolve().parents[1] / "engine"
-SPEC = importlib.util.spec_from_file_location(
-    "authorization_gate", ENGINE / "authorization_gate.py"
-)
+SPEC = importlib.util.spec_from_file_location("authorization_gate", ENGINE / "authorization_gate.py")
 GATE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GATE)
 
