@@ -247,12 +247,15 @@ issue-landing/          issue landing report engine and offline tests
 
 ## Roadmap
 
-Done: vector add, parallel reduction, correctness harness, benchmark harness,
-CI.
+The language and architecture audit is in [`docs/language-roadmap.md`](docs/language-roadmap.md).
+CUDA C++ remains the implementation core. C interoperability and Fortran are
+separate, evidence-gated follow-up tracks, not additional implementations in
+the current build.
 
-Next, in order: matrix multiplication and tiling, shared-memory and occupancy
+Kernel work: matrix multiplication and tiling, shared-memory and occupancy
 study, profiling-driven optimization, then comparison benchmarks against
-vendor-library equivalents.
+vendor-library equivalents. GPU-dependent work remains pending a recorded
+NVIDIA device run.
 
 ## License
 
