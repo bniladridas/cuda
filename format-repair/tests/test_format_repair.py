@@ -144,6 +144,19 @@ class ReportTests(unittest.TestCase):
             self.assertIn("closed or merged", report["reason"])
             self.assertIn("Skipped:", summary.read_text(encoding="utf-8"))
 
+    def test_pr_closed_during_inspection_is_a_successful_skip(self):
+        with tempfile.TemporaryDirectory() as temp:
+            artifact = Path(temp) / "report.json"
+            summary = Path(temp) / "summary.md"
+            args = mock.Mock(repo=REPO, pr=12, artifact=str(artifact), summary=str(summary))
+            with mock.patch.object(fr, "fetch_pr", side_effect=[pr(), pr(state="closed", merged=True)]):
+                with mock.patch.object(fr, "changed_files", return_value=[{"filename": "src/a.cpp"}]):
+                    with mock.patch.object(fr, "make_report", side_effect=fr.RepairError("pull request is not open")):
+                        fr.run_report(args, config(), "token")
+            report = json.loads(artifact.read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "skipped_closed")
+            self.assertIn("closed or merged", report["reason"])
+
     def test_source_bytes_rejects_contents_api_encoding_none(self):
         payload = {"type": "file", "encoding": "none", "content": ""}
         with mock.patch.object(fr, "api_json", return_value=(payload, "")):
