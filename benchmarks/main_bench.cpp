@@ -13,6 +13,7 @@
 #include <cuda_runtime.h>
 
 #include "bench.h"
+#include "checked_copy.h"
 #include "device_metadata.h"
 #include "device_status.h"
 #include "options.h"
@@ -21,6 +22,24 @@
 #include "host_utils.h"
 
 namespace {
+
+struct CudaMemcpyApi {
+  using Status = cudaError_t;
+  using Kind = cudaMemcpyKind;
+
+  Status success() const { return cudaSuccess; }
+  Status copy(void* destination, const void* source, std::size_t bytes, Kind kind) {
+    return cudaMemcpy(destination, source, bytes, kind);
+  }
+};
+
+bool checked_cuda_memcpy(void* destination, const void* source, std::size_t bytes,
+                         cudaMemcpyKind kind, const char* operation) {
+  CudaMemcpyApi api;
+  return bench::checked_memcpy(
+      api, destination, source, bytes, kind, operation,
+      [](cudaError_t status, const char* name) { bench::check_cuda(status, name); });
+}
 
 void usage(const char* argv0) {
   std::printf("usage: %s [--iterations N] [--reps R] [--warmup W] [--json]\n"
@@ -72,15 +91,19 @@ bool vecadd_correct(std::size_t n) {
   if (!bench::check_cuda(cudaMalloc(&d_a, n * sizeof(float)), "cudaMalloc")) return false;
   if (!bench::check_cuda(cudaMalloc(&d_b, n * sizeof(float)), "cudaMalloc")) return false;
   if (!bench::check_cuda(cudaMalloc(&d_c, n * sizeof(float)), "cudaMalloc")) return false;
-  cudaMemcpy(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice);
+  if (!checked_cuda_memcpy(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+                           "cudaMemcpy vecadd input A (correctness)"))
+    return false;
+  if (!checked_cuda_memcpy(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+                           "cudaMemcpy vecadd input B (correctness)"))
+    return false;
 
   cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, nullptr);
+  if (!bench::check_cuda(cudaGetLastError(), "vecadd correctness kernel launch")) return false;
 
   std::vector<float> got(n);
-  if (!bench::check_cuda(
-          cudaMemcpy(got.data(), d_c, n * sizeof(float), cudaMemcpyDeviceToHost),
-          "cudaMemcpy")) {
+  if (!checked_cuda_memcpy(got.data(), d_c, n * sizeof(float), cudaMemcpyDeviceToHost,
+                           "cudaMemcpy vecadd output (correctness)")) {
     return false;
   }
   cudaFree(d_a);
@@ -102,13 +125,16 @@ bool reduce_correct(std::size_t n) {
                          "cudaMalloc")) {
     return false;
   }
-  cudaMemcpy(d_x, x.data(), n * sizeof(float), cudaMemcpyHostToDevice);
+  if (!checked_cuda_memcpy(d_x, x.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+                           "cudaMemcpy reduce input (correctness)"))
+    return false;
 
   cuda_kernels::launch_reduce(d_x, d_out, d_scratch, n, nullptr);
+  if (!bench::check_cuda(cudaGetLastError(), "reduce correctness kernel launch")) return false;
 
   float got = 0.0f;
-  if (!bench::check_cuda(cudaMemcpy(&got, d_out, sizeof(float), cudaMemcpyDeviceToHost),
-                         "cudaMemcpy")) {
+  if (!checked_cuda_memcpy(&got, d_out, sizeof(float), cudaMemcpyDeviceToHost,
+                           "cudaMemcpy reduce output (correctness)")) {
     return false;
   }
   cudaFree(d_x);
@@ -198,8 +224,12 @@ int main(int argc, char** argv) {
     if (!bench::check_cuda(cudaMalloc(&d_a, n * sizeof(float)), "cudaMalloc")) return 1;
     if (!bench::check_cuda(cudaMalloc(&d_b, n * sizeof(float)), "cudaMalloc")) return 1;
     if (!bench::check_cuda(cudaMalloc(&d_c, n * sizeof(float)), "cudaMalloc")) return 1;
-    cudaMemcpy(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice);
+    if (!checked_cuda_memcpy(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+                             "cudaMemcpy vecadd input A (timed setup)"))
+      return 1;
+    if (!checked_cuda_memcpy(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+                             "cudaMemcpy vecadd input B (timed setup)"))
+      return 1;
 
     Row va{"vecadd", n, 3.0 * static_cast<double>(n) * sizeof(float), {}};
     if (!bench::measure([&] { cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, nullptr); },
@@ -222,7 +252,9 @@ int main(int argc, char** argv) {
                            "cudaMalloc")) {
       return 1;
     }
-    cudaMemcpy(d_x, a.data(), n * sizeof(float), cudaMemcpyHostToDevice);
+    if (!checked_cuda_memcpy(d_x, a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+                             "cudaMemcpy reduce input (timed setup)"))
+      return 1;
 
     Row re{"reduce", n, static_cast<double>(n) * sizeof(float), {}};
     if (!bench::measure(
