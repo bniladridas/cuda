@@ -223,10 +223,18 @@ def write_summary(title: str, errors: list[str], details: list[str] | None = Non
     Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def audit_details(actor: str, head_sha: str, pr: dict[str, Any], reviews: list[dict[str, Any]], checks: list[dict[str, Any]], status: dict[str, Any]) -> list[str]:
+def audit_details(
+    actor: str,
+    head_sha: str,
+    pr: dict[str, Any],
+    reviews: list[dict[str, Any]],
+    checks: list[dict[str, Any]],
+    status: dict[str, Any],
+) -> list[str]:
     author = (pr.get("user") or {}).get("login")
     reviewers = sorted(
-        login for login, state in latest_review_states(reviews, head_sha).items()
+        login
+        for login, state in latest_review_states(reviews, head_sha).items()
         if state == "APPROVED" and login != author and not login.endswith("[bot]")
     )
     return [
@@ -280,7 +288,11 @@ def main() -> int:
             errors.append(
                 "The approval label was preserved. Review the new head, then apply the label again to create a fresh approval event."
             )
-        write_summary("Squash merge not performed", errors, audit_details(args.actor, args.event_head, pr, reviews, checks, status))
+        write_summary(
+            "Squash merge not performed",
+            errors,
+            audit_details(args.actor, args.event_head, pr, reviews, checks, status),
+        )
         print("\n".join(errors), file=sys.stderr)
         return 1
 
@@ -297,13 +309,21 @@ def main() -> int:
     if errors:
         if any("head changed" in error for error in errors):
             errors.append("The approval label was preserved. Apply it again after reviewing the new head to create a fresh approval event.")
-        write_summary("Squash merge not performed: state changed", errors, audit_details(args.actor, args.event_head, latest, latest_reviews, latest_checks, latest_status))
+        write_summary(
+            "Squash merge not performed: state changed",
+            errors,
+            audit_details(args.actor, args.event_head, latest, latest_reviews, latest_checks, latest_status),
+        )
         print("\n".join(errors), file=sys.stderr)
         return 1
 
     merge, merge_error = perform_squash_merge(args.repo, args.pr, args.event_head)
     if merge_error:
-        write_summary("Squash merge failed; approval label preserved", [merge_error], audit_details(args.actor, args.event_head, latest, latest_reviews, latest_checks, latest_status))
+        write_summary(
+            "Squash merge failed; approval label preserved",
+            [merge_error],
+            audit_details(args.actor, args.event_head, latest, latest_reviews, latest_checks, latest_status),
+        )
         print(merge_error, file=sys.stderr)
         return 1
 
@@ -322,7 +342,8 @@ def main() -> int:
         env=os.environ.copy(),
     )
     reviewed_by = sorted(
-        login for login, state in latest_review_states(latest_reviews, args.event_head).items()
+        login
+        for login, state in latest_review_states(latest_reviews, args.event_head).items()
         if state == "APPROVED" and login != (latest.get("user") or {}).get("login")
     )
     required_run_report = sorted(f"{name}: success" for name in policy["required_check_runs"])

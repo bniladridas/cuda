@@ -341,9 +341,15 @@ if __name__ == "__main__":
             ("in_progress", None),
         ]:
             with self.subTest(status=status, conclusion=conclusion):
-                errors = self.errors(check_runs=[{
-                    "name": "CI", "status": status, "conclusion": conclusion,
-                }])
+                errors = self.errors(
+                    check_runs=[
+                        {
+                            "name": "CI",
+                            "status": status,
+                            "conclusion": conclusion,
+                        }
+                    ]
+                )
                 self.assertTrue(any("Required checks are not successful" in error for error in errors))
 
     def test_missing_required_check_fails(self):
@@ -366,11 +372,7 @@ if __name__ == "__main__":
         from unittest.mock import Mock
         import subprocess
 
-        api = Mock(
-            side_effect=subprocess.CalledProcessError(
-                405, ["gh", "api"], stderr="Merge method not allowed"
-            )
-        )
+        api = Mock(side_effect=subprocess.CalledProcessError(405, ["gh", "api"], stderr="Merge method not allowed"))
         result, error = perform_squash_merge("bniladridas/cuda", 76, "a" * 40, api=api)
         self.assertIsNone(result)
         self.assertIn("GitHub rejected the squash merge request", error)
