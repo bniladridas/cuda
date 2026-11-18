@@ -331,7 +331,6 @@ class MergeGateTests(unittest.TestCase):
         errors = self.errors(pr={**self.pr, "labels": []})
         self.assertTrue(any("label" in error for error in errors))
 
-
     def test_skipped_neutral_and_pending_required_checks_fail(self):
         for status, conclusion in [
             ("completed", "skipped"),
