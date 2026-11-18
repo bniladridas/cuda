@@ -23,6 +23,16 @@
 
 namespace {
 
+struct CudaDeviceMemoryApi {
+  using Status = cudaError_t;
+  Status success() const { return cudaSuccess; }
+  template <typename T>
+  Status allocate(T** pointer, std::size_t bytes) {
+    return cudaMalloc(reinterpret_cast<void**>(pointer), bytes);
+  }
+  Status release(void* pointer) { return cudaFree(pointer); }
+};
+
 struct CudaMemcpyApi {
   using Status = cudaError_t;
   using Kind = cudaMemcpyKind;
@@ -85,31 +95,32 @@ bool vecadd_correct(std::size_t n) {
   const std::vector<float> b = host::random_floats(n, -10.0f, 10.0f, 4u);
   const std::vector<float> expected = host::vecadd_reference(a, b);
 
-  float* d_a = nullptr;
-  float* d_b = nullptr;
-  float* d_c = nullptr;
-  if (!bench::check_cuda(cudaMalloc(&d_a, n * sizeof(float)), "cudaMalloc")) return false;
-  if (!bench::check_cuda(cudaMalloc(&d_b, n * sizeof(float)), "cudaMalloc")) return false;
-  if (!bench::check_cuda(cudaMalloc(&d_c, n * sizeof(float)), "cudaMalloc")) return false;
-  if (!checked_cuda_memcpy(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+  CudaDeviceMemoryApi memory_api;
+  auto report_memory_error = [](cudaError_t status, const char* operation) {
+    bench::check_cuda(status, operation);
+  };
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_a(memory_api, report_memory_error);
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_b(memory_api, report_memory_error);
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_c(memory_api, report_memory_error);
+  if (!d_a.allocate(n * sizeof(float), "cudaMalloc vecadd A")) return false;
+  if (!d_b.allocate(n * sizeof(float), "cudaMalloc vecadd B")) return false;
+  if (!d_c.allocate(n * sizeof(float), "cudaMalloc vecadd C")) return false;
+  if (!checked_cuda_memcpy(d_a.get(), a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                            "cudaMemcpy vecadd input A (correctness)"))
     return false;
-  if (!checked_cuda_memcpy(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+  if (!checked_cuda_memcpy(d_b.get(), b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                            "cudaMemcpy vecadd input B (correctness)"))
     return false;
 
-  cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, nullptr);
+  cuda_kernels::launch_vecadd(d_a.get(), d_b.get(), d_c.get(), n, nullptr);
   if (!bench::check_cuda(cudaGetLastError(), "vecadd correctness kernel launch"))
     return false;
 
   std::vector<float> got(n);
-  if (!checked_cuda_memcpy(got.data(), d_c, n * sizeof(float), cudaMemcpyDeviceToHost,
+  if (!checked_cuda_memcpy(got.data(), d_c.get(), n * sizeof(float), cudaMemcpyDeviceToHost,
                            "cudaMemcpy vecadd output (correctness)")) {
     return false;
   }
-  cudaFree(d_a);
-  cudaFree(d_b);
-  cudaFree(d_c);
   return got == expected;
 }
 
@@ -117,31 +128,29 @@ bool reduce_correct(std::size_t n) {
   const std::vector<float> x = host::random_floats(n, -1.0f, 1.0f, 5u);
   const std::size_t scratch_elems = cuda_kernels::launch_reduce_scratch_elems<float>(n);
 
-  float* d_x = nullptr;
-  float* d_out = nullptr;
-  float* d_scratch = nullptr;
-  if (!bench::check_cuda(cudaMalloc(&d_x, n * sizeof(float)), "cudaMalloc")) return false;
-  if (!bench::check_cuda(cudaMalloc(&d_out, sizeof(float)), "cudaMalloc")) return false;
-  if (!bench::check_cuda(cudaMalloc(&d_scratch, scratch_elems * sizeof(float)),
-                         "cudaMalloc")) {
-    return false;
-  }
-  if (!checked_cuda_memcpy(d_x, x.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+  CudaDeviceMemoryApi memory_api;
+  auto report_memory_error = [](cudaError_t status, const char* operation) {
+    bench::check_cuda(status, operation);
+  };
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_x(memory_api, report_memory_error);
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_out(memory_api, report_memory_error);
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_scratch(memory_api, report_memory_error);
+  if (!d_x.allocate(n * sizeof(float), "cudaMalloc reduce input")) return false;
+  if (!d_out.allocate(sizeof(float), "cudaMalloc reduce output")) return false;
+  if (!d_scratch.allocate(scratch_elems * sizeof(float), "cudaMalloc reduce scratch")) return false;
+  if (!checked_cuda_memcpy(d_x.get(), x.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                            "cudaMemcpy reduce input (correctness)"))
     return false;
 
-  cuda_kernels::launch_reduce(d_x, d_out, d_scratch, n, nullptr);
+  cuda_kernels::launch_reduce(d_x.get(), d_out.get(), d_scratch.get(), n, nullptr);
   if (!bench::check_cuda(cudaGetLastError(), "reduce correctness kernel launch"))
     return false;
 
   float got = 0.0f;
-  if (!checked_cuda_memcpy(&got, d_out, sizeof(float), cudaMemcpyDeviceToHost,
+  if (!checked_cuda_memcpy(&got, d_out.get(), sizeof(float), cudaMemcpyDeviceToHost,
                            "cudaMemcpy reduce output (correctness)")) {
     return false;
   }
-  cudaFree(d_x);
-  cudaFree(d_out);
-  cudaFree(d_scratch);
 
   const double ref = host::sum_reference(x);
   return host::rel_error(ref, static_cast<double>(got), n) <= 1e-4;
@@ -220,55 +229,50 @@ int main(int argc, char** argv) {
     const std::vector<float> a = host::random_floats(n, -1.0f, 1.0f, 3u);
     const std::vector<float> b = host::random_floats(n, -1.0f, 1.0f, 4u);
 
-    float* d_a = nullptr;
-    float* d_b = nullptr;
-    float* d_c = nullptr;
-    if (!bench::check_cuda(cudaMalloc(&d_a, n * sizeof(float)), "cudaMalloc")) return 1;
-    if (!bench::check_cuda(cudaMalloc(&d_b, n * sizeof(float)), "cudaMalloc")) return 1;
-    if (!bench::check_cuda(cudaMalloc(&d_c, n * sizeof(float)), "cudaMalloc")) return 1;
-    if (!checked_cuda_memcpy(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+    CudaDeviceMemoryApi memory_api;
+    auto report_memory_error = [](cudaError_t status, const char* operation) {
+      bench::check_cuda(status, operation);
+    };
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_a(memory_api, report_memory_error);
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_b(memory_api, report_memory_error);
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_c(memory_api, report_memory_error);
+    if (!d_a.allocate(n * sizeof(float), "cudaMalloc vecadd A")) return 1;
+    if (!d_b.allocate(n * sizeof(float), "cudaMalloc vecadd B")) return 1;
+    if (!d_c.allocate(n * sizeof(float), "cudaMalloc vecadd C")) return 1;
+    if (!checked_cuda_memcpy(d_a.get(), a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                              "cudaMemcpy vecadd input A (timed setup)"))
       return 1;
-    if (!checked_cuda_memcpy(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+    if (!checked_cuda_memcpy(d_b.get(), b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                              "cudaMemcpy vecadd input B (timed setup)"))
       return 1;
 
     Row va{"vecadd", n, 3.0 * static_cast<double>(n) * sizeof(float), {}};
-    if (!bench::measure([&] { cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, nullptr); },
+    if (!bench::measure([&] { cuda_kernels::launch_vecadd(d_a.get(), d_b.get(), d_c.get(), n, nullptr); },
                         opts.iterations, opts.reps, opts.warmup, &va.stats)) {
       return 1;
     }
     rows.push_back(va);
 
-    cudaFree(d_a);
-    cudaFree(d_b);
-    cudaFree(d_c);
 
     const std::size_t scratch_elems = cuda_kernels::launch_reduce_scratch_elems<float>(n);
-    float* d_x = nullptr;
-    float* d_out = nullptr;
-    float* d_scratch = nullptr;
-    if (!bench::check_cuda(cudaMalloc(&d_x, n * sizeof(float)), "cudaMalloc")) return 1;
-    if (!bench::check_cuda(cudaMalloc(&d_out, sizeof(float)), "cudaMalloc")) return 1;
-    if (!bench::check_cuda(cudaMalloc(&d_scratch, scratch_elems * sizeof(float)),
-                           "cudaMalloc")) {
-      return 1;
-    }
-    if (!checked_cuda_memcpy(d_x, a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_x(memory_api, report_memory_error);
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_out(memory_api, report_memory_error);
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_scratch(memory_api, report_memory_error);
+    if (!d_x.allocate(n * sizeof(float), "cudaMalloc reduce input")) return 1;
+    if (!d_out.allocate(sizeof(float), "cudaMalloc reduce output")) return 1;
+    if (!d_scratch.allocate(scratch_elems * sizeof(float), "cudaMalloc reduce scratch")) return 1;
+    if (!checked_cuda_memcpy(d_x.get(), a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                              "cudaMemcpy reduce input (timed setup)"))
       return 1;
 
     Row re{"reduce", n, static_cast<double>(n) * sizeof(float), {}};
     if (!bench::measure(
-            [&] { cuda_kernels::launch_reduce(d_x, d_out, d_scratch, n, nullptr); },
+            [&] { cuda_kernels::launch_reduce(d_x.get(), d_out.get(), d_scratch.get(), n, nullptr); },
             opts.iterations, opts.reps, opts.warmup, &re.stats)) {
       return 1;
     }
     rows.push_back(re);
 
-    cudaFree(d_x);
-    cudaFree(d_out);
-    cudaFree(d_scratch);
   }
 
   if (opts.json) {
