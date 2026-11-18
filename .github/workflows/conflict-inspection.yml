@@ -1,0 +1,46 @@
+name: PR conflict inspection
+
+on:
+  pull_request_target:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Pull request number to inspect
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  inspect:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'conflict:inspect'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted base-branch code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Inspect PR trees through GitHub API
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pull_request || github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 rebase-agent/engine/tree_inspector.py \
+            --repository "$REPOSITORY" \
+            --pull-request "$PR_NUMBER" \
+            --output conflict-inspection.json
+
+      - name: Upload complete inspection report
+        uses: actions/upload-artifact@v4
+        with:
+          name: conflict-inspection-${{ inputs.pull_request || github.event.pull_request.number }}
+          path: conflict-inspection.json
+          if-no-files-found: error
+          retention-days: 14

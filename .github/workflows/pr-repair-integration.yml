@@ -1,0 +1,401 @@
+name: PR repair integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: PR number
+        required: true
+        type: number
+      operation:
+        description: Explicit integration mode
+        required: true
+        type: choice
+        options: [rebase, merge]
+      expected_head_sha:
+        description: Exact approved PR head SHA
+        required: true
+        type: string
+      expected_base_sha:
+        description: Exact approved base SHA
+        required: true
+        type: string
+      approval:
+        description: Type UPDATE <PR> <HEAD_SHA> <BASE_SHA> <OPERATION>
+        required: true
+        type: string
+      review_feedback:
+        description: Optional reviewer comment or requested change, up to 10000 bytes
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-repair-${{ inputs.pull_request }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      branch: ${{ steps.gate.outputs.branch }}
+      base_branch: ${{ steps.gate.outputs.base_branch }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+      base_sha: ${{ steps.gate.outputs.base_sha }}
+      operation: ${{ steps.gate.outputs.operation }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          OPERATION: ${{ inputs.operation }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          EXPECTED_BASE_SHA: ${{ inputs.expected_base_sha }}
+          APPROVAL: ${{ inputs.approval }}
+          REPAIR_MAINTAINERS: ${{ vars.REPAIR_MAINTAINERS }}
+          REPAIR_REBASE_ENABLED: ${{ vars.REPAIR_REBASE_ENABLED }}
+          REPAIR_MERGE_ENABLED: ${{ vars.REPAIR_MERGE_ENABLED }}
+          REPAIR_WRITE_ENVIRONMENT_CONFIRMED: ${{ vars.REPAIR_WRITE_ENVIRONMENT_CONFIRMED }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/authorization_gate.py > gate.env
+          cat gate.env >> "$GITHUB_OUTPUT"
+
+  snapshot:
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.authorize.outputs.head_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Export source snapshot and complete diff
+        env:
+          BASE_BRANCH: ${{ needs.authorize.outputs.base_branch }}
+          BASE_SHA: ${{ needs.authorize.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
+          git archive --format=tar HEAD > source.tar
+          git diff --binary --full-index "$BASE_SHA...$HEAD_SHA" > pr.diff
+          git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
+          test -s pr.diff
+          test -s pr-files.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-source-snapshot
+          path: |
+            source.tar
+            pr.diff
+            pr-files.txt
+          if-no-files-found: error
+          retention-days: 2
+
+  agent:
+    needs: [authorize, snapshot]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: pr-source-snapshot
+          path: input
+      - name: Prepare inert source snapshot
+        run: |
+          set -euo pipefail
+          mkdir source
+          python3 rebase-agent/engine/extract_safe_archive.py input/source.tar source
+          git -C source init -q
+          git -C source config user.name "repair-agent"
+          git -C source config user.email "repair-agent@users.noreply.github.com"
+          git -C source add -A
+          git -C source commit -qm "PR source snapshot"
+      - name: Inspect live GitHub trees using read-only API access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/tree_inspector.py \
+            --repository "$REPOSITORY" --pull-request "$PR_NUMBER" \
+            --output tree-inspection.json
+          python3 rebase-agent/engine/verify_tree_inspection.py \
+            tree-inspection.json "$EXPECTED_HEAD" "$EXPECTED_BASE"
+      - name: Run bounded OpenRouter review and repair proposal
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REVIEW_FEEDBACK: ${{ inputs.review_feedback }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/write_feedback.py feedback.txt
+          python3 rebase-agent/engine/repair_agent.py \
+            --source source --diff input/pr.diff --files input/pr-files.txt \
+            --feedback feedback.txt --report agent-report.json
+          git -C source diff --cached --binary --full-index > proposed.patch
+          test -s proposed.patch
+          python3 rebase-agent/engine/verify_agent_report.py agent-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repair-proposal
+          path: |
+            proposed.patch
+            agent-report.json
+            tree-inspection.json
+          if-no-files-found: error
+          retention-days: 2
+
+  prepare:
+    needs: [authorize, agent]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      result_sha: ${{ steps.prepare.outputs.result_sha }}
+      result_tree: ${{ steps.prepare.outputs.result_tree }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.authorize.outputs.head_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: repair-proposal
+          path: proposal
+      - name: Apply proposed patch, integrate, and validate without secrets
+        id: prepare
+        env:
+          BASE_BRANCH: ${{ needs.authorize.outputs.base_branch }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          BASE_SHA: ${{ needs.authorize.outputs.base_sha }}
+          OPERATION: ${{ needs.authorize.outputs.operation }}
+        run: |
+          set -euo pipefail
+          git config user.name "cuda-pr-repair"
+          git config user.email "cuda-pr-repair@users.noreply.github.com"
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          git apply --check --whitespace=error proposal/proposed.patch
+          git apply --whitespace=error proposal/proposed.patch
+          git add -A -f
+          git commit -m "fix: apply reviewed PR repair proposal"
+          git fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          test "$(git rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
+          if [ "$OPERATION" = rebase ]; then
+            git rebase "$BASE_SHA"
+          elif [ "$OPERATION" = merge ]; then
+            git merge --no-ff --no-edit "$BASE_SHA"
+          else
+            echo "unsupported operation" >&2
+            exit 1
+          fi
+          python3 -m pip install --disable-pip-version-check --quiet -r requirements-dev.txt
+          ruff check .
+          ruff format --check .
+          python3 -m unittest discover -s rebase-agent/tests
+          python3 -m unittest discover -s label-review/tests
+          python3 -m unittest discover -s issue-landing/tests
+          python3 -m unittest discover -s pr-confidence/tests
+          python3 -m unittest discover -s pr-scope-guard/tests
+          python3 -m unittest discover -s format-repair/tests
+          if [ -d benchmarks/tests ]; then python3 -m unittest discover -s benchmarks/tests; fi
+          cmake -S . -B build-cpu -DCMAKE_BUILD_TYPE=Release -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON
+          cmake --build build-cpu -j"$(nproc)"
+          ctest --test-dir build-cpu --output-on-failure
+          git diff --check "$BASE_SHA"...HEAD
+          git diff --stat "$BASE_SHA"...HEAD > prepared-diff-stat.txt
+          git archive --format=tar HEAD > final-source.tar
+          git diff --binary --full-index "$BASE_SHA...HEAD" > final.diff
+          git diff --name-only --no-renames -z "$BASE_SHA...HEAD" > final-files.txt
+          git rev-parse HEAD > prepared-sha.txt
+          git rev-parse "HEAD^{tree}" > prepared-tree.txt
+          python3 rebase-agent/engine/write_validation_report.py validation.json
+          git bundle create prepared.bundle HEAD
+          echo "result_sha=$(cat prepared-sha.txt)" >> "$GITHUB_OUTPUT"
+          echo "result_tree=$(cat prepared-tree.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prepared-integration
+          path: |
+            prepared.bundle
+            prepared-sha.txt
+            prepared-tree.txt
+            validation.json
+            prepared-diff-stat.txt
+            final-source.tar
+            final.diff
+            final-files.txt
+          if-no-files-found: error
+          retention-days: 2
+
+  final-review:
+    needs: [authorize, prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: prepared-integration
+          path: input
+      - name: Prepare inert final source snapshot
+        run: |
+          set -euo pipefail
+          mkdir source
+          python3 rebase-agent/engine/extract_safe_archive.py input/final-source.tar source
+          git -C source init -q
+          git -C source config user.name "repair-agent"
+          git -C source config user.email "repair-agent@users.noreply.github.com"
+          git -C source add -A
+          git -C source commit -qm "Final candidate snapshot"
+      - name: Review the complete final diff without allowing edits
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REVIEW_FEEDBACK: ${{ inputs.review_feedback }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/write_feedback.py feedback.txt
+          python3 rebase-agent/engine/repair_agent.py \
+            --source source --diff input/final.diff \
+            --files input/final-files.txt --feedback feedback.txt \
+            --report final-review.json --review-only
+          python3 rebase-agent/engine/verify_agent_report.py final-review.json --final
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final-review
+          path: final-review.json
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [authorize, prepare, final-review]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pr-repair-write
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: true
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: prepared-integration
+          path: prepared
+      - uses: actions/download-artifact@v4
+        with:
+          name: final-review
+          path: review
+      - uses: actions/download-artifact@v4
+        with:
+          name: repair-proposal
+          path: proposal
+      - name: Verify review, bundle, and exact refs before branch update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.authorize.outputs.branch }}
+          BASE_BRANCH: ${{ needs.authorize.outputs.base_branch }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+          OPERATION: ${{ needs.authorize.outputs.operation }}
+          RESULT_SHA: ${{ needs.prepare.outputs.result_sha }}
+          RESULT_TREE: ${{ needs.prepare.outputs.result_tree }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/verify_agent_report.py review/final-review.json --final
+          git fetch --no-tags origin \
+            "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" \
+            "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+          test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
+          git bundle verify prepared/prepared.bundle
+          git fetch prepared/prepared.bundle HEAD:refs/repair/prepared
+          test "$(git rev-parse refs/repair/prepared)" = "$RESULT_SHA"
+          test "$(git rev-parse "refs/repair/prepared^{tree}")" = "$RESULT_TREE"
+          if [ "$OPERATION" = rebase ]; then
+            git merge-base --is-ancestor "$EXPECTED_BASE" "$RESULT_SHA"
+            git fetch --no-tags origin \
+              "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" \
+              "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+            test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
+            test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
+            git push --force-with-lease="refs/heads/$BRANCH:$EXPECTED_HEAD" origin "$RESULT_SHA:refs/heads/$BRANCH"
+          elif [ "$OPERATION" = merge ]; then
+            read -r commit parent1 parent2 extra < <(git rev-list --parents -n 1 "$RESULT_SHA")
+            test "$commit" = "$RESULT_SHA"
+            git merge-base --is-ancestor "$EXPECTED_HEAD" "$parent1"
+            test "$parent2" = "$EXPECTED_BASE"
+            test -z "${extra:-}"
+            git fetch --no-tags origin \
+              "refs/heads/$BRANCH:refs/remotes/origin/approved-pr" \
+              "refs/heads/$BASE_BRANCH:refs/remotes/origin/approved-base"
+            test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$EXPECTED_HEAD"
+            test "$(git rev-parse refs/remotes/origin/approved-base)" = "$EXPECTED_BASE"
+            git push origin "$RESULT_SHA:refs/heads/$BRANCH"
+          else
+            echo "unsupported operation" >&2
+            exit 1
+          fi
+          python3 rebase-agent/engine/write_audit.py
+      - name: Wait for post-update checks and record conclusions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT_SHA: ${{ needs.prepare.outputs.result_sha }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            gh api "repos/$GITHUB_REPOSITORY/commits/$RESULT_SHA/check-runs" > checks.json
+            if python3 rebase-agent/engine/checks_complete.py checks.json
+            then
+              break
+            fi
+            sleep 10
+          done
+          python3 rebase-agent/engine/summarize_checks.py checks.json audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr-repair-audit-${{ inputs.pull_request }}
+          path: |
+            audit.json
+            checks.json
+          if-no-files-found: warn
+          retention-days: 90

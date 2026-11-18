@@ -1,0 +1,126 @@
+name: Review feedback proposal
+
+on:
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: review-feedback-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false &&
+      (github.event.comment.body != '' || github.event.review.body != '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Export exact PR snapshot and reviewer feedback
+        env:
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git -C pr fetch --no-tags origin "refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          test "$(git -C pr rev-parse HEAD)" = "$HEAD_SHA"
+          test "$(git -C pr rev-parse "refs/remotes/origin/$BASE_BRANCH")" = "$BASE_SHA"
+          git -C pr archive --format=tar HEAD > source.tar
+          git -C pr diff --binary --full-index "$BASE_SHA...$HEAD_SHA" > pr.diff
+          git -C pr diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
+          python3 trusted/rebase-agent/engine/extract_review_feedback.py review-feedback.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-feedback-snapshot
+          path: |
+            source.tar
+            pr.diff
+            pr-files.txt
+            review-feedback.json
+          if-no-files-found: error
+          retention-days: 2
+
+  agent:
+    needs: snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: review-feedback-snapshot
+          path: input
+      - name: Prepare inert source snapshot
+        run: |
+          set -euo pipefail
+          mkdir source
+          python3 rebase-agent/engine/extract_safe_archive.py input/source.tar source
+          git -C source init -q
+          git -C source config user.name "repair-agent"
+          git -C source config user.email "repair-agent@users.noreply.github.com"
+          git -C source add -A
+          git -C source commit -qm "PR source snapshot"
+      - name: Verify live tree metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/tree_inspector.py \
+            --repository "$REPOSITORY" --pull-request "$PR_NUMBER" \
+            --output tree-inspection.json
+          python3 rebase-agent/engine/verify_tree_inspection.py \
+            tree-inspection.json "$EXPECTED_HEAD" "$EXPECTED_BASE"
+      - name: Review feedback and propose a bounded patch
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/repair_agent.py \
+            --source source --diff input/pr.diff --files input/pr-files.txt \
+            --feedback input/review-feedback.json --report agent-report.json
+          git -C source diff --cached --binary --full-index > proposed.patch
+          test -s proposed.patch
+          python3 rebase-agent/engine/verify_agent_report.py agent-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-feedback-proposal
+          path: |
+            proposed.patch
+            agent-report.json
+            tree-inspection.json
+            input/review-feedback.json
+          if-no-files-found: error
+          retention-days: 14

@@ -20,8 +20,8 @@ jobs:
   # the host references are correct, C++ and CUDA sources are formatted, host
   # C++ passes clang-tidy, the CUDA test binaries are absent rather than
   # silently passing, the workflow and repository YAML pass actionlint and
-  # yamllint, and the label-review, PR confidence, PR Scope Guard, formatting repair
-  # and squash-merge engines pass their tests.
+  # yamllint, and the label-review, PR confidence, PR Scope Guard, formatting repair,
+  # squash-merge, and rebase safety engines pass their tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
@@ -60,6 +60,18 @@ jobs:
 
       - name: Test the squash-merge policy engine
         run: python3 -m unittest discover -s squash-merge/tests
+
+      - name: Test the safe rebase engine
+        run: python3 -m unittest discover -s rebase-agent/tests
+
+      - name: Test the separate merge integration engine
+        run: python3 -m unittest discover -s rebase-agent/tests -p 'test_merge_agent.py'
+
+      - name: Test GitHub API tree inspection
+        run: python3 -m unittest discover -s rebase-agent/tests -p 'test_tree_inspector.py'
+
+      - name: Test bounded repair agent
+        run: python3 -m unittest discover -s rebase-agent/tests -p 'test_repair_agent.py'
 
       - name: Test runner skip handling
         run: bash tests/test_runner.sh
@@ -135,7 +147,7 @@ jobs:
           set -euo pipefail
           coverage erase
           ran=0
-          for suite in pr-confidence label-review pr-scope-guard format-repair squash-merge benchmarks; do
+          for suite in pr-confidence label-review pr-scope-guard format-repair squash-merge rebase-agent benchmarks; do
             if [ ! -d "$suite/tests" ]; then
               echo "Skipping $suite: tests directory not present"
               continue
