@@ -99,7 +99,8 @@ bool vecadd_correct(std::size_t n) {
     return false;
 
   cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, nullptr);
-  if (!bench::check_cuda(cudaGetLastError(), "vecadd correctness kernel launch")) return false;
+  if (!bench::check_cuda(cudaGetLastError(), "vecadd correctness kernel launch"))
+    return false;
 
   std::vector<float> got(n);
   if (!checked_cuda_memcpy(got.data(), d_c, n * sizeof(float), cudaMemcpyDeviceToHost,
@@ -130,7 +131,8 @@ bool reduce_correct(std::size_t n) {
     return false;
 
   cuda_kernels::launch_reduce(d_x, d_out, d_scratch, n, nullptr);
-  if (!bench::check_cuda(cudaGetLastError(), "reduce correctness kernel launch")) return false;
+  if (!bench::check_cuda(cudaGetLastError(), "reduce correctness kernel launch"))
+    return false;
 
   float got = 0.0f;
   if (!checked_cuda_memcpy(&got, d_out, sizeof(float), cudaMemcpyDeviceToHost,
