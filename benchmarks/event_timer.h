@@ -53,7 +53,8 @@ bool time_launches_with_api(Api& api, Work&& work, int iterations, double* elaps
   status = api.record(start);
   if (status != api.success()) return fail(status, "cudaEventRecord");
   try {
-    for (int i = 0; i < iterations; ++i) work();
+    for (int i = 0; i < iterations; ++i)
+      work();
   } catch (...) {
     cleanup();
     throw;
