@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Offline tests for the format-repair engine."""
 
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -127,6 +129,21 @@ class PolicyTests(unittest.TestCase):
 
 
 class ReportTests(unittest.TestCase):
+    def test_closed_pull_request_is_a_successful_skip_without_file_lookup(self):
+        with tempfile.TemporaryDirectory() as temp:
+            artifact = Path(temp) / "report.json"
+            summary = Path(temp) / "summary.md"
+            args = mock.Mock(repo=REPO, pr=12, artifact=str(artifact), summary=str(summary))
+            closed = pr(state="closed", merged=True)
+            with mock.patch.object(fr, "fetch_pr", return_value=closed):
+                with mock.patch.object(fr, "changed_files") as files:
+                    fr.run_report(args, config(), "token")
+            files.assert_not_called()
+            report = json.loads(artifact.read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "skipped_closed")
+            self.assertIn("closed or merged", report["reason"])
+            self.assertIn("Skipped:", summary.read_text(encoding="utf-8"))
+
     def test_source_bytes_rejects_contents_api_encoding_none(self):
         payload = {"type": "file", "encoding": "none", "content": ""}
         with mock.patch.object(fr, "api_json", return_value=(payload, "")):
