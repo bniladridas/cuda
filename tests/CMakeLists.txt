@@ -26,6 +26,12 @@ target_include_directories(test_benchmark_metadata PRIVATE
 cuda_kernels_set_host_warnings(test_benchmark_metadata)
 add_test(NAME benchmark_metadata COMMAND test_benchmark_metadata)
 
+add_executable(test_benchmark_event_timer test_benchmark_event_timer.cpp)
+target_include_directories(test_benchmark_event_timer PRIVATE
+  ${PROJECT_SOURCE_DIR}/benchmarks)
+cuda_kernels_set_host_warnings(test_benchmark_event_timer)
+add_test(NAME benchmark_event_timer COMMAND test_benchmark_event_timer)
+
 if(CUDA_KERNELS_HAVE_CUDA)
   foreach(name IN ITEMS vecadd reduce)
     add_executable(test_${name} test_${name}.cpp)

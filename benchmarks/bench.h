@@ -13,6 +13,8 @@
 
 #include <cuda_runtime.h>
 
+#include "event_timer.h"
+
 namespace bench {
 
 struct Stats {
@@ -46,30 +48,29 @@ inline bool check_cuda(cudaError_t err, const char* what) {
   return true;
 }
 
+struct CudaEventApi {
+  using Event = cudaEvent_t;
+
+  cudaError_t success() const { return cudaSuccess; }
+  cudaError_t create(Event* event) { return cudaEventCreate(event); }
+  cudaError_t record(Event event) { return cudaEventRecord(event); }
+  cudaError_t synchronize(Event event) { return cudaEventSynchronize(event); }
+  cudaError_t elapsed(float* ms, Event start, Event stop) {
+    return cudaEventElapsedTime(ms, start, stop);
+  }
+  cudaError_t destroy(Event event) { return cudaEventDestroy(event); }
+};
+
 // Runs `work` `iterations` times between two events and returns elapsed
 // seconds. `work` must only launch kernels; it must not synchronise.
+// All successfully created events are destroyed on every CUDA error path.
+// A cleanup error fails the operation; a primary timing error is reported first.
 inline bool time_launches(const std::function<void()>& work, int iterations,
                           double* elapsed_ms) {
-  cudaEvent_t start = nullptr;
-  cudaEvent_t stop = nullptr;
-  if (!check_cuda(cudaEventCreate(&start), "cudaEventCreate")) return false;
-  if (!check_cuda(cudaEventCreate(&stop), "cudaEventCreate")) return false;
-
-  if (!check_cuda(cudaEventRecord(start), "cudaEventRecord")) return false;
-  for (int i = 0; i < iterations; ++i) {
-    work();
-  }
-  if (!check_cuda(cudaEventRecord(stop), "cudaEventRecord")) return false;
-  if (!check_cuda(cudaEventSynchronize(stop), "cudaEventSynchronize")) return false;
-
-  float ms = 0.0f;
-  if (!check_cuda(cudaEventElapsedTime(&ms, start, stop), "cudaEventElapsedTime")) {
-    return false;
-  }
-  *elapsed_ms = static_cast<double>(ms);
-  cudaEventDestroy(start);
-  cudaEventDestroy(stop);
-  return true;
+  CudaEventApi api;
+  return time_launches_with_api(
+      api, work, iterations, elapsed_ms,
+      [](cudaError_t err, const char* operation) { check_cuda(err, operation); });
 }
 
 // Repeats a timed batch `reps` times and summarises per-iteration times.
