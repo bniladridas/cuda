@@ -16,6 +16,7 @@
 #include "checked_copy.h"
 #include "device_metadata.h"
 #include "device_status.h"
+#include "device_buffer.h"
 #include "options.h"
 #include "cuda_kernels/reduce.cuh"
 #include "cuda_kernels/vecadd.cuh"
@@ -252,6 +253,7 @@ int main(int argc, char** argv) {
       return 1;
     }
     rows.push_back(va);
+    if (!d_a.reset() || !d_b.reset() || !d_c.reset()) return 1;
 
 
     const std::size_t scratch_elems = cuda_kernels::launch_reduce_scratch_elems<float>(n);
