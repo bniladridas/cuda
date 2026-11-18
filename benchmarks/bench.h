@@ -62,8 +62,9 @@ struct CudaEventApi {
 };
 
 // Runs `work` `iterations` times between two events and returns elapsed
-// seconds. `work` must only launch kernels; it must not synchronise. All
-// successfully created events are destroyed on every CUDA error path. A cleanup
+// seconds. `work` must only launch kernels; it must not synchronise.
+// All successfully created events are destroyed on every CUDA error path.
+// A cleanup error fails the operation; a primary timing error is reported first.
 inline bool time_launches(const std::function<void()>& work, int iterations,
                           double* elapsed_ms) {
   CudaEventApi api;
