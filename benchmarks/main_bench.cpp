@@ -109,12 +109,10 @@ bool vecadd_correct(std::size_t n) {
   if (!d_a.allocate(n * sizeof(float), "cudaMalloc vecadd A")) return false;
   if (!d_b.allocate(n * sizeof(float), "cudaMalloc vecadd B")) return false;
   if (!d_c.allocate(n * sizeof(float), "cudaMalloc vecadd C")) return false;
-  if (!checked_cuda_memcpy(d_a.get(), a.data(), n * sizeof(float),
-                             cudaMemcpyHostToDevice,
+  if (!checked_cuda_memcpy(d_a.get(), a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                            "cudaMemcpy vecadd input A (correctness)"))
     return false;
-  if (!checked_cuda_memcpy(d_b.get(), b.data(), n * sizeof(float),
-                             cudaMemcpyHostToDevice,
+  if (!checked_cuda_memcpy(d_b.get(), b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
                            "cudaMemcpy vecadd input B (correctness)"))
     return false;
 
@@ -259,16 +257,20 @@ int main(int argc, char** argv) {
     if (!d_a.allocate(n * sizeof(float), "cudaMalloc vecadd A")) return 1;
     if (!d_b.allocate(n * sizeof(float), "cudaMalloc vecadd B")) return 1;
     if (!d_c.allocate(n * sizeof(float), "cudaMalloc vecadd C")) return 1;
-    if (!checked_cuda_memcpy(d_a.get(), a.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+    if (!checked_cuda_memcpy(d_a.get(), a.data(), n * sizeof(float),
+                             cudaMemcpyHostToDevice,
                              "cudaMemcpy vecadd input A (timed setup)"))
       return 1;
-    if (!checked_cuda_memcpy(d_b.get(), b.data(), n * sizeof(float), cudaMemcpyHostToDevice,
+    if (!checked_cuda_memcpy(d_b.get(), b.data(), n * sizeof(float),
+                             cudaMemcpyHostToDevice,
                              "cudaMemcpy vecadd input B (timed setup)"))
       return 1;
 
     Row va{"vecadd", n, 3.0 * static_cast<double>(n) * sizeof(float), {}};
     if (!bench::measure(
-            [&] { cuda_kernels::launch_vecadd(d_a.get(), d_b.get(), d_c.get(), n, nullptr); },
+            [&] {
+              cuda_kernels::launch_vecadd(d_a.get(), d_b.get(), d_c.get(), n, nullptr);
+            },
             opts.iterations, opts.reps, opts.warmup, &va.stats)) {
       return 1;
     }
@@ -280,8 +282,8 @@ int main(int argc, char** argv) {
         memory_api, report_memory_error);
     bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_out(
         memory_api, report_memory_error);
-    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)> d_scratch(
-        memory_api, report_memory_error);
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report_memory_error)>
+        d_scratch(memory_api, report_memory_error);
     if (!d_x.allocate(n * sizeof(float), "cudaMalloc reduce input")) return 1;
     if (!d_out.allocate(sizeof(float), "cudaMalloc reduce output")) return 1;
     if (!d_scratch.allocate(scratch_elems * sizeof(float), "cudaMalloc reduce scratch"))

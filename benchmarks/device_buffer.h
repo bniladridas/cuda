@@ -40,8 +40,7 @@ public:
 
   T* get() const { return pointer_; }
 
-
- private:
+private:
   Api& api_;
   ErrorHandler report_;
   T* pointer_ = nullptr;
