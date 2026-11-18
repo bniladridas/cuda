@@ -311,6 +311,12 @@ def make_report(repo, pr, files, cfg, token, style_file, python_config_file):
 
 
 def report_markdown(report):
+    if report.get("status") == "skipped_closed":
+        return (
+            "## Formatting check\n\n"
+            "Skipped: this pull request was already closed or merged before inspection. "
+            "No formatting report was produced.\n"
+        )
     lines = [
         "## Formatting check",
         "",
@@ -342,6 +348,17 @@ def write_json(path, data):
 
 def run_report(args, cfg, token):
     pr = fetch_pr(args.repo, args.pr, token)
+    if pr.get("state") != "open":
+        result = {
+            "version": 1,
+            "repo": args.repo,
+            "pr_number": args.pr,
+            "status": "skipped_closed",
+            "reason": "pull request was closed or merged before inspection",
+        }
+        write_json(args.artifact, result)
+        Path(args.summary).write_text(report_markdown(result), encoding="utf-8")
+        return
     files = changed_files(args.repo, args.pr, token)
     result = make_report(args.repo, pr, files, cfg, token, args.style_file, args.python_config_file)
     write_json(args.artifact, result)
