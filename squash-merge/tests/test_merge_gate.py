@@ -8,6 +8,7 @@ from merge_gate import (  # noqa: E402
     outstanding_change_request_reviewers,
     validate_state,
     perform_squash_merge,
+    collect_state,
 )
 
 
@@ -331,9 +332,6 @@ class MergeGateTests(unittest.TestCase):
         self.assertTrue(any("label" in error for error in errors))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_skipped_neutral_and_pending_required_checks_fail(self):
         for status, conclusion in [
             ("completed", "skipped"),
@@ -378,3 +376,52 @@ if __name__ == "__main__":
         self.assertIn("GitHub rejected the squash merge request", error)
         self.assertIn("Merge method not allowed", error)
         api.assert_called_once()
+
+
+class CollectStatePaginationTests(unittest.TestCase):
+    def test_collect_state_flattens_every_page(self):
+        head = "a" * 40
+        pr = {"number": 76}
+        review_pages = [
+            [{"id": 1, "state": "APPROVED"}],
+            [{"id": 2, "state": "COMMENTED"}],
+        ]
+        check_pages = [
+            {"check_runs": [{"name": "cpu"}]},
+            {"check_runs": [{"name": "python"}, {"name": "squash-merge approval gate"}]},
+        ]
+        status_pages = [
+            {"state": "success", "statuses": [{"context": "legacy-a", "state": "success"}]},
+            {"state": "success", "statuses": [{"context": "legacy-b", "state": "success"}]},
+        ]
+        from unittest.mock import patch
+
+        with patch(
+            "merge_gate.gh_json",
+            side_effect=[pr, review_pages, check_pages, status_pages],
+        ) as api:
+            result_pr, reviews, checks, status = collect_state(
+                "bniladridas/cuda", 76, head
+            )
+
+        self.assertEqual(result_pr, pr)
+        self.assertEqual([review["id"] for review in reviews], [1, 2])
+        self.assertEqual([run["name"] for run in checks], ["cpu", "python"])
+        self.assertEqual(
+            [item["context"] for item in status["statuses"]],
+            ["legacy-a", "legacy-b"],
+        )
+        self.assertEqual(api.call_count, 4)
+
+
+class CombinedStatusPolicyTests(MergeGateTests):
+    def test_actions_only_head_with_no_legacy_statuses_passes(self):
+        errors = self.errors(
+            combined_status={"state": "pending", "statuses": []},
+            required_status_contexts=set(),
+        )
+        self.assertEqual(errors, [])
+
+
+if __name__ == "__main__":
+    unittest.main()

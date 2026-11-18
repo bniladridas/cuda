@@ -129,9 +129,9 @@ def validate_state(
         errors.append("Checks have failed: " + ", ".join(failed_optional))
 
     statuses = combined_status.get("statuses", [])
-    status_state = combined_status.get("state")
-    if status_state != "success":
-        errors.append(f"Combined commit status is not successful: {status_state or 'missing'}")
+    # GitHub's combined-status endpoint reports "pending" when a commit has
+    # no legacy statuses, even if all required GitHub Actions check runs pass.
+    # Only explicitly configured legacy contexts are authoritative here.
     observed_contexts = {str(status.get("context", "")) for status in statuses}
     missing_contexts = sorted(required_status_contexts - observed_contexts)
     if missing_contexts:
@@ -309,7 +309,7 @@ def main() -> int:
     if errors:
         if any("head changed" in error for error in errors):
             errors.append(
-                "The approval label was preserved. Apply it again after reviewing the new head to create a fresh approval event."
+                "The approval label was preserved. Remove it, review the new head, then reapply it to create a fresh approval event."
             )
         write_summary(
             "Squash merge not performed: state changed",
