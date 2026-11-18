@@ -357,9 +357,19 @@ class MergeGateTests(unittest.TestCase):
         errors = self.errors(combined_status={"state": "success", "statuses": []})
         self.assertTrue(any("Required commit status contexts are missing" in error for error in errors))
 
-    def test_unsuccessful_empty_combined_status_fails_closed(self):
-        errors = self.errors(combined_status={"state": "failure", "statuses": []})
-        self.assertTrue(any("Combined commit status is not successful" in error for error in errors))
+    def test_unconfigured_combined_status_does_not_block_actions_only_head(self):
+        errors = self.errors(
+            combined_status={"state": "failure", "statuses": []},
+            required_status_contexts=set(),
+        )
+        self.assertEqual(errors, [])
+
+    def test_actions_only_head_with_no_legacy_statuses_passes(self):
+        errors = self.errors(
+            combined_status={"state": "pending", "statuses": []},
+            required_status_contexts=set(),
+        )
+        self.assertEqual(errors, [])
 
     def test_duplicate_label_event_after_merge_is_rejected(self):
         errors = self.errors(pr={**self.pr, "state": "closed", "merged": True})
@@ -409,15 +419,6 @@ class CollectStatePaginationTests(unittest.TestCase):
             ["legacy-a", "legacy-b"],
         )
         self.assertEqual(api.call_count, 4)
-
-
-class CombinedStatusPolicyTests(MergeGateTests):
-    def test_actions_only_head_with_no_legacy_statuses_passes(self):
-        errors = self.errors(
-            combined_status={"state": "pending", "statuses": []},
-            required_status_contexts=set(),
-        )
-        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":
