@@ -61,9 +61,9 @@ struct CudaEventApi {
   cudaError_t destroy(Event event) { return cudaEventDestroy(event); }
 };
 
-// Runs work between two events. All successfully created events are destroyed
-// on every CUDA error path. A cleanup error makes the operation fail; when a
-// timing operation already failed, that primary error is reported first.
+// Runs `work` `iterations` times between two events and returns elapsed
+// seconds. `work` must only launch kernels; it must not synchronise. All
+// successfully created events are destroyed on every CUDA error path. A cleanup
 inline bool time_launches(const std::function<void()>& work, int iterations,
                           double* elapsed_ms) {
   CudaEventApi api;
@@ -74,7 +74,7 @@ inline bool time_launches(const std::function<void()>& work, int iterations,
       });
 }
 
-// Repeats a timed batch reps times and summarises per-iteration times.
+// Repeats a timed batch `reps` times and summarises per-iteration times.
 // A warmup batch is run first and discarded, so first-touch page faults and
 // one-off clock ramp-up do not land in the reported samples.
 inline bool measure(const std::function<void()>& work, int iterations, int reps,
