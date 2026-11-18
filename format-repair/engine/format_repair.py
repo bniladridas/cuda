@@ -346,21 +346,34 @@ def write_json(path, data):
     Path(path).write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def write_closed_skip(args):
+    result = {
+        "version": 1,
+        "repo": args.repo,
+        "pr_number": args.pr,
+        "status": "skipped_closed",
+        "reason": "pull request was closed or merged before inspection completed",
+    }
+    write_json(args.artifact, result)
+    Path(args.summary).write_text(report_markdown(result), encoding="utf-8")
+
+
 def run_report(args, cfg, token):
     pr = fetch_pr(args.repo, args.pr, token)
     if pr.get("state") != "open":
-        result = {
-            "version": 1,
-            "repo": args.repo,
-            "pr_number": args.pr,
-            "status": "skipped_closed",
-            "reason": "pull request was closed or merged before inspection",
-        }
-        write_json(args.artifact, result)
-        Path(args.summary).write_text(report_markdown(result), encoding="utf-8")
+        write_closed_skip(args)
         return
     files = changed_files(args.repo, args.pr, token)
-    result = make_report(args.repo, pr, files, cfg, token, args.style_file, args.python_config_file)
+    try:
+        result = make_report(args.repo, pr, files, cfg, token, args.style_file, args.python_config_file)
+    except RepairError:
+        # The PR can close after the first metadata read. Only turn the report
+        # into a skip when a fresh API read confirms that lifecycle transition.
+        latest = fetch_pr(args.repo, args.pr, token)
+        if latest.get("state") != "open":
+            write_closed_skip(args)
+            return
+        raise
     write_json(args.artifact, result)
     Path(args.summary).write_text(report_markdown(result), encoding="utf-8")
 
