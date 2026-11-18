@@ -300,6 +300,18 @@ class MergeGateTests(unittest.TestCase):
         self.assertTrue(any("still running" in error for error in running_errors))
         self.assertTrue(any("not passed" in error for error in failed_errors))
 
+    def test_optional_skipped_check_is_allowed(self):
+        errors = self.errors(check_runs=self.checks + [{
+            "name": "gpu", "status": "completed", "conclusion": "skipped",
+        }])
+        self.assertEqual(errors, [])
+
+    def test_optional_neutral_check_is_allowed(self):
+        errors = self.errors(check_runs=self.checks + [{
+            "name": "docs-preview", "status": "completed", "conclusion": "neutral",
+        }])
+        self.assertEqual(errors, [])
+
     def test_missing_approval_label_fails(self):
         errors = self.errors(pr={**self.pr, "labels": []})
         self.assertTrue(any("label" in error for error in errors))

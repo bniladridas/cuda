@@ -245,6 +245,8 @@ def main() -> int:
         **policy,
     )
     if errors:
+        if any("head changed" in error for error in errors):
+            errors.append("The approval label was preserved. Review the new head, then apply the label again to create a fresh approval event.")
         write_summary("Squash merge not performed", errors)
         print("\n".join(errors), file=sys.stderr)
         return 1
