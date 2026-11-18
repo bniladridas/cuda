@@ -5,5 +5,14 @@
     "bniladridas"
   ],
   "target_branch": "main",
-  "merge_method": "squash"
+  "merge_method": "squash",
+  "required_check_runs": [
+    "cpu",
+    "python",
+    "PR Confidence",
+    "PR Scope Guard",
+    "analyze (c-cpp)",
+    "CodeQL"
+  ],
+  "required_status_contexts": []
 }

@@ -7,6 +7,7 @@ from merge_gate import (  # noqa: E402
     latest_review_states,
     outstanding_change_request_reviewers,
     validate_state,
+    perform_squash_merge,
 )
 
 
@@ -45,6 +46,8 @@ class MergeGateTests(unittest.TestCase):
             "actor": "bniladridas",
             "maintainers": {"bniladridas"},
             "approval_label": "squash-merge:approved",
+            "required_check_runs": {"CI"},
+            "required_status_contexts": {"CI"},
         }
 
     def errors(self, **overrides):
@@ -304,3 +307,46 @@ class MergeGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_skipped_neutral_and_pending_required_checks_fail(self):
+        for status, conclusion in [
+            ("completed", "skipped"),
+            ("completed", "neutral"),
+            ("in_progress", None),
+        ]:
+            with self.subTest(status=status, conclusion=conclusion):
+                errors = self.errors(check_runs=[{
+                    "name": "CI", "status": status, "conclusion": conclusion,
+                }])
+                self.assertTrue(any("Required checks are not successful" in error for error in errors))
+
+    def test_missing_required_check_fails(self):
+        errors = self.errors(check_runs=[])
+        self.assertTrue(any("Required check runs are missing" in error for error in errors))
+
+    def test_missing_required_status_context_fails(self):
+        errors = self.errors(combined_status={"state": "success", "statuses": []})
+        self.assertTrue(any("Required commit status contexts are missing" in error for error in errors))
+
+    def test_unsuccessful_empty_combined_status_fails_closed(self):
+        errors = self.errors(combined_status={"state": "failure", "statuses": []})
+        self.assertTrue(any("Combined commit status is not successful" in error for error in errors))
+
+    def test_duplicate_label_event_after_merge_is_rejected(self):
+        errors = self.errors(pr={**self.pr, "state": "closed", "merged": True})
+        self.assertTrue(any("not open" in error for error in errors))
+
+    def test_merge_api_failure_is_actionable_and_does_not_report_success(self):
+        from unittest.mock import Mock
+        import subprocess
+
+        api = Mock(side_effect=subprocess.CalledProcessError(
+            405, ["gh", "api"], stderr="Merge method not allowed"
+        ))
+        result, error = perform_squash_merge(
+            "bniladridas/cuda", 76, "a" * 40, api=api
+        )
+        self.assertIsNone(result)
+        self.assertIn("GitHub rejected the squash merge request", error)
+        self.assertIn("Merge method not allowed", error)
+        api.assert_called_once()

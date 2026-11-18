@@ -67,6 +67,8 @@ def validate_state(
     actor: str,
     maintainers: set[str],
     approval_label: str,
+    required_check_runs: set[str],
+    required_status_contexts: set[str],
 ) -> list[str]:
     errors: list[str] = []
     if actor not in maintainers or actor.endswith("[bot]"):
@@ -104,19 +106,43 @@ def validate_state(
     if not approvals:
         errors.append("At least one approval from a non-author, non-bot reviewer is required")
 
-    unfinished = [run.get("name", "unnamed check") for run in check_runs if run.get("status") != "completed"]
-    if unfinished:
-        errors.append("Checks are still running: " + ", ".join(unfinished))
-    unsuccessful = [
+    observed_names = {str(run.get("name", "")) for run in check_runs}
+    missing_checks = sorted(required_check_runs - observed_names)
+    if missing_checks:
+        errors.append("Required check runs are missing: " + ", ".join(missing_checks))
+    required_runs = [run for run in check_runs if run.get("name") in required_check_runs]
+    unsuccessful_required = [
+        f"{run.get('name')} ({run.get('status')}/{run.get('conclusion')})"
+        for run in required_runs
+        if run.get("status") != "completed" or run.get("conclusion") != "success"
+    ]
+    if unsuccessful_required:
+        errors.append("Required checks are not successful: " + ", ".join(unsuccessful_required))
+    failed_optional = [
         f"{run.get('name', 'unnamed check')} ({run.get('conclusion')})"
         for run in check_runs
-        if run.get("status") == "completed" and run.get("conclusion") not in {"success", "skipped", "neutral"}
+        if run.get("name") not in required_check_runs
+        and run.get("status") == "completed"
+        and run.get("conclusion") not in {"success", "skipped", "neutral"}
     ]
-    if unsuccessful:
-        errors.append("Checks have not passed: " + ", ".join(unsuccessful))
+    if failed_optional:
+        errors.append("Checks have failed: " + ", ".join(failed_optional))
+
     statuses = combined_status.get("statuses", [])
-    if statuses and combined_status.get("state") != "success":
-        errors.append(f"Combined commit status is {combined_status.get('state')}")
+    status_state = combined_status.get("state")
+    if status_state != "success":
+        errors.append(f"Combined commit status is not successful: {status_state or 'missing'}")
+    observed_contexts = {str(status.get("context", "")) for status in statuses}
+    missing_contexts = sorted(required_status_contexts - observed_contexts)
+    if missing_contexts:
+        errors.append("Required commit status contexts are missing: " + ", ".join(missing_contexts))
+    failed_contexts = [
+        f"{status.get('context', 'unnamed status')} ({status.get('state')})"
+        for status in statuses
+        if status.get("context") in required_status_contexts and status.get("state") != "success"
+    ]
+    if failed_contexts:
+        errors.append("Required commit status contexts are not successful: " + ", ".join(failed_contexts))
     return errors
 
 
@@ -158,6 +184,25 @@ def collect_state(
     return pr, reviews, checks, status
 
 
+def perform_squash_merge(repo: str, pr_number: int, head_sha: str, api=gh_json) -> tuple[dict[str, Any] | None, str | None]:
+    """Attempt exactly one SHA-pinned squash merge and return actionable failure text."""
+    try:
+        result = api(
+            f"repos/{repo}/pulls/{pr_number}/merge",
+            "--method", "PUT",
+            "-f", f"sha={head_sha}",
+            "-f", "merge_method=squash",
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or str(exc)).strip()
+        return None, f"GitHub rejected the squash merge request: {detail}"
+    except Exception as exc:
+        return None, f"Squash merge request failed: {exc}"
+    if result.get("merged") is not True:
+        return None, f"GitHub did not confirm a successful squash merge: {result}"
+    return result, None
+
+
 def write_summary(title: str, errors: list[str]) -> None:
     summary = "# " + title + "\n\n" + "\n".join(f"- {error}" for error in errors) + "\n"
     Path(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")).write_text(summary, encoding="utf-8")
@@ -186,7 +231,11 @@ def main() -> int:
         "actor": args.actor,
         "maintainers": set(config.get("maintainers", [])),
         "approval_label": config["approval_label"],
+        "required_check_runs": set(config.get("required_check_runs", [])),
+        "required_status_contexts": set(config.get("required_status_contexts", [])),
     }
+    if not policy["required_check_runs"] and not policy["required_status_contexts"]:
+        raise SystemExit("Trusted policy must define at least one required check or status context")
     pr, reviews, checks, status = collect_state(args.repo, args.pr, args.event_head)
     errors = validate_state(
         pr=pr,
@@ -211,21 +260,17 @@ def main() -> int:
         **policy,
     )
     if errors:
+        if any("head changed" in error for error in errors):
+            errors.append("The approval label was preserved. Apply it again after reviewing the new head to create a fresh approval event.")
         write_summary("Squash merge not performed: state changed", errors)
         print("\n".join(errors), file=sys.stderr)
         return 1
 
-    merge = gh_json(
-        f"repos/{args.repo}/pulls/{args.pr}/merge",
-        "--method",
-        "PUT",
-        "-f",
-        f"sha={args.event_head}",
-        "-f",
-        "merge_method=squash",
-    )
-    if merge.get("merged") is not True:
-        raise SystemExit("GitHub did not confirm a successful squash merge")
+    merge, merge_error = perform_squash_merge(args.repo, args.pr, args.event_head)
+    if merge_error:
+        write_summary("Squash merge failed; approval label preserved", [merge_error])
+        print(merge_error, file=sys.stderr)
+        return 1
 
     # Consume the approval only after GitHub confirms the merge.
     subprocess.run(
@@ -241,10 +286,25 @@ def main() -> int:
         text=True,
         env=os.environ.copy(),
     )
+    reviewed_by = sorted(
+        login for login, state in latest_review_states(latest_reviews, args.event_head).items()
+        if state == "APPROVED" and login != (latest.get("user") or {}).get("login")
+    )
+    required_run_report = sorted(
+        f"{name}: success" for name in policy["required_check_runs"]
+    )
+    required_status_report = sorted(
+        f"{name}: success" for name in policy["required_status_contexts"]
+    )
     body = (
         "Squash merge completed.\n\n"
         f"- Approved by: @{args.actor}\n"
         f"- Reviewed head: `{args.event_head}`\n"
+        f"- Independent approving reviewers: {', '.join('@' + name for name in reviewed_by)}\n"
+        f"- Required check runs: {', '.join(required_run_report) or 'none configured'}\n"
+        f"- Required status contexts: {', '.join(required_status_report) or 'none configured'}\n"
+        f"- Check runs inspected: {len(latest_checks)}\n"
+        f"- Commit statuses inspected: {len(latest_status.get('statuses', []))}\n"
         f"- Merge commit: `{merge.get('sha', 'unknown')}`\n"
         "- Merge method: squash\n"
         "- GitHub enforced the repository's configured merge rules."

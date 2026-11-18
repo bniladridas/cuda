@@ -22,13 +22,26 @@ fork PRs, draft or closed PRs, stale heads, non-clean merge states, missing
 approval labels, outstanding change requests, and PRs without an approval
 from a reviewer other than the author.
 
-The workflow inspects check runs and combined commit status before attempting
-the merge. GitHub's merge API remains authoritative for branch protection,
-required reviews, required status checks, and repository rulesets. If GitHub
+The trusted policy explicitly lists required check-run names in
+`.github/squash-merge.json`. Every configured check must be present and have
+conclusion `success`; pending, skipped, neutral, failed, and missing required
+checks block the merge. Required commit-status contexts can be listed separately.
+The combined commit status must always be successful, including when its status
+list is empty. Optional checks may be skipped when their policy permits it.
+
+The current policy requires `cpu`, `python`, `PR Confidence`,
+`PR Scope Guard`, `analyze (c-cpp)`, and `CodeQL`. Update this trusted list
+when repository CI policy changes. GitHub's merge API remains authoritative for
+branch protection, required reviews, required status checks, and repository
+rulesets. The workflow does not claim to replace those controls. If GitHub
 rejects the squash merge, the workflow does not fall back to another method.
 
 The approval label is removed only after GitHub confirms the squash merge.
-The workflow then posts the approver, reviewed head SHA, and merge commit SHA.
+The workflow then posts the approver, reviewed head SHA, independent approving
+reviewers, required checks and status contexts inspected, and merge commit SHA.
+A stale-head rejection preserves the label and explains that a fresh approval
+event is required after the maintainer reviews the updated head. A failed GitHub
+merge request preserves the label and writes an actionable failure summary.
 It does not close issues or publish releases.
 
 ## Permissions and operation
