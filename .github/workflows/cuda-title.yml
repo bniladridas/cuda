@@ -1,0 +1,44 @@
+name: cuda-title
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+jobs:
+  title-command:
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const body = (context.payload.comment?.body || '').trim().toLowerCase();
+            const commands = {'@cuda suggest-title': 'suggest', '@cuda decline-title': 'decline'};
+            const command = commands[body];
+            if (!command) return;
+            const fs = require('fs');
+            const policy = JSON.parse(fs.readFileSync('.github/cuda-review.json', 'utf8'));
+            if (!policy.maintainers.includes(context.actor) || context.actor.endsWith('[bot]')) return;
+            const n = context.issue.number;
+            const {data: pr} = await github.rest.pulls.get({owner:context.repo.owner,repo:context.repo.repo,pull_number:n});
+            if (pr.state !== 'open' || pr.draft || pr.head.repo?.full_name !== context.payload.repository.full_name) return;
+            const {data: comments} = await github.rest.issues.listComments({owner:context.repo.owner,repo:context.repo.repo,issue_number:n,per_page:100});
+            const head = pr.head.sha;
+            const suggestion = '<!-- cuda-title-suggestion:' + head + ' -->';
+            const declined = '<!-- cuda-title-declined:' + head + ' -->';
+            if (command === 'decline') {
+              if (!comments.some(c => (c.body || '').includes(suggestion))) { core.notice('No title suggestion exists for this head.'); return; }
+              if (comments.some(c => (c.body || '').includes(declined))) { core.notice('Already declined for this head.'); return; }
+              await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:n,body:'Title suggestion declined. The PR title is unchanged.\n\n' + declined});
+              return;
+            }
+            if (comments.some(c => (c.body || '').includes(suggestion) || (c.body || '').includes(declined))) { core.notice('A suggestion already exists or was declined for this head.'); return; }
+            core.notice('Title suggestion generation is handled by the CUDA Review title engine.');
