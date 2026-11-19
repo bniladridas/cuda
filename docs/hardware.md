@@ -82,8 +82,8 @@ The GPU job is deliberately narrower than the hosted CPU and Python jobs:
 - The PR head repository must equal this repository. Fork PRs are denied even
   if someone adds the authorization label.
 - A maintainer must explicitly add `gpu-ci:approved` after reviewing the
-  proposed changes. The label is the authorization action and is removed when
-  the PR no longer has approval.
+  proposed changes. A maintainer must remove the label if that approval is
+  withdrawn.
 - The repository variable `CUDA_CI_ENABLED=true` must also be set.
 
 The condition is evaluated by the workflow from the base branch. PR-controlled
