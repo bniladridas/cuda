@@ -15,7 +15,7 @@ jobs:
   authorize:
     if: >-
       github.event.issue.pull_request &&
-      contains(toLower(github.event.comment.body), '@cuda review')
+      contains(github.event.comment.body, '@cuda review')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
