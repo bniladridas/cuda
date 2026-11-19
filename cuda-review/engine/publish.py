@@ -86,13 +86,14 @@ def build_review(report, diff, commit_id):
             "confidence": confidence,
         }
         if line in additions[path]:
-            comments.append({
-                "path": path,
-                "line": line,
-                "side": "RIGHT",
-                "body": "**%s severity** (%s confidence): %s"
-                % (severity.upper(), confidence, reason.strip()),
-            })
+            comments.append(
+                {
+                    "path": path,
+                    "line": line,
+                    "side": "RIGHT",
+                    "body": "**%s severity** (%s confidence): %s" % (severity.upper(), confidence, reason.strip()),
+                }
+            )
         else:
             summary_findings.append(entry)
 
@@ -123,12 +124,14 @@ def build_review(report, diff, commit_id):
             )
     if not findings:
         body.extend(["", "No actionable findings were identified in the reviewed diff."])
-    body.extend([
-        "",
-        "This is an advisory model review, not an approval. CI and human review remain required.",
-        "",
-        "<!-- cuda-review:%s -->" % commit_id,
-    ])
+    body.extend(
+        [
+            "",
+            "This is an advisory model review, not an approval. CI and human review remain required.",
+            "",
+            "<!-- cuda-review:%s -->" % commit_id,
+        ]
+    )
     return {"commit_id": commit_id, "body": "\n".join(body), "event": "COMMENT", "comments": comments}
 
 
