@@ -15,7 +15,7 @@ jobs:
   authorize:
     if: >-
       github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '@cuda review')
+      contains(toLower(github.event.comment.body), '@cuda review')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -49,7 +49,7 @@ jobs:
               core.setOutput("skip", "true");
             };
 
-            if (!/^@cuda\\s+review\\s*$/i.test(body.trim())) {
+            if (!/^@cuda\s+review\s*$/i.test(body.trim())) {
               skip("Comment is not the exact @cuda review command.");
               return;
             }
