@@ -20,13 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write
+      contents: read
       pull-requests: read
     steps:
       - name: Check out trusted default-branch policy
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Verify maintainer authorization and exact PR state
@@ -76,7 +77,7 @@ jobs:
 
       - name: Rebase onto the exact approved base and update the PR branch
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PR_REBASE_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           HEAD_REF: ${{ steps.verify.outputs.head_ref }}
           HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
@@ -85,6 +86,10 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          test -n "$GH_TOKEN" || {
+            echo "Configure PR_REBASE_TOKEN with repository contents write access." >&2
+            exit 1
+          }
           git config user.name "cuda-pr-rebase"
           git config user.email "cuda-pr-rebase@users.noreply.github.com"
           gh auth setup-git
@@ -122,4 +127,4 @@ jobs:
             origin "HEAD:refs/heads/$HEAD_REF"
 
           echo "Rebased PR #$PR_NUMBER onto $BASE_REF ($BASE_SHA)."
-          echo "The updated head will receive a fresh CI run."
+          echo "A fresh CI run is expected because the push uses PR_REBASE_TOKEN."
