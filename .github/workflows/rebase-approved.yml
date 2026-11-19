@@ -70,14 +70,18 @@ jobs:
           branch_info="$(gh api "repos/$REPOSITORY/branches/$encoded_ref")"
           jq -e '.protected == false' <<<"$branch_info" >/dev/null
 
+          BASE_SHA="$(gh api "repos/$REPOSITORY/git/ref/heads/$EVENT_BASE_REF" --jq '.object.sha')"
+          test -n "$BASE_SHA"
+
           {
             echo "head_ref=$EVENT_HEAD_REF"
             echo "head_sha=$EVENT_HEAD_SHA"
             echo "base_ref=$EVENT_BASE_REF"
-            echo "base_sha=$EVENT_BASE_SHA"
+            echo "base_sha=$BASE_SHA"
+            echo "event_base_sha=$EVENT_BASE_SHA"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Rebase onto the exact approved base and update the PR branch
+      - name: Rebase onto the pinned base branch tip and update the PR branch
         env:
           GH_TOKEN: ${{ secrets.PR_REBASE_TOKEN }}
           REPOSITORY: ${{ github.repository }}
@@ -85,6 +89,7 @@ jobs:
           HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
           BASE_REF: ${{ steps.verify.outputs.base_ref }}
           BASE_SHA: ${{ steps.verify.outputs.base_sha }}
+          EVENT_BASE_SHA: ${{ steps.verify.outputs.event_base_sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
@@ -118,12 +123,12 @@ jobs:
             --arg repo "$REPOSITORY" \
             --arg head_sha "$HEAD_SHA" \
             --arg head_ref "$HEAD_REF" \
-            --arg base_sha "$BASE_SHA" \
+            --arg event_base_sha "$EVENT_BASE_SHA" \
             --arg base_ref "$BASE_REF" \
             '.state == "open" and .merged == false and .draft == false and
              .head.repo.full_name == $repo and .base.repo.full_name == $repo and
              .head.sha == $head_sha and .head.ref == $head_ref and
-             .base.sha == $base_sha and .base.ref == $base_ref' pr-before-push.json >/dev/null
+             .base.sha == $event_base_sha and .base.ref == $base_ref' pr-before-push.json >/dev/null
 
           git push --force-with-lease="refs/heads/$HEAD_REF:$HEAD_SHA" \
             origin "HEAD:refs/heads/$HEAD_REF"
