@@ -64,6 +64,45 @@ void run_case(std::size_t n, const char* label) {
   CHECK_CUDA(cudaFree(d_c));
 }
 
+void run_non_default_stream_case() {
+  constexpr std::size_t n = 100003;
+  const std::vector<float> a = host::random_floats(n, -100.0f, 100.0f, 31u);
+  const std::vector<float> b = host::random_floats(n, -100.0f, 100.0f, 32u);
+  const std::vector<float> expected = host::vecadd_reference(a, b);
+  std::vector<float> got(n);
+
+  float* d_a = nullptr;
+  float* d_b = nullptr;
+  float* d_c = nullptr;
+  cudaStream_t stream = nullptr;
+  CHECK_CUDA(cudaStreamCreate(&stream));
+  CHECK_CUDA(cudaMalloc(&d_a, n * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&d_b, n * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&d_c, n * sizeof(float)));
+
+  // Keep transfers, kernel launch, and result retrieval in one non-default
+  // stream so the test checks the public stream argument and its ordering.
+  CHECK_CUDA(
+      cudaMemcpyAsync(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice, stream));
+  CHECK_CUDA(
+      cudaMemcpyAsync(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice, stream));
+  cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, reinterpret_cast<void*>(stream));
+  CHECK_CUDA(cudaMemcpyAsync(got.data(), d_c, n * sizeof(float), cudaMemcpyDeviceToHost,
+                             stream));
+  CHECK_CUDA(cudaStreamSynchronize(stream));
+
+  for (std::size_t i = 0; i < n; ++i) {
+    host::check(std::memcmp(&got[i], &expected[i], sizeof(float)) == 0, kTest,
+                std::string("non-default stream mismatch at ") + std::to_string(i));
+  }
+  std::printf("PASS [%s] n=%zu (non-default-stream)\n", kTest, n);
+
+  CHECK_CUDA(cudaStreamDestroy(stream));
+  CHECK_CUDA(cudaFree(d_a));
+  CHECK_CUDA(cudaFree(d_b));
+  CHECK_CUDA(cudaFree(d_c));
+}
+
 }  // namespace
 
 int main() {
@@ -90,6 +129,7 @@ int main() {
   run_case(257, "block+1");
   run_case(1000003, "odd-large");
   run_case(1u << 20, "1Mi");
+  run_non_default_stream_case();
 
   std::printf("OK [%s] all cases passed\n", kTest);
   return 0;
