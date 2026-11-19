@@ -422,6 +422,48 @@ class MergeGateTests(unittest.TestCase):
         self.assertIn("Merge method not allowed", error)
         api.assert_called_once()
 
+    def test_async_merge_polls_until_merged(self):
+        from unittest.mock import Mock
+
+        api = Mock(
+            side_effect=[
+                {"status": "pending", "uuid": "request-1"},
+                {"status": "pending", "uuid": "request-1"},
+                {"status": "merged", "details": {"sha": "b" * 40}},
+            ]
+        )
+        result, error = perform_squash_merge(
+            "bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None
+        )
+        self.assertIsNone(error)
+        self.assertTrue(result["merged"])
+        self.assertEqual(api.call_count, 3)
+
+    def test_async_merge_reports_a_failed_result(self):
+        from unittest.mock import Mock
+
+        api = Mock(
+            side_effect=[
+                {"status": "pending", "uuid": "request-1"},
+                {"status": "failed", "details": {"message": "rule not satisfied"}},
+            ]
+        )
+        result, error = perform_squash_merge(
+            "bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None
+        )
+        self.assertIsNone(result)
+        self.assertIn("rule not satisfied", error)
+
+    def test_async_merge_requires_a_request_id(self):
+        from unittest.mock import Mock
+
+        api = Mock(return_value={"status": "pending"})
+        result, error = perform_squash_merge(
+            "bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None
+        )
+        self.assertIsNone(result)
+        self.assertIn("did not accept", error)
+
 
 class CollectStatePaginationTests(unittest.TestCase):
     def test_collect_state_flattens_every_page(self):
