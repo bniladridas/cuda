@@ -13,6 +13,24 @@ sys.path.insert(0, str(ENGINE))
 import repair_agent  # noqa: E402
 
 
+class CUDAReviewAgent(repair_agent.Agent):
+    """Apply CUDA- and workflow-specific review guidance to the shared engine."""
+
+    def call_model(self, messages):
+        focus = (
+            " CUDA-specific review focus when relevant: verify memory bounds and address spaces, "
+            "race freedom, synchronization and atomics, stream/event ordering, launch dimensions, "
+            "grid-stride coverage, asynchronous error handling, alignment and aliasing, integer "
+            "overflow, reduction numerical behavior, and host/device compilation compatibility. "
+            "For automation changes, inspect workflow permissions, untrusted PR data handling, "
+            "secret isolation, idempotency, stale-SHA checks, and validation of model output. "
+            "Never describe CPU-only checks as GPU validation."
+        )
+        if focus not in messages[0]["content"]:
+            messages[0]["content"] += focus
+        return super().call_model(messages)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
@@ -33,7 +51,7 @@ def main():
     repair_agent.MAX_DIFF_BYTES = max_diff_bytes
 
     try:
-        report = repair_agent.Agent(
+        report = CUDAReviewAgent(
             Path(args.source),
             Path(args.diff),
             Path(args.report),
