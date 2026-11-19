@@ -157,6 +157,8 @@ class CrossReferenceTests(unittest.TestCase):
                         },
                     }
                 ]
+            if path == "repos/acme/cuda/issues/12":
+                return {"number": 12, "state": "open"}
             if path == "repos/acme/cuda/issues/13/timeline?per_page=100":
                 return [
                     {
@@ -170,6 +172,37 @@ class CrossReferenceTests(unittest.TestCase):
                         },
                     }
                 ]
+            raise AssertionError("unexpected GitHub API request: %s" % path)
+
+        with patch.object(landing, "gh_json", side_effect=fake_gh_json):
+            self.assertEqual(landing.explicit_issue_numbers("acme/cuda", 62), [12])
+
+    def test_pull_request_candidates_are_excluded_from_issue_landing(self):
+        def fake_gh_json(path, paginate=False):
+            if path == "repos/acme/cuda/pulls/62":
+                return {"body": "Implements #11 and #12"}
+            if path == "repos/acme/cuda/issues/62/comments?per_page=100":
+                return []
+            if path in {
+                "repos/acme/cuda/issues/11/timeline?per_page=100",
+                "repos/acme/cuda/issues/12/timeline?per_page=100",
+            }:
+                return [
+                    {
+                        "event": "cross-referenced",
+                        "source": {
+                            "issue": {
+                                "number": 62,
+                                "pull_request": {"url": "pr"},
+                                "repository": {"full_name": "acme/cuda"},
+                            }
+                        },
+                    }
+                ]
+            if path == "repos/acme/cuda/issues/11":
+                return {"number": 11, "pull_request": {"url": "pr"}}
+            if path == "repos/acme/cuda/issues/12":
+                return {"number": 12, "state": "open"}
             raise AssertionError("unexpected GitHub API request: %s" % path)
 
         with patch.object(landing, "gh_json", side_effect=fake_gh_json):
