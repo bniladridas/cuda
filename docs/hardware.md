@@ -54,26 +54,56 @@ RTX 3060 (compute 8.6). None of these are assumed by the repository.
 
 ## Self-hosted CI runner
 
-The `gpu` job in `.github/workflows/ci.yml` targets:
+The `gpu` job in `.github/workflows/ci.yml` targets only one-shot runners:
 
+```yaml
+runs-on: [self-hosted, linux, x64, nvidia, cuda, ephemeral]
 ```
-runs-on: [self-hosted, linux, x64, nvidia, cuda]
-```
 
-To enable it:
+### Runner isolation
 
-1. Register an NVIDIA Linux machine as a repository runner
-   (Settings > Actions > Runners > New self-hosted runner) and give it the
-   labels `linux`, `x64`, `nvidia`, `cuda`. `self-hosted` is applied
-   automatically.
-2. Confirm `nvidia-smi` and `nvcc --version` work for the runner user.
-3. Set the repository variable `CUDA_CI_ENABLED=true`
-   (Settings > Secrets and variables > Actions > Variables).
-4. Run the workflow manually (`workflow_dispatch`) once to confirm.
+Register the runner with GitHub's ephemeral-runner option. The runner must
+accept exactly one job and deregister after it completes. Do not use a
+persistent runner for this workflow. For example, when configuring the runner,
+pass the `--ephemeral` option and the labels
+`linux,x64,nvidia,cuda,ephemeral`. The custom `ephemeral` label is a scheduling
+guard, not proof by itself: verify that the runner was actually configured with
+`--ephemeral`. Do not attach long-lived cloud credentials, deployment secrets,
+or access to unrelated workspaces to this machine. Prefer a disposable VM or
+instance that is destroyed after the job. If one-shot runner lifecycle cannot
+be guaranteed, leave `CUDA_CI_ENABLED` unset.
 
-The job is gated on `CUDA_CI_ENABLED` so that, before a runner exists, it is
-skipped rather than left queuing on every push. Leave the variable unset until
-hardware is in place.
+### Pull-request authorization
+
+The GPU job is deliberately narrower than the hosted CPU and Python jobs:
+
+- Only the `pull_request` event is eligible. Push and `workflow_dispatch`
+  events cannot schedule GPU work.
+- The PR head repository must equal this repository. Fork PRs are denied even
+  if someone adds the authorization label.
+- A maintainer must explicitly add `gpu-ci:approved` after reviewing the
+  proposed changes. A maintainer must remove the label if that approval is
+  withdrawn.
+- The repository variable `CUDA_CI_ENABLED=true` must also be set.
+
+The condition is evaluated by the workflow from the base branch. PR-controlled
+workflow changes cannot grant themselves authorization. The label does not
+replace review of build scripts, CMake files, tests, or kernel code.
+
+To enable the job:
+
+1. Create the repository label `gpu-ci:approved` in Settings > Issues > Labels.
+2. Register and verify an NVIDIA Linux runner using the one-shot isolation
+   requirements above.
+3. Confirm `nvidia-smi` and `nvcc --version` work for the runner user.
+4. Set `CUDA_CI_ENABLED=true` in Settings > Secrets and variables > Actions >
+   Variables. Leave it unset until isolated hardware is ready.
+5. Review a same-repository PR, then add the `gpu-ci:approved` label to
+   authorize its GPU run.
+
+The GPU job checks out with credential persistence disabled and requires the
+`ephemeral` runner label. If one-shot runner configuration is unavailable, do
+not enable this job. The hosted checks remain available to all PRs.
 
 The job runs the tests with `GPU_REQUIRED=1`. If the runner cannot see a device,
 `runners/test.sh` fails instead of reporting skipped tests as a pass.

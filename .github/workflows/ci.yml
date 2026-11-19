@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
 
 concurrency:
@@ -41,6 +42,9 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check --quiet pyyaml==6.0.2 jsonschema==4.23.0
           python3 -m unittest discover -s label-review/tests
+
+      - name: Test GPU CI authorization policy
+        run: python3 -m unittest discover -s gpu-ci-policy/tests
 
       - name: Test the issue landing engine
         run: python3 -m unittest discover -s issue-landing/tests
@@ -181,10 +185,21 @@ jobs:
   #   - CUDA toolkit 12.x with nvcc on PATH
   #   - labels: self-hosted, linux, x64, nvidia, cuda
   gpu:
-    if: vars.CUDA_CI_ENABLED == 'true'
-    runs-on: [self-hosted, linux, x64, nvidia, cuda]
+    # Never run PR-controlled code on a persistent runner. Only a same-repository
+    # PR explicitly authorized by a maintainer may use a one-shot ephemeral runner.
+    # Push and workflow_dispatch events are deliberately not eligible.
+    if: >-
+      vars.CUDA_CI_ENABLED == 'true' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'gpu-ci:approved')
+    runs-on: [self-hosted, linux, x64, nvidia, cuda, ephemeral]
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          clean: true
 
       - name: Environment report
         run: |
