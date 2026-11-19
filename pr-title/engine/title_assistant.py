@@ -14,10 +14,31 @@ from urllib.request import Request, urlopen
 API = "https://api.github.com"
 OPENAI_API = "https://api.openai.com/v1/chat/completions"
 ACTION_VERBS = {
-    "add", "allow", "avoid", "build", "check", "clarify", "clean", "cover",
-    "document", "enable", "enforce", "fix", "handle", "improve", "include",
-    "make", "prevent", "remove", "rename", "report", "require", "support",
-    "update", "validate", "verify",
+    "add",
+    "allow",
+    "avoid",
+    "build",
+    "check",
+    "clarify",
+    "clean",
+    "cover",
+    "document",
+    "enable",
+    "enforce",
+    "fix",
+    "handle",
+    "improve",
+    "include",
+    "make",
+    "prevent",
+    "remove",
+    "rename",
+    "report",
+    "require",
+    "support",
+    "update",
+    "validate",
+    "verify",
 }
 
 
@@ -68,11 +89,13 @@ def valid_title(title: str, scope_names: set[str]) -> bool:
 def call_model(pr: dict, files: list[dict], scopes: list[dict], model: str, key: str) -> dict:
     file_context = []
     for item in files[:40]:
-        file_context.append({
-            "filename": item.get("filename", ""),
-            "status": item.get("status", ""),
-            "patch": (item.get("patch") or "")[:2500],
-        })
+        file_context.append(
+            {
+                "filename": item.get("filename", ""),
+                "status": item.get("status", ""),
+                "patch": (item.get("patch") or "")[:2500],
+            }
+        )
     payload = {
         "model": model,
         "response_format": {"type": "json_object"},
