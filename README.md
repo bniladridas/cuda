@@ -130,14 +130,10 @@ cancellation.
 
 ```bash
 ./runners/benchmark.sh
-./build/cuda_benchmarks --help
+./build/cuda_benchmarks --help\nbash ./runners/gemm-benchmark.sh
 ```
 
-The binary verifies every kernel at every size against a CPU reference and
-refuses to print timings if any case fails. Results are written as JSON with
-the device, driver, toolkit, commit and timestamp recorded. Methodology
-(events, warmup, median-of-batches, achieved vs peak bandwidth) is in
-[`docs/methodology.md`](docs/methodology.md).
+The existing binary benchmarks vector add and reduction. The separate GEMM\nbenchmark checks every matrix shape against the CPU reference before timing. It\nrecords M, N, K, tile shape, GPU, driver, CUDA runtime, commit and UTC timestamp\nin a separate JSON result. Methodology is in\n[`docs/methodology.md`](docs/methodology.md).
 
 Until a GPU run has been performed, there are no recorded results in this
 repository. [`docs/kaggle-run.md`](docs/kaggle-run.md) is the manual procedure
