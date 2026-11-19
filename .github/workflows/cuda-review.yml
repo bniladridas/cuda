@@ -165,7 +165,7 @@ jobs:
       - name: Run bounded read-only model review
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: ${{ vars.CUDA_REVIEW_MODEL || 'openrouter/free' }}
+          OPENROUTER_MODEL: ${{ vars.CUDA_REVIEW_MODEL }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
