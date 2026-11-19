@@ -70,10 +70,12 @@ jobs:
           branch_info="$(gh api "repos/$REPOSITORY/branches/$encoded_ref")"
           jq -e '.protected == false' <<<"$branch_info" >/dev/null
 
-          echo "head_ref=$EVENT_HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "head_sha=$EVENT_HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "base_ref=$EVENT_BASE_REF" >> "$GITHUB_OUTPUT"
-          echo "base_sha=$EVENT_BASE_SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "head_ref=$EVENT_HEAD_REF"
+            echo "head_sha=$EVENT_HEAD_SHA"
+            echo "base_ref=$EVENT_BASE_REF"
+            echo "base_sha=$EVENT_BASE_SHA"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Rebase onto the exact approved base and update the PR branch
         env:
