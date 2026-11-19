@@ -41,14 +41,15 @@ void run_case(std::size_t m, std::size_t n, std::size_t k, const char* label) {
   CHECK_CUDA(cudaDeviceSynchronize());
 
   std::vector<float> got(expected.size());
-  CHECK_CUDA(cudaMemcpy(got.data(), d_c, got.size() * sizeof(float), cudaMemcpyDeviceToHost));
+  CHECK_CUDA(
+      cudaMemcpy(got.data(), d_c, got.size() * sizeof(float), cudaMemcpyDeviceToHost));
   for (std::size_t i = 0; i < got.size(); ++i) {
     const double scale = std::max(1.0, std::fabs(static_cast<double>(expected[i])));
     const double error = std::fabs(static_cast<double>(got[i]) - expected[i]);
     host::check(error <= kTolerance * scale, kTest,
-                std::string("mismatch at output ") + std::to_string(i) +
-                    " (" + label + "), got " + std::to_string(got[i]) +
-                    " expected " + std::to_string(expected[i]));
+                std::string("mismatch at output ") + std::to_string(i) + " (" + label +
+                    "), got " + std::to_string(got[i]) + " expected " +
+                    std::to_string(expected[i]));
   }
 
   std::printf("PASS [%s] M=%zu N=%zu K=%zu (%s)\n", kTest, m, n, k, label);
@@ -73,8 +74,7 @@ void run_non_default_stream_case() {
                              cudaMemcpyHostToDevice, stream));
   CHECK_CUDA(cudaMemcpyAsync(d_b, b.data(), b.size() * sizeof(float),
                              cudaMemcpyHostToDevice, stream));
-  cuda_kernels::launch_gemm_fp32(d_a, d_b, d_c, m, n, k,
-                                 reinterpret_cast<void*>(stream));
+  cuda_kernels::launch_gemm_fp32(d_a, d_b, d_c, m, n, k, reinterpret_cast<void*>(stream));
   CHECK_CUDA(cudaMemcpyAsync(got.data(), d_c, got.size() * sizeof(float),
                              cudaMemcpyDeviceToHost, stream));
   CHECK_CUDA(cudaStreamSynchronize(stream));
@@ -96,8 +96,8 @@ void run_non_default_stream_case() {
 int main() {
   int devices = 0;
   const cudaError_t status = cudaGetDeviceCount(&devices);
-  const auto availability = cuda_device::classify_device_count(
-      status, devices, cudaSuccess, cudaErrorNoDevice);
+  const auto availability =
+      cuda_device::classify_device_count(status, devices, cudaSuccess, cudaErrorNoDevice);
   if (availability == cuda_device::Availability::kUnavailable) {
     std::printf("SKIPPED [%s]: no CUDA device\n", kTest);
     return 0;

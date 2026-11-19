@@ -12,9 +12,8 @@ namespace {
 constexpr int kTile = 16;
 
 __global__ void gemm_fp32_tiled_kernel(const float* __restrict__ a,
-                                      const float* __restrict__ b,
-                                      float* __restrict__ c, std::size_t m,
-                                      std::size_t n, std::size_t k) {
+                                       const float* __restrict__ b, float* __restrict__ c,
+                                       std::size_t m, std::size_t n, std::size_t k) {
   __shared__ float tile_a[kTile][kTile];
   __shared__ float tile_b[kTile][kTile];
 
@@ -27,14 +26,12 @@ __global__ void gemm_fp32_tiled_kernel(const float* __restrict__ a,
     const std::size_t a_col = tile * kTile + threadIdx.x;
     const std::size_t b_row = tile * kTile + threadIdx.y;
 
-    tile_a[threadIdx.y][threadIdx.x] =
-        (static_cast<std::size_t>(row) < m && a_col < k)
-            ? a[static_cast<std::size_t>(row) * k + a_col]
-            : 0.0f;
-    tile_b[threadIdx.y][threadIdx.x] =
-        (b_row < k && static_cast<std::size_t>(col) < n)
-            ? b[b_row * n + static_cast<std::size_t>(col)]
-            : 0.0f;
+    tile_a[threadIdx.y][threadIdx.x] = (static_cast<std::size_t>(row) < m && a_col < k)
+                                           ? a[static_cast<std::size_t>(row) * k + a_col]
+                                           : 0.0f;
+    tile_b[threadIdx.y][threadIdx.x] = (b_row < k && static_cast<std::size_t>(col) < n)
+                                           ? b[b_row * n + static_cast<std::size_t>(col)]
+                                           : 0.0f;
 
     __syncthreads();
     for (int inner = 0; inner < kTile; ++inner) {
@@ -43,8 +40,7 @@ __global__ void gemm_fp32_tiled_kernel(const float* __restrict__ a,
     __syncthreads();
   }
 
-  if (static_cast<std::size_t>(row) < m &&
-      static_cast<std::size_t>(col) < n) {
+  if (static_cast<std::size_t>(row) < m && static_cast<std::size_t>(col) < n) {
     c[static_cast<std::size_t>(row) * n + static_cast<std::size_t>(col)] = acc;
   }
 }
