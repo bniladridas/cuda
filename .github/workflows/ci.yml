@@ -22,7 +22,7 @@ jobs:
   # C++ passes clang-tidy, the CUDA test binaries are absent rather than
   # silently passing, the workflow and repository YAML pass actionlint and
   # yamllint, and the label-review, PR confidence, PR Scope Guard, formatting repair,
-  # squash-merge, and rebase safety engines pass their tests.
+  # squash-merge, rebase safety, and CUDA Review engines pass their tests.
   cpu:
     runs-on: ubuntu-latest
     steps:
@@ -76,6 +76,9 @@ jobs:
 
       - name: Test bounded repair agent
         run: python3 -m unittest discover -s rebase-agent/tests -p 'test_repair_agent.py'
+
+      - name: Test CUDA Review publisher
+        run: python3 -m unittest discover -s cuda-review/tests
 
       - name: Test runner skip handling
         run: bash tests/test_runner.sh
