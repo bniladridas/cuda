@@ -437,6 +437,20 @@ class MergeGateTests(unittest.TestCase):
         self.assertTrue(result["merged"])
         self.assertEqual(api.call_count, 3)
 
+    def test_async_merge_reads_a_nested_request_id(self):
+        from unittest.mock import Mock
+
+        api = Mock(
+            side_effect=[
+                {"status": "pending", "details": {"message": "Merge request enqueued.", "uuid": "nested-1"}},
+                {"status": "merged", "details": {"sha": "b" * 40}},
+            ]
+        )
+        result, error = perform_squash_merge("bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None)
+        self.assertIsNone(error)
+        self.assertTrue(result["merged"])
+        self.assertEqual(api.call_count, 2)
+
     def test_async_merge_reports_a_failed_result(self):
         from unittest.mock import Mock
 
