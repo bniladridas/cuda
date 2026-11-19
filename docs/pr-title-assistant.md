@@ -7,7 +7,7 @@ from `.github/pr-scopes.json` and propose a concise action-oriented title.
 
 - Runs for opened, edited, synchronized, reopened, and ready-for-review PRs.
 - Reads the PR metadata and changed-file patches through the GitHub API.
-- Uses only the trusted default-branch registry and script. It does not check out
+- Uses only the trusted base-branch registry and script. It does not check out
   or execute pull request code.
 - Updates the title only when the model selects a registered scope, confidence
   is at least 0.85, and deterministic title validation passes.
