@@ -62,7 +62,7 @@ class MergeGateTests(unittest.TestCase):
         values.update(overrides)
         return validate_state(**values)
 
-    def test_valid_maintainer_approval_passes(self):
+    def test_valid_label_authorization_passes(self):
         self.assertEqual(self.errors(), [])
 
     def test_unauthorized_actor_fails(self):
@@ -268,9 +268,9 @@ class MergeGateTests(unittest.TestCase):
             }
         ]
         errors = self.errors(reviews=reviews)
-        self.assertTrue(any("non-author" in error for error in errors))
+        self.assertEqual(errors, [])
 
-    def test_approval_for_current_head_counts(self):
+    def test_approval_for_current_head_is_informational(self):
         reviews = [
             {
                 "user": {"login": "reviewer"},
