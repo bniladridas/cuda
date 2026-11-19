@@ -19,8 +19,9 @@ The workflow does not create or recolor repository labels.
 The trusted policy lives in `.github/squash-merge.json` on the default branch.
 Only listed maintainers can trigger the operation. The workflow rejects bots,
 fork PRs, draft or closed PRs, stale heads, non-clean merge states, missing
-approval labels, outstanding change requests, and PRs without an approval
-from a reviewer other than the author.
+approval labels, and outstanding change requests. A separate GitHub review
+approval is not required because applying the label is the maintainer's explicit
+authorization.
 
 The trusted policy explicitly lists required check-run names in
 `.github/squash-merge.json`. Every configured check must be present and have
@@ -37,8 +38,7 @@ rulesets. The workflow does not claim to replace those controls. If GitHub
 rejects the squash merge, the workflow does not fall back to another method.
 
 The approval label is removed only after GitHub confirms the squash merge.
-The workflow then posts the approver, reviewed head SHA, independent approving
-reviewers, required checks and status contexts inspected, and merge commit SHA.
+The workflow then posts the approver, reviewed head SHA, independent reviews observed (informational only), required checks and status contexts inspected, and merge commit SHA.
 A stale-head rejection preserves the label and explains that the maintainer
 must remove it, review the updated head, and reapply it for fresh approval. A failed GitHub
 merge request preserves the label and writes an actionable failure summary.
@@ -58,9 +58,9 @@ Concurrent or stale requests fail closed.
 
 Use a disposable same-repository PR:
 
-1. Confirm CI is green and a non-author reviewer has approved it.
+1. Confirm required CI is green. No GitHub review approval is required.
 2. Apply `squash-merge:approved` as an authorized maintainer.
 3. Confirm the PR is squash-merged, the label is removed, and the bot comment
    records the approver and merge SHA.
-4. Repeat with a draft, fork, stale head, failing check, missing approval, and
-   unauthorized label actor. Each must remain unmerged.
+4. Repeat with a draft, fork, stale head, outstanding change request, failing
+   check, missing approval label, and unauthorized label actor. Each must remain unmerged.
