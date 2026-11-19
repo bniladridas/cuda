@@ -62,7 +62,7 @@ class MergeGateTests(unittest.TestCase):
         values.update(overrides)
         return validate_state(**values)
 
-    def test_valid_maintainer_approval_passes(self):
+    def test_valid_label_authorization_passes(self):
         self.assertEqual(self.errors(), [])
 
     def test_unauthorized_actor_fails(self):
@@ -73,7 +73,7 @@ class MergeGateTests(unittest.TestCase):
         errors = self.errors(actor="ci[bot]")
         self.assertTrue(any("Unauthorized" in error for error in errors))
 
-    def test_author_cannot_supply_only_approval(self):
+    def test_author_approval_is_not_required(self):
         reviews = [
             {
                 "user": {"login": "contributor"},
@@ -82,7 +82,10 @@ class MergeGateTests(unittest.TestCase):
             }
         ]
         errors = self.errors(reviews=reviews)
-        self.assertTrue(any("non-author" in error for error in errors))
+        self.assertEqual(errors, [])
+
+    def test_no_reviews_are_required_when_label_is_present(self):
+        self.assertEqual(self.errors(reviews=[]), [])
 
     def test_outstanding_changes_requested_blocks(self):
         reviews = self.reviews + [
@@ -187,7 +190,7 @@ class MergeGateTests(unittest.TestCase):
             },
         ]
         errors = self.errors(reviews=reviews)
-        self.assertTrue(any("non-author" in error for error in errors))
+        self.assertEqual(errors, [])
 
     def test_latest_approval_supersedes_older_request(self):
         reviews = [
@@ -234,7 +237,7 @@ class MergeGateTests(unittest.TestCase):
             }
         ]
         errors = self.errors(reviews=reviews)
-        self.assertTrue(any("non-author" in error for error in errors))
+        self.assertEqual(errors, [])
 
     def test_later_change_request_supersedes_approval(self):
         reviews = [
@@ -253,7 +256,7 @@ class MergeGateTests(unittest.TestCase):
         ]
         errors = self.errors(reviews=reviews)
         self.assertTrue(any("change-request" in error for error in errors))
-        self.assertTrue(any("non-author" in error for error in errors))
+        self.assertFalse(any("approval from" in error for error in errors))
 
     def test_stale_approval_for_previous_head_does_not_count(self):
         reviews = [
@@ -265,9 +268,9 @@ class MergeGateTests(unittest.TestCase):
             }
         ]
         errors = self.errors(reviews=reviews)
-        self.assertTrue(any("non-author" in error for error in errors))
+        self.assertEqual(errors, [])
 
-    def test_approval_for_current_head_counts(self):
+    def test_approval_for_current_head_is_informational(self):
         reviews = [
             {
                 "user": {"login": "reviewer"},
