@@ -8,10 +8,12 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 GATE_CHECK_NAME = "squash-merge approval gate"
+ASYNC_API_VERSION = "2026-03-10"
 
 
 def latest_review_states(reviews: list[dict[str, Any]], expected_head: str) -> dict[str, str]:
@@ -194,14 +196,20 @@ def collect_state(
 
 
 def perform_squash_merge(
-    repo: str, pr_number: int, head_sha: str, api=gh_json
+    repo: str, pr_number: int, head_sha: str, api=gh_json, sleep=time.sleep
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """Attempt exactly one SHA-pinned squash merge and return actionable failure text."""
+    """Start one SHA-pinned async squash merge and poll until it settles.
+
+    The asynchronous endpoint is required for stacked pull requests. The
+    expected head SHA pins the merge to the approved commit.
+    """
+    headers = ("-H", f"X-GitHub-Api-Version: {ASYNC_API_VERSION}")
     try:
-        result = api(
-            f"repos/{repo}/pulls/{pr_number}/merge",
+        request = api(
+            f"repos/{repo}/pulls/{pr_number}/merge-async",
             "--method",
             "PUT",
+            *headers,
             "-f",
             f"sha={head_sha}",
             "-f",
@@ -212,9 +220,31 @@ def perform_squash_merge(
         return None, f"GitHub rejected the squash merge request: {detail}"
     except Exception as exc:
         return None, f"Squash merge request failed: {exc}"
-    if result.get("merged") is not True:
-        return None, f"GitHub did not confirm a successful squash merge: {result}"
-    return result, None
+    status = request.get("status")
+    if status == "merged":
+        return {"merged": True, **request}, None
+    request_id = request.get("uuid")
+    if status != "pending" or not request_id:
+        return None, f"GitHub did not accept an asynchronous squash merge: {request}"
+    for _ in range(40):
+        sleep(3)
+        try:
+            result = api(
+                f"repos/{repo}/pulls/{pr_number}/merge-async/{request_id}",
+                *headers,
+            )
+        except subprocess.CalledProcessError as exc:
+            detail = (exc.stderr or exc.stdout or str(exc)).strip()
+            return None, f"GitHub squash merge status check failed: {detail}"
+        except Exception as exc:
+            return None, f"Squash merge status check failed: {exc}"
+        status = result.get("status")
+        if status == "merged":
+            return {"merged": True, **result}, None
+        if status != "pending":
+            detail = (result.get("details") or {}).get("message") or result
+            return None, f"GitHub asynchronous squash merge did not complete: {detail}"
+    return None, "Timed out waiting for the asynchronous squash merge to finish."
 
 
 def write_summary(title: str, errors: list[str], details: list[str] | None = None) -> None:
