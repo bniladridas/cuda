@@ -77,12 +77,10 @@ void run_non_default_stream_case(const std::vector<T>& x, const char* label, dou
   CHECK_CUDA(cudaMalloc(&d_scratch, scratch_elems * sizeof(T)));
 
   T got{};
-  CHECK_CUDA(cudaMemcpyAsync(d_x, x.data(), n * sizeof(T),
-                             cudaMemcpyHostToDevice, stream));
-  cuda_kernels::launch_reduce(d_x, d_out, d_scratch, n,
-                             reinterpret_cast<void*>(stream));
-  CHECK_CUDA(cudaMemcpyAsync(&got, d_out, sizeof(T), cudaMemcpyDeviceToHost,
-                             stream));
+  CHECK_CUDA(
+      cudaMemcpyAsync(d_x, x.data(), n * sizeof(T), cudaMemcpyHostToDevice, stream));
+  cuda_kernels::launch_reduce(d_x, d_out, d_scratch, n, reinterpret_cast<void*>(stream));
+  CHECK_CUDA(cudaMemcpyAsync(&got, d_out, sizeof(T), cudaMemcpyDeviceToHost, stream));
   CHECK_CUDA(cudaStreamSynchronize(stream));
 
   const double ref = host::sum_reference(x);
