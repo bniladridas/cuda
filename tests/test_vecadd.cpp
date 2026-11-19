@@ -82,10 +82,10 @@ void run_non_default_stream_case() {
 
   // Keep transfers, kernel launch, and result retrieval in one non-default
   // stream so the test checks the public stream argument and its ordering.
-  CHECK_CUDA(cudaMemcpyAsync(d_a, a.data(), n * sizeof(float),
-                             cudaMemcpyHostToDevice, stream));
-  CHECK_CUDA(cudaMemcpyAsync(d_b, b.data(), n * sizeof(float),
-                             cudaMemcpyHostToDevice, stream));
+  CHECK_CUDA(
+      cudaMemcpyAsync(d_a, a.data(), n * sizeof(float), cudaMemcpyHostToDevice, stream));
+  CHECK_CUDA(
+      cudaMemcpyAsync(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice, stream));
   cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, reinterpret_cast<void*>(stream));
   CHECK_CUDA(cudaMemcpyAsync(got.data(), d_c, n * sizeof(float),
                              cudaMemcpyDeviceToHost, stream));
