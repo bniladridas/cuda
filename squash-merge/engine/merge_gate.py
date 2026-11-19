@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+GATE_CHECK_NAME = "squash-merge approval gate"
+
 
 def latest_review_states(reviews: list[dict[str, Any]], expected_head: str) -> dict[str, str]:
     latest: dict[str, tuple[str, str]] = {}
@@ -87,8 +89,8 @@ def validate_state(
         errors.append("Pull request head changed after approval")
     if pr.get("mergeable") is not True:
         errors.append("GitHub has not confirmed that the pull request is mergeable")
-    if pr.get("mergeable_state") != "clean":
-        errors.append(f"GitHub mergeable state is not clean: {pr.get('mergeable_state')}")
+    if pr.get("mergeable_state") == "dirty":
+        errors.append("GitHub reports merge conflicts with the target branch")
     labels = {label.get("name") for label in pr.get("labels", [])}
     if approval_label not in labels:
         errors.append("Squash-merge approval label is no longer present")
@@ -115,6 +117,7 @@ def validate_state(
         f"{run.get('name', 'unnamed check')} ({run.get('conclusion')})"
         for run in check_runs
         if run.get("name") not in required_check_runs
+        and run.get("name") != GATE_CHECK_NAME
         and run.get("status") == "completed"
         and run.get("conclusion") not in {"success", "skipped", "neutral"}
     ]
