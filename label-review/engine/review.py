@@ -532,11 +532,14 @@ def verify(artifact, issue, config, mode, tracked):
             problems.append("`%s` has no usable model verdict in the artifact" % label)
         elif normalize(verdict.get("evidence")) not in normalize(text):
             problems.append("the evidence for `%s` is no longer in the issue" % label)
+    # Approval is a delay, not a snapshot. Revalidate the complete label
+    # set for both new-issue proposals and correction runs so a manual label
+    # change while approval is pending cannot be overwritten by stale output.
+    if set(artifact.get("current_labels") or []) != set(issue["labels"]):
+        problems.append("the issue labels changed after the proposal")
+    if artifact.get("label_state") != label_state(issue["labels"]):
+        problems.append("the label state no longer matches the approved proposal")
     if mode == "correct":
-        if set(artifact.get("current_labels") or []) != set(issue["labels"]):
-            problems.append("the issue labels changed after the proposal")
-        if artifact.get("label_state") != label_state(issue["labels"]):
-            problems.append("the label state no longer matches the approved proposal")
         overlap = adds & removes
         if overlap:
             problems.append("labels both added and removed: " + ", ".join(sorted(overlap)))
