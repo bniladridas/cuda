@@ -46,6 +46,26 @@ inline std::vector<float> vecadd_reference(const std::vector<float>& a,
   return c;
 }
 
+// Row-major FP32 GEMM reference. Accumulating in double keeps the reference
+// independent of the kernel's FP32 fused-multiply-add accumulation order.
+inline std::vector<float> gemm_fp32_reference(const std::vector<float>& a,
+                                               const std::vector<float>& b,
+                                               std::size_t m, std::size_t n,
+                                               std::size_t k) {
+  std::vector<float> c(m * n, 0.0f);
+  for (std::size_t row = 0; row < m; ++row) {
+    for (std::size_t col = 0; col < n; ++col) {
+      double acc = 0.0;
+      for (std::size_t inner = 0; inner < k; ++inner) {
+        acc += static_cast<double>(a[row * k + inner]) *
+               static_cast<double>(b[inner * n + col]);
+      }
+      c[row * n + col] = static_cast<float>(acc);
+    }
+  }
+  return c;
+}
+
 // Sum accumulated in double regardless of input type, to keep the reference
 // itself off the error path being measured.
 template <typename T>
