@@ -432,9 +432,7 @@ class MergeGateTests(unittest.TestCase):
                 {"status": "merged", "details": {"sha": "b" * 40}},
             ]
         )
-        result, error = perform_squash_merge(
-            "bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None
-        )
+        result, error = perform_squash_merge("bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None)
         self.assertIsNone(error)
         self.assertTrue(result["merged"])
         self.assertEqual(api.call_count, 3)
@@ -448,9 +446,7 @@ class MergeGateTests(unittest.TestCase):
                 {"status": "failed", "details": {"message": "rule not satisfied"}},
             ]
         )
-        result, error = perform_squash_merge(
-            "bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None
-        )
+        result, error = perform_squash_merge("bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None)
         self.assertIsNone(result)
         self.assertIn("rule not satisfied", error)
 
@@ -458,9 +454,7 @@ class MergeGateTests(unittest.TestCase):
         from unittest.mock import Mock
 
         api = Mock(return_value={"status": "pending"})
-        result, error = perform_squash_merge(
-            "bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None
-        )
+        result, error = perform_squash_merge("bniladridas/cuda", 76, "a" * 40, api=api, sleep=lambda _: None)
         self.assertIsNone(result)
         self.assertIn("did not accept", error)
 
