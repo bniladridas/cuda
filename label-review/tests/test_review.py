@@ -262,6 +262,20 @@ class VerifyTests(unittest.TestCase):
         _, _, problems = review.verify(artifact, issue, CONFIG, "propose", TRACKED)
         self.assertTrue(any("configuration changed" in problem for problem in problems))
 
+    def test_changed_labels_abort_new_issue_proposal(self):
+        issue = make_issue("Bug in `src/vecadd.cu`.")
+        artifact = make_artifact(issue, adds=["kernels"])
+        edited = make_issue("Bug in `src/vecadd.cu`.", labels=["enhancement"])
+        _, _, problems = review.verify(artifact, edited, CONFIG, "propose", TRACKED)
+        self.assertTrue(any("labels changed after the proposal" in problem for problem in problems))
+        self.assertTrue(any("label state" in problem for problem in problems))
+
+    def test_unchanged_labels_allow_new_issue_proposal(self):
+        issue = make_issue("Bug in `src/vecadd.cu`.")
+        artifact = make_artifact(issue, adds=["kernels"])
+        adds, removes, problems = review.verify(artifact, issue, CONFIG, "propose", TRACKED)
+        self.assertEqual((adds, removes, problems), (["kernels"], [], []))
+
     def test_model_label_evidence_must_still_match(self):
         issue = make_issue("Compile `src/vecadd.cu` on the GPU.")
         verdicts = {"needs-gpu": {"apply": True, "confidence": "high", "evidence": "on the GPU"}}
