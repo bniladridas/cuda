@@ -1,10 +1,12 @@
 import pathlib
+import sys
 import unittest
 
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "gpu-ci-policy"))
 from policy import gpu_job_authorized
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 DOCS = ROOT / "docs" / "hardware.md"
 
