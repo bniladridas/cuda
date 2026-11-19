@@ -115,12 +115,14 @@ def call_model(pr: dict, files: list[dict], scopes: list[dict], model: str, key:
             },
             {
                 "role": "user",
-                "content": json.dumps({
-                    "current_title": pr.get("title", ""),
-                    "pr_body": (pr.get("body") or "")[:5000],
-                    "changed_files": file_context,
-                    "allowed_scopes": scopes,
-                }),
+                "content": json.dumps(
+                    {
+                        "current_title": pr.get("title", ""),
+                        "pr_body": (pr.get("body") or "")[:5000],
+                        "changed_files": file_context,
+                        "allowed_scopes": scopes,
+                    }
+                ),
             },
         ],
     }
@@ -164,10 +166,7 @@ def main() -> int:
     if not isinstance(scope, str) or scope not in names:
         text = "No registered scope was selected with sufficient certainty."
         if isinstance(proposal, dict) and proposal.get("name") and proposal.get("description"):
-            text += (
-                f"\n\nSuggested new scope for maintainer review: "
-                f"`{proposal['name']}` - {proposal['description']}"
-            )
+            text += f"\n\nSuggested new scope for maintainer review: `{proposal['name']}` - {proposal['description']}"
         text += f"\n\nReason: {result.get('reason', 'Not provided.')}"
         summary.write_text(text + "\n")
         print(text)
