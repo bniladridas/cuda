@@ -139,6 +139,11 @@ def validate_state(
     return errors
 
 
+def is_already_merged(pr: dict[str, Any]) -> bool:
+    """Return whether GitHub has already completed this pull request."""
+    return pr.get("merged") is True
+
+
 def gh_json(*args: str) -> Any:
     result = subprocess.run(
         ["gh", "api", *args],
@@ -268,6 +273,17 @@ def main() -> int:
     }
     if not policy["required_check_runs"] and not policy["required_status_contexts"]:
         raise SystemExit("Trusted policy must define at least one required check or status context")
+    # A label event can race with another merge workflow. Once GitHub confirms
+    # the PR is merged, this event has no remaining work and must be a success.
+    initial_pr = gh_json(f"repos/{args.repo}/pulls/{args.pr}")
+    if is_already_merged(initial_pr):
+        write_summary(
+            "Squash merge skipped: pull request already merged",
+            ["GitHub confirms this pull request was already merged; no further action was taken."],
+        )
+        print("Pull request is already merged; treating this event as a no-op.")
+        return 0
+
     pr, reviews, checks, status = collect_state(args.repo, args.pr, args.event_head)
     errors = validate_state(
         pr=pr,
