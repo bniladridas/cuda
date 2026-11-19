@@ -93,7 +93,7 @@ void run_non_default_stream_case(const std::vector<T>& x, const char* label,
                   std::to_string(got) + " ref " + std::to_string(ref) +
                   " rel err " + std::to_string(err) + " > tol " +
                   std::to_string(tol));
-  std::printf("PASS [%s] n=%zu (non-default-stream, %s) rel_err=%.3g\\n",
+  std::printf("PASS [%s] n=%zu (non-default-stream, %s) rel_err=%.3g\n",
               kTest, n, label, err);
 
   CHECK_CUDA(cudaStreamDestroy(stream));
