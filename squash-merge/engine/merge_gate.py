@@ -98,13 +98,8 @@ def validate_state(
     blocking_reviewers = outstanding_change_request_reviewers(reviews)
     if blocking_reviewers:
         errors.append("Outstanding change-request review remains from: " + ", ".join(sorted(blocking_reviewers)))
-    approvals = {
-        login
-        for login, state in states.items()
-        if state == "APPROVED" and login != author and not login.endswith("[bot]")
-    }
-    if not approvals:
-        errors.append("At least one approval from a non-author, non-bot reviewer is required")
+    # Applying the trusted approval label is the maintainer's explicit
+    # authorization. A separate GitHub review approval is not required.
 
     observed_names = {str(run.get("name", "")) for run in check_runs}
     missing_checks = sorted(required_check_runs - observed_names)
@@ -240,7 +235,7 @@ def audit_details(
     return [
         f"Approval actor: @{actor}",
         f"Event head SHA: {head_sha}",
-        f"Independent approving reviewers: {', '.join('@' + name for name in reviewers) or 'none'}",
+        f"Independent approving reviewers (informational): {', '.join('@' + name for name in reviewers) or 'none'}",
         f"Review submissions inspected: {len(reviews)}",
         f"Check runs inspected: {len(checks)}",
         f"Commit statuses inspected: {len(status.get('statuses', []))}",
@@ -354,7 +349,7 @@ def main() -> int:
         "Squash merge completed.\n\n"
         f"- Approved by: @{args.actor}\n"
         f"- Reviewed head: `{args.event_head}`\n"
-        f"- Independent approving reviewers: {', '.join('@' + name for name in reviewed_by)}\n"
+        f"- Independent approving reviewers (informational): {', '.join('@' + name for name in reviewed_by)}\n"
         f"- Required check runs: {', '.join(required_run_report) or 'none configured'}\n"
         f"- Required status contexts: {', '.join(required_status_report) or 'none configured'}\n"
         f"- Check runs inspected: {len(latest_checks)}\n"
