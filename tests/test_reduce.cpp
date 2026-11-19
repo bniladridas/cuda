@@ -63,6 +63,45 @@ double run_case(const std::vector<T>& x, const char* label, double tol) {
   return err;
 }
 
+template <typename T>
+void run_non_default_stream_case(const std::vector<T>& x, const char* label,
+                                 double tol) {
+  const std::size_t n = x.size();
+  const std::size_t scratch_elems = cuda_kernels::launch_reduce_scratch_elems<T>(n);
+  T* d_x = nullptr;
+  T* d_out = nullptr;
+  T* d_scratch = nullptr;
+  cudaStream_t stream = nullptr;
+  CHECK_CUDA(cudaStreamCreate(&stream));
+  CHECK_CUDA(cudaMalloc(&d_x, n * sizeof(T)));
+  CHECK_CUDA(cudaMalloc(&d_out, sizeof(T)));
+  CHECK_CUDA(cudaMalloc(&d_scratch, scratch_elems * sizeof(T)));
+
+  T got{};
+  CHECK_CUDA(cudaMemcpyAsync(d_x, x.data(), n * sizeof(T),
+                             cudaMemcpyHostToDevice, stream));
+  cuda_kernels::launch_reduce(d_x, d_out, d_scratch, n,
+                             reinterpret_cast<void*>(stream));
+  CHECK_CUDA(cudaMemcpyAsync(&got, d_out, sizeof(T), cudaMemcpyDeviceToHost,
+                             stream));
+  CHECK_CUDA(cudaStreamSynchronize(stream));
+
+  const double ref = host::sum_reference(x);
+  const double err = host::rel_error(ref, static_cast<double>(got), n);
+  host::check(err <= tol, kTest,
+              std::string("non-default stream (") + label + ") got " +
+                  std::to_string(got) + " ref " + std::to_string(ref) +
+                  " rel err " + std::to_string(err) + " > tol " +
+                  std::to_string(tol));
+  std::printf("PASS [%s] n=%zu (non-default-stream, %s) rel_err=%.3g\\n",
+              kTest, n, label, err);
+
+  CHECK_CUDA(cudaStreamDestroy(stream));
+  CHECK_CUDA(cudaFree(d_x));
+  CHECK_CUDA(cudaFree(d_out));
+  CHECK_CUDA(cudaFree(d_scratch));
+}
+
 std::vector<float> constant_floats(std::size_t n, float value) {
   return std::vector<float>(n, value);
 }
@@ -103,6 +142,14 @@ int main() {
     d_big[i] = static_cast<double>(i % 1000) * 0.001;
   }
   run_case<double>(d_big, "double-odd-large", kTolDouble);
+
+  run_non_default_stream_case<float>(
+      host::random_floats(100003, -1.0f, 1.0f, 41u), "float", kTolFloat);
+  std::vector<double> stream_double(100003);
+  for (std::size_t i = 0; i < stream_double.size(); ++i) {
+    stream_double[i] = static_cast<double>(i % 97) * 0.125;
+  }
+  run_non_default_stream_case<double>(stream_double, "double", kTolDouble);
 
   std::printf("OK [%s] all cases passed\n", kTest);
   return 0;
