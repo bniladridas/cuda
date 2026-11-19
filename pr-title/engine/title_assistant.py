@@ -67,7 +67,7 @@ def valid_title(title: str, scope_names: set[str]) -> bool:
 
 def call_model(pr: dict, files: list[dict], scopes: list[dict], model: str, key: str) -> dict:
     file_context = []
-    for item in files:
+    for item in files[:40]:
         file_context.append({
             "filename": item.get("filename", ""),
             "status": item.get("status", ""),
@@ -131,11 +131,14 @@ def main() -> int:
 
     scope = result.get("scope")
     description = result.get("description", "")
-    confidence = result.get("confidence", 0)
+    try:
+        confidence = float(result.get("confidence", 0))
+    except (TypeError, ValueError):
+        confidence = 0.0
     proposal = result.get("new_scope_proposal")
     summary = Path(os.environ.get("GITHUB_STEP_SUMMARY", "/tmp/title-summary.md"))
 
-    if scope not in names:
+    if not isinstance(scope, str) or scope not in names:
         text = "No registered scope was selected with sufficient certainty."
         if isinstance(proposal, dict) and proposal.get("name") and proposal.get("description"):
             text += (
