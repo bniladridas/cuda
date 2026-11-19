@@ -213,7 +213,9 @@ def explicit_issue_numbers(current_repo, pull_request_number):
                 and repository
                 and repository.lower() == current_repo.lower()
             ):
-                confirmed.add(issue_number)
+                issue = gh_json("repos/%s/issues/%d" % (current_repo, issue_number))
+                if not issue.get("pull_request"):
+                    confirmed.add(issue_number)
                 break
     return sorted(confirmed)
 
