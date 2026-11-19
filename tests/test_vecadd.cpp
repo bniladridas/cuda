@@ -87,8 +87,8 @@ void run_non_default_stream_case() {
   CHECK_CUDA(
       cudaMemcpyAsync(d_b, b.data(), n * sizeof(float), cudaMemcpyHostToDevice, stream));
   cuda_kernels::launch_vecadd(d_a, d_b, d_c, n, reinterpret_cast<void*>(stream));
-  CHECK_CUDA(cudaMemcpyAsync(got.data(), d_c, n * sizeof(float),
-                             cudaMemcpyDeviceToHost, stream));
+  CHECK_CUDA(cudaMemcpyAsync(got.data(), d_c, n * sizeof(float), cudaMemcpyDeviceToHost,
+                             stream));
   CHECK_CUDA(cudaStreamSynchronize(stream));
 
   for (std::size_t i = 0; i < n; ++i) {
