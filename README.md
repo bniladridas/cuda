@@ -23,7 +23,8 @@ Three kernels, implemented end to end:
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
 | `vecadd` | `c = a + b`, grid-stride | written | **GPU run pending** |
-| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |\n| `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
+| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
+| `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
 
 The kernels have not yet been compiled with `nvcc` or executed on a device. No
 performance numbers are published: they will be added only after a run on real
@@ -130,10 +131,15 @@ cancellation.
 
 ```bash
 ./runners/benchmark.sh
-./build/cuda_benchmarks --help\nbash ./runners/gemm-benchmark.sh
+./build/cuda_benchmarks --help
+bash ./runners/gemm-benchmark.sh
 ```
 
-The existing binary benchmarks vector add and reduction. The separate GEMM\nbenchmark checks every matrix shape against the CPU reference before timing. It\nrecords M, N, K, tile shape, GPU, driver, CUDA runtime, commit and UTC timestamp\nin a separate JSON result. Methodology is in\n[`docs/methodology.md`](docs/methodology.md).
+The existing binary benchmarks vector add and reduction. The separate GEMM
+benchmark checks every matrix shape against the CPU reference before timing. It
+records M, N, K, tile shape, GPU, driver, CUDA runtime, commit and UTC timestamp
+in a separate JSON result. Methodology is in
+[`docs/methodology.md`](docs/methodology.md).
 
 Until a GPU run has been performed, there are no recorded results in this
 repository. [`docs/kaggle-run.md`](docs/kaggle-run.md) is the manual procedure
@@ -160,7 +166,9 @@ Once a result file exists, plot it against the device's spec-sheet peak:
 PEAK_GBPS=600 ./runners/plot.sh   # writes benchmarks/results/<result>.png
 ```
 
-`bash runners/gemm-benchmark.sh` runs the GEMM correctness gate and records M, N, K, tile shape, GPU, driver, CUDA runtime, commit, and UTC timestamp. It publishes a separate JSON result.\n\n`runners/plot.sh` uses the newest file in `benchmarks/results/` and needs
+`bash runners/gemm-benchmark.sh` runs the GEMM correctness gate and records M, N, K, tile shape, GPU, driver, CUDA runtime, commit, and UTC timestamp. It publishes a separate JSON result.
+
+`runners/plot.sh` uses the newest file in `benchmarks/results/` and needs
 matplotlib (`pip install matplotlib`); it is not a build dependency. With no
 result file or no `PEAK_GBPS` it exits 2 and draws nothing. The script has been
 exercised against hand-made fixtures only: **no chart here has been produced
@@ -258,9 +266,9 @@ CUDA C++ remains the implementation core. C interoperability and Fortran are
 separate, evidence-gated follow-up tracks, not additional implementations in
 the current build.
 
-Kernel work: matrix multiplication and tiling, shared-memory and occupancy
-study, profiling-driven optimization, then comparison benchmarks against
-vendor-library equivalents. GPU-dependent work remains pending a recorded
+Next GEMM work: profile the initial tiled kernel, study tile sizes and
+occupancy, then add profiling-driven optimization and separately measured
+vendor-library comparison benchmarks. GPU-dependent work remains pending a recorded
 NVIDIA device run.
 
 ## License
