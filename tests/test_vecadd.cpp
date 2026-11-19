@@ -95,7 +95,7 @@ void run_non_default_stream_case() {
     host::check(std::memcmp(&got[i], &expected[i], sizeof(float)) == 0, kTest,
                 std::string("non-default stream mismatch at ") + std::to_string(i));
   }
-  std::printf("PASS [%s] n=%zu (non-default-stream)\\n", kTest, n);
+  std::printf("PASS [%s] n=%zu (non-default-stream)\n", kTest, n);
 
   CHECK_CUDA(cudaStreamDestroy(stream));
   CHECK_CUDA(cudaFree(d_a));
