@@ -25,6 +25,10 @@
       "description": "Approval-gated clang-format reporting and repair automation."
     },
     {
+      "name": "issue-landing",
+      "description": "Issue landing automation, its policy engine, and validation tests."
+    },
+    {
       "name": "kernels",
       "description": "CUDA kernel implementations and launch behavior."
     },
@@ -39,6 +43,10 @@
     {
       "name": "pr-scope-guard",
       "description": "The PR Scope Guard engine, its scope path map, and its reporting workflow."
+    },
+    {
+      "name": "rebase-agent",
+      "description": "Pull request rebase automation, its engine, and validation tests."
     },
     {
       "name": "tests",
