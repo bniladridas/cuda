@@ -1,12 +1,13 @@
 // Host-only checks. These run on any machine, including CPU-only CI, and
 // verify the reference implementations themselves. They say nothing about the
-// GPU kernels; those are covered by test_vecadd / test_reduce on real hardware.
+// GPU kernels; those are covered by test_vecadd / test_reduce / test_gemm on real hardware.
 
 #include <cstddef>
 #include <cstdio>
 #include <string>
 #include <vector>
 
+#include "cuda_kernels/gemm.cuh"
 #include "cuda_kernels/reduce.cuh"
 #include "cuda_kernels/vecadd.cuh"
 
@@ -40,11 +41,23 @@ void check_vecadd_reference() {
   host::check(host::vecadd_reference(empty, empty).empty(), kTest, "empty not empty");
 }
 
+void check_gemm_reference() {
+  // A is 2x3, B is 3x2, so C must be 2x2.
+  const std::vector<float> a = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+  const std::vector<float> b = {7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
+  const auto c = host::gemm_fp32_reference(a, b, 2, 2, 3);
+  host::check(c.size() == 4, kTest, "GEMM output size");
+  host::check(c[0] == 58.0f && c[1] == 64.0f &&
+                  c[2] == 139.0f && c[3] == 154.0f,
+              kTest, "GEMM row-major reference values");
+  const auto one = host::gemm_fp32_reference({2.0f}, {3.0f}, 1, 1, 1);
+  host::check(one.size() == 1 && one[0] == 6.0f, kTest, "GEMM scalar case");
+}
+
 void check_sum_reference() {
   host::check(host::sum_reference(std::vector<float>{}) == 0.0, kTest, "empty sum");
   host::check(host::sum_reference(std::vector<float>{1.0f, 2.0f, 3.0f}) == 6.0, kTest,
               "float sum");
-  // 0.1f is not 0.1; the double accumulation must reflect the float input values.
   const double s = host::sum_reference(std::vector<float>{0.1f, 0.2f});
   host::check(s > 0.3 - 1e-7 && s < 0.3 + 1e-7, kTest,
               "float->double accumulation unexpected: " + std::to_string(s));
@@ -58,7 +71,6 @@ void check_random_floats() {
   for (float x : v) {
     host::check(x >= -2.0f && x <= 2.0f, kTest, "random out of range");
   }
-  // Same seed must reproduce exactly: benchmark inputs have to be stable.
   const std::vector<float> w = host::random_floats(1000, -2.0f, 2.0f);
   host::check(v == w, kTest, "random not deterministic for a fixed seed");
   const std::vector<float> u = host::random_floats(1000, -2.0f, 2.0f, 999u);
@@ -70,6 +82,7 @@ void check_random_floats() {
 int main() {
   check_rel_error();
   check_vecadd_reference();
+  check_gemm_reference();
   check_sum_reference();
   check_random_floats();
   std::printf("OK [%s] all host reference checks passed\n", kTest);
