@@ -64,8 +64,7 @@ double run_case(const std::vector<T>& x, const char* label, double tol) {
 }
 
 template <typename T>
-void run_non_default_stream_case(const std::vector<T>& x, const char* label,
-                                 double tol) {
+void run_non_default_stream_case(const std::vector<T>& x, const char* label, double tol) {
   const std::size_t n = x.size();
   const std::size_t scratch_elems = cuda_kernels::launch_reduce_scratch_elems<T>(n);
   T* d_x = nullptr;
