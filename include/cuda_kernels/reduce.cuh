@@ -6,6 +6,15 @@ namespace cuda_kernels {
 
 // Sum of x[0..n). n == 0 yields 0.
 //
+// For n > 0, x must reference n readable elements, out must reference one
+// writable element, and scratch must reference at least
+// launch_reduce_scratch_elems<T>(n) writable elements. These three ranges must
+// be pairwise non-overlapping. In-place reduction and partial overlap are
+// unsupported. This matches the kernels' __restrict__ qualifiers.
+//
+// For n == 0, x and scratch are not accessed; out must still reference one
+// writable element.
+//
 // The reduction uses at most kReduceMaxBlocks partial sums, so callers can
 // allocate scratch without querying the device. See launch_reduce_scratch_elems.
 //
