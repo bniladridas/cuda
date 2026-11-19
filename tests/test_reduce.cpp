@@ -87,11 +87,10 @@ void run_non_default_stream_case(const std::vector<T>& x, const char* label, dou
   const double err = host::rel_error(ref, static_cast<double>(got), n);
   host::check(err <= tol, kTest,
               std::string("non-default stream (") + label + ") got " +
-                  std::to_string(got) + " ref " + std::to_string(ref) +
-                  " rel err " + std::to_string(err) + " > tol " +
-                  std::to_string(tol));
-  std::printf("PASS [%s] n=%zu (non-default-stream, %s) rel_err=%.3g\n",
-              kTest, n, label, err);
+                  std::to_string(got) + " ref " + std::to_string(ref) + " rel err " +
+                  std::to_string(err) + " > tol " + std::to_string(tol));
+  std::printf("PASS [%s] n=%zu (non-default-stream, %s) rel_err=%.3g\n", kTest, n, label,
+              err);
 
   CHECK_CUDA(cudaStreamDestroy(stream));
   CHECK_CUDA(cudaFree(d_x));
