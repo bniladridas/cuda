@@ -139,8 +139,8 @@ int main() {
   }
   run_case<double>(d_big, "double-odd-large", kTolDouble);
 
-  run_non_default_stream_case<float>(
-      host::random_floats(100003, -1.0f, 1.0f, 41u), "float", kTolFloat);
+  run_non_default_stream_case<float>(host::random_floats(100003, -1.0f, 1.0f, 41u),
+                                     "float", kTolFloat);
   std::vector<double> stream_double(100003);
   for (std::size_t i = 0; i < stream_double.size(); ++i) {
     stream_double[i] = static_cast<double>(i % 97) * 0.125;
