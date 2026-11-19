@@ -71,6 +71,7 @@ scopes:
     - ".github/workflows/pr-confidence.yml"
     - "docs/pr-confidence.md"
   pr-scope-guard:
+    - ".github/pr-scopes.json"
     - "pr-scope-guard/**"
     - ".github/pr-scope-guard.yml"
     - ".github/workflows/pr-scope-guard.yml"
