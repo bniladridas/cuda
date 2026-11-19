@@ -190,16 +190,24 @@ docs/                   hardware, methodology, C++ quality, PR confidence, label
 label-review/           reusable issue label review engine and tests
 format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
+squash-merge/            maintainer-approved squash-merge policy engine and tests
+rebase-agent/            safe PR rebase and bounded repair engines with tests
 ```
 
 ## CI
 
-- `cpu`: GitHub-hosted, runs on every push. CPU-only configure and build, host
-  reference checks, clang-format over C++ and CUDA files, host-side clang-tidy,
-  the label-review, PR confidence, PR Scope Guard and format-repair engine tests. CUDA sources are formatted but not compiled or analyzed
-  here.
-- `python`: GitHub-hosted, runs Ruff lint and format checks, every Python test
-  suite present in the checkout, and coverage. Dependency versions are pinned in
+- `cpu`: GitHub-hosted, runs on every push and pull request. Checks repository
+  YAML with yamllint and GitHub Actions workflows with actionlint, runs the
+  host-only CMake build and reference tests, verifies GPU binaries are absent,
+  checks runner skip handling, formats C++/CUDA sources, and runs host-side
+  clang-tidy. It also runs offline tests for label review, issue landing, PR
+  confidence, PR Scope Guard, format repair, squash-merge policy, and the
+  rebase safety, merge integration, tree inspection, and bounded repair engines.
+  CUDA sources are formatted but not compiled or analyzed here.
+- `python`: GitHub-hosted, runs Ruff lint and format checks, coverage, and the
+  selected Python suites: PR confidence, label review, PR Scope Guard, format
+  repair, squash-merge, rebase-agent, and benchmarks. Issue-landing tests run in
+  the CPU job. Dependency versions are pinned in
   `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
   toolkit is required.
 - `pr-confidence`: triggered by pull request activity, waits for the configured
@@ -244,6 +252,8 @@ issue-landing/          issue landing report engine and offline tests
 ## Review automation
 
 - `codex-review`: apply `codex:review` to request a Codex PR review. The workflow posts `@codex review` and consumes the label after posting. Codex must be connected and enabled; confirm that it responds to a bot-authored command comment during the first smoke test. Setup in [`docs/codex-review.md`](docs/codex-review.md).
+- `rebase-approved`: an authorized maintainer can apply `rebase:approved` to update an open, non-draft, same-repository PR targeting `main`. The workflow verifies the exact PR head and base state, then asks GitHub to update the branch. It uses a write-scoped rebase token and GitHub's signed update commit; it does not merge the PR.
+- `issue-landing`: after a PR is merged, generates an auditable report for linked issues and posts it as an issue comment. A manual dispatch can generate a report for one issue. Closing is a separate, optional path requiring the repository variable, an approved report digest, and the protected `issue-landing-close` environment. See [`issue-landing/`](issue-landing/).
 
 ## Roadmap
 
