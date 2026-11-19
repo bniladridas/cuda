@@ -92,12 +92,13 @@ replace review of build scripts, CMake files, tests, or kernel code.
 
 To enable the job:
 
-1. Register and verify an NVIDIA Linux runner using the one-shot isolation
+1. Create the repository label `gpu-ci:approved` in Settings > Issues > Labels.
+2. Register and verify an NVIDIA Linux runner using the one-shot isolation
    requirements above.
-2. Confirm `nvidia-smi` and `nvcc --version` work for the runner user.
-3. Set `CUDA_CI_ENABLED=true` in Settings > Secrets and variables > Actions >
+3. Confirm `nvidia-smi` and `nvcc --version` work for the runner user.
+4. Set `CUDA_CI_ENABLED=true` in Settings > Secrets and variables > Actions >
    Variables. Leave it unset until isolated hardware is ready.
-4. Review a same-repository PR, then add the `gpu-ci:approved` label to
+5. Review a same-repository PR, then add the `gpu-ci:approved` label to
    authorize its GPU run.
 
 The GPU job checks out with credential persistence disabled and requires the
