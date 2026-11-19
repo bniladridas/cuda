@@ -18,14 +18,14 @@ point is the kernel, not the call into CUB.
 
 ## Status
 
-Two kernels, both implemented end to end:
+Three kernels, implemented end to end:
 
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
 | `vecadd` | `c = a + b`, grid-stride | written | **GPU run pending** |
-| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
+| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |\n| `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
 
-Neither kernel has been compiled with `nvcc` or executed on a device yet. No
+The kernels have not yet been compiled with `nvcc` or executed on a device. No
 performance numbers are published: they will be added only after a run on real
 hardware with the recorded environment (see
 [`docs/methodology.md`](docs/methodology.md)). A CPU-only build proves the tree
@@ -102,7 +102,7 @@ CUDA_KERNELS_ARCH="86" ./runners/build.sh
 ```
 
 `test_host` runs anywhere and checks the CPU reference implementations.
-`test_vecadd` and `test_reduce` need a GPU. A successful device query that
+`test_vecadd`, `test_reduce`, and `test_gemm` need a GPU. A successful device query that
 reports zero devices, or CUDA's explicit `cudaErrorNoDevice`, prints
 `SKIPPED: no CUDA device` and exits 0, so CTest counts them as passed.
 Other `cudaGetDeviceCount` failures, including insufficient-driver and
@@ -164,7 +164,7 @@ Once a result file exists, plot it against the device's spec-sheet peak:
 PEAK_GBPS=600 ./runners/plot.sh   # writes benchmarks/results/<result>.png
 ```
 
-`runners/plot.sh` uses the newest file in `benchmarks/results/` and needs
+`bash runners/gemm-benchmark.sh` runs the GEMM correctness gate and records M, N, K, tile shape, GPU, driver, CUDA runtime, commit, and UTC timestamp. It publishes a separate JSON result.\n\n`runners/plot.sh` uses the newest file in `benchmarks/results/` and needs
 matplotlib (`pip install matplotlib`); it is not a build dependency. With no
 result file or no `PEAK_GBPS` it exits 2 and draws nothing. The script has been
 exercised against hand-made fixtures only: **no chart here has been produced
@@ -242,7 +242,7 @@ rebase-agent/            safe PR rebase and bounded repair engines with tests
   [`docs/hardware.md`](docs/hardware.md).
 - `codeql`: C/C++ static analysis on the hosted runner, using CodeQL's
   `build-mode: none` so no CUDA toolkit is needed. Two known limitations: it does
-  not extract `.cu` files, so `src/vecadd.cu` and `src/reduce.cu` are never
+  not extract `.cu` files, so `src/vecadd.cu`, `src/reduce.cu`, and `src/gemm.cu` are never
   scanned; and it reported zero results on deliberately planted bounds bugs,
   including one in a scanned `.cpp` file. It covers no kernel code and is not
   relied on as a safety net; the CPU job's host-side clang-tidy is complementary
