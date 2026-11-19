@@ -51,6 +51,10 @@ scopes:
     - "README.md"
     - ".github/CONTRIBUTING.md"
     - ".github/PULL_REQUEST_TEMPLATE.md"
+  issue-landing:
+    - "issue-landing/**"
+    - ".github/workflows/issue-landing.yml"
+    - "docs/issue-landing.md"
   kernels:
     - "src/**"
     - "include/**"
@@ -71,6 +75,9 @@ scopes:
     - ".github/pr-scope-guard.yml"
     - ".github/workflows/pr-scope-guard.yml"
     - "docs/pr-scope-guard.md"
+  rebase-agent:
+    - "rebase-agent/**"
+    - "docs/rebase-agent.md"
   squash-merge:
     - "squash-merge/**"
     - ".github/squash-merge.json"
