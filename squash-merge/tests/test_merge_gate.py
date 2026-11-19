@@ -9,6 +9,7 @@ from merge_gate import (  # noqa: E402
     validate_state,
     perform_squash_merge,
     collect_state,
+    is_already_merged,
 )
 
 
@@ -374,9 +375,11 @@ class MergeGateTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_duplicate_label_event_after_merge_is_rejected(self):
-        errors = self.errors(pr={**self.pr, "state": "closed", "merged": True})
-        self.assertTrue(any("not open" in error for error in errors))
+    def test_already_merged_pr_is_recognized_for_no_op(self):
+        self.assertTrue(is_already_merged({**self.pr, "state": "closed", "merged": True}))
+
+    def test_closed_unmerged_pr_is_not_treated_as_successful_no_op(self):
+        self.assertFalse(is_already_merged({**self.pr, "state": "closed", "merged": False}))
 
     def test_merge_api_failure_is_actionable_and_does_not_report_success(self):
         from unittest.mock import Mock
