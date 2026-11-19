@@ -295,7 +295,37 @@ class MergeGateTests(unittest.TestCase):
         draft_errors = self.errors(pr={**self.pr, "draft": True})
         conflict_errors = self.errors(pr={**self.pr, "mergeable_state": "dirty"})
         self.assertTrue(any("Draft" in error for error in draft_errors))
-        self.assertTrue(any("mergeable state" in error for error in conflict_errors))
+        self.assertTrue(any("merge conflicts" in error for error in conflict_errors))
+
+    def test_aggregate_unstable_state_is_not_blocking(self):
+        errors = self.errors(pr={**self.pr, "mergeable_state": "unstable"})
+        self.assertEqual(errors, [])
+
+    def test_own_gate_check_failure_is_ignored(self):
+        errors = self.errors(
+            check_runs=self.checks
+            + [
+                {
+                    "name": "squash-merge approval gate",
+                    "status": "completed",
+                    "conclusion": "failure",
+                }
+            ]
+        )
+        self.assertEqual(errors, [])
+
+    def test_optional_failure_still_blocks(self):
+        errors = self.errors(
+            check_runs=self.checks
+            + [
+                {
+                    "name": "docs-preview",
+                    "status": "completed",
+                    "conclusion": "failure",
+                }
+            ]
+        )
+        self.assertTrue(any("Checks have failed" in error for error in errors))
 
     def test_running_or_failed_checks_fail(self):
         running = [{"name": "CI", "status": "in_progress", "conclusion": None}]
