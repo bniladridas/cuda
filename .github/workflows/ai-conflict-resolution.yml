@@ -155,7 +155,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Download reviewed resolution artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ai-conflict-resolution-${{ github.event.pull_request.number }}
           path: resolution
