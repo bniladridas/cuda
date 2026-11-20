@@ -18,30 +18,44 @@ permissions:
   contents: read
 
 jobs:
-  analyze:
+  analyze-cpp:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [c-cpp]
     steps:
       - uses: actions/checkout@v7
 
-      - name: Initialize CodeQL
+      - name: Initialize CodeQL for C/C++
         uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
+          languages: c-cpp
           # build-mode none infers compilation units from source file
           # extensions, neither compiling nor observing a build, so no CUDA
           # toolkit is installed here. .cu is not one of the extensions CodeQL
           # extracts, so src/vecadd.cu and src/reduce.cu are not analysed.
           build-mode: none
 
-      - name: Analyze - no build step needed with build-mode none
-        # Deliberately no "perform autobuild" step: there is nothing to build.
+      - name: Analyze C/C++
+        # Deliberately no autobuild step: there is nothing to build.
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:cpp"
+
+  analyze-workflows:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL for GitHub Actions
+        uses: github/codeql-action/init@v4
+        with:
+          languages: actions
+
+      - name: Analyze GitHub Actions workflows
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:actions"
