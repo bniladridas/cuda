@@ -36,7 +36,7 @@ jobs:
             --output conflict-inspection.json
 
       - name: Upload complete inspection report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conflict-inspection-${{ inputs.pull_request || github.event.pull_request.number }}
           path: conflict-inspection.json
