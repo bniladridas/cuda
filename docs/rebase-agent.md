@@ -199,3 +199,43 @@ For a controlled branch update, a maintainer can dispatch
 into its optional `review_feedback` input. The model treats that text as
 untrusted context and must still inspect the full diff and every changed text
 file. The final protected-environment approval remains mandatory.
+
+## AI-assisted conflict resolution
+
+The `conflict:resolve` label starts
+`.github/workflows/ai-conflict-resolution.yml`. It is separate from
+`rebase:approved`: the latter performs a normal Git rebase and aborts on
+conflict, while the former explicitly authorizes a bounded model-assisted
+attempt to resolve textual conflicts during a rebase.
+
+The workflow:
+
+1. Accepts only a maintainer in the trusted `.github/squash-merge.json`
+   allowlist and an open, non-draft, same-repository PR targeting `main`.
+2. Rejects protected PR branches and pins the exact PR head and live base
+   commit before doing any work.
+3. Checks out trusted default-branch workflow code. PR files are fetched as
+   Git data and are never executed in the model job.
+4. Attempts a real Git rebase. On textual conflicts, the resolver sends only
+   bounded base/ours/theirs file contents to `openrouter/free`. It accepts
+   complete replacement text for exactly the conflicted paths, rejects
+   path traversal, symlinks, binary files, oversized inputs, incomplete
+   model output, ambiguous responses, and more than three resolution rounds.
+5. Aborts on any unresolved conflict or failed rebase. It does not run PR
+   build scripts or tests while the model secret is present.
+6. Uploads the resulting Git bundle, complete patch, changed-path summary,
+   and model report. The `publish` job waits for approval in the protected
+   `pr-repair-write` environment, rechecks the exact live PR head and base,
+   and pushes only with an exact force-with-lease.
+
+Configure the existing `OPENROUTER_API_KEY` secret and
+`PR_REBASE_TOKEN` secret. The latter needs contents write access. Configure
+the `pr-repair-write` environment with required reviewers and prevent
+self-review where available. The actor who applies `conflict:resolve` must
+be listed in `.github/squash-merge.json`.
+
+This is a guarded conflict-resolution proposal, not proof of semantic
+correctness. Review the uploaded patch and report before approving the
+environment deployment. After publication, the PR must pass its normal CI
+and human code review. The workflow never approves or merges the PR.
+
