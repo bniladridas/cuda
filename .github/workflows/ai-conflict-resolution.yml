@@ -45,12 +45,17 @@ jobs:
           EVENT_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          jq -e --arg actor "$EVENT_ACTOR" '.maintainers | index($actor) != null' .github/squash-merge.json >/dev/null
+          jq -e --arg actor "$EVENT_ACTOR" \
+            '.maintainers | index($actor) != null' .github/squash-merge.json >/dev/null
           gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" > pr.json
-          jq -e             --arg repo "$REPOSITORY"             --arg head "$EVENT_HEAD_SHA"             --arg head_ref "$EVENT_HEAD_REF"             --arg base_ref "$EVENT_BASE_REF"             '.state == "open" and .merged == false and .draft == false and
-             .head.repo.full_name == $repo and .base.repo.full_name == $repo and
-             .head.sha == $head and .head.ref == $head_ref and
-             .base.ref == $base_ref and .base.ref == "main"' pr.json >/dev/null
+          jq -e '
+            .state == "open" and .merged == false and .draft == false and
+            .head.repo.full_name == env.REPOSITORY and
+            .base.repo.full_name == env.REPOSITORY and
+            .head.sha == env.EVENT_HEAD_SHA and
+            .head.ref == env.EVENT_HEAD_REF and
+            .base.ref == env.EVENT_BASE_REF and .base.ref == "main"
+          ' pr.json >/dev/null
           test "$EVENT_HEAD_REF" != "main"
           test "$EVENT_HEAD_REF" != "$EVENT_BASE_REF"
           git check-ref-format --branch "$EVENT_HEAD_REF"
@@ -74,7 +79,11 @@ jobs:
           BASE_SHA: ${{ steps.gate.outputs.base_sha }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin             "refs/heads/$HEAD_REF:refs/remotes/origin/approved-pr"             "refs/heads/$BASE_REF:refs/remotes/origin/approved-base"
+          refs=(
+            "refs/heads/$HEAD_REF:refs/remotes/origin/approved-pr"
+            "refs/heads/$BASE_REF:refs/remotes/origin/approved-base"
+          )
+          git fetch --no-tags origin "${refs[@]}"
           test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$OLD_HEAD"
           test "$(git rev-parse refs/remotes/origin/approved-base)" = "$BASE_SHA"
           git switch --detach "$OLD_HEAD"
@@ -94,7 +103,7 @@ jobs:
               echo "Rebase failed without a resolvable conflict state." >&2
               exit 1
             fi
-            python3 rebase-agent/engine/ai_conflict_resolver.py               --repo "$GITHUB_WORKSPACE" --report ai-conflict-report.json
+            python3 rebase-agent/engine/ai_conflict_resolver.py --repo "$GITHUB_WORKSPACE" --report ai-conflict-report.json
           else
             printf '{"model":"not-needed","rounds":[],"resolved":true}\n' > ai-conflict-report.json
           fi
@@ -159,18 +168,27 @@ jobs:
           }
           gh auth setup-git
           PR="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")"
-          jq -e             --arg repo "$REPOSITORY"             --arg head "$OLD_HEAD"             --arg head_ref "$HEAD_REF"             --arg base_ref "$BASE_REF"             '.state == "open" and .merged == false and .draft == false and
-             .head.repo.full_name == $repo and .base.repo.full_name == $repo and
-             .head.sha == $head and .head.ref == $head_ref and .base.ref == $base_ref'             <<<"$PR" >/dev/null
+          jq -e '
+            .state == "open" and .merged == false and .draft == false and
+            .head.repo.full_name == env.REPOSITORY and
+            .base.repo.full_name == env.REPOSITORY and
+            .head.sha == env.OLD_HEAD and
+            .head.ref == env.HEAD_REF and .base.ref == env.BASE_REF
+          ' <<<"$PR" >/dev/null
           test "$(gh api "repos/$REPOSITORY/git/ref/heads/$BASE_REF" --jq '.object.sha')" = "$BASE_SHA"
           git init publish
           git -C publish remote add origin "https://github.com/$REPOSITORY.git"
-          git -C publish fetch --no-tags origin             "refs/heads/$HEAD_REF:refs/remotes/origin/approved-pr"             "refs/heads/$BASE_REF:refs/remotes/origin/approved-base"
+          refs=(
+            "refs/heads/$HEAD_REF:refs/remotes/origin/approved-pr"
+            "refs/heads/$BASE_REF:refs/remotes/origin/approved-base"
+          )
+          git -C publish fetch --no-tags origin "${refs[@]}"
           test "$(git -C publish rev-parse refs/remotes/origin/approved-pr)" = "$OLD_HEAD"
           test "$(git -C publish rev-parse refs/remotes/origin/approved-base)" = "$BASE_SHA"
           git -C publish fetch "$GITHUB_WORKSPACE/resolution/resolved.bundle" HEAD
           RESULT="$(git -C publish rev-parse FETCH_HEAD)"
           git -C publish merge-base --is-ancestor "$BASE_SHA" "$RESULT"
-          git -C publish push             --force-with-lease="refs/heads/$HEAD_REF:$OLD_HEAD"             origin "$RESULT:refs/heads/$HEAD_REF"
+          LEASE="--force-with-lease=refs/heads/$HEAD_REF:$OLD_HEAD"
+          git -C publish push "$LEASE" origin "$RESULT:refs/heads/$HEAD_REF"
           echo "Published AI-assisted rebase for PR #$PR_NUMBER at $RESULT."
           echo "The PR remains open and must pass normal CI and review."
