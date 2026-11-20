@@ -59,6 +59,19 @@ def outstanding_change_request_reviewers(reviews: list[dict[str, Any]]) -> set[s
     return blocking
 
 
+def latest_check_runs(check_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return the newest check run for each name, using GitHub's monotonic run ID."""
+    latest: dict[str, dict[str, Any]] = {}
+    for run in check_runs:
+        name = str(run.get("name", ""))
+        if not name:
+            continue
+        current = latest.get(name)
+        if current is None or int(run.get("id") or 0) >= int(current.get("id") or 0):
+            latest[name] = run
+    return list(latest.values())
+
+
 def validate_state(
     *,
     pr: dict[str, Any],
@@ -103,11 +116,16 @@ def validate_state(
     # Applying the trusted approval label is the maintainer's explicit
     # authorization. A separate GitHub review approval is not required.
 
-    observed_names = {str(run.get("name", "")) for run in check_runs}
+    # A commit can have multiple runs with the same check name because
+    # pull_request workflows are retriggered by label changes. Evaluate only
+    # the newest run for each name, otherwise an older cancelled run can block
+    # a later successful run forever.
+    current_check_runs = latest_check_runs(check_runs)
+    observed_names = {str(run.get("name", "")) for run in current_check_runs}
     missing_checks = sorted(required_check_runs - observed_names)
     if missing_checks:
         errors.append("Required check runs are missing: " + ", ".join(missing_checks))
-    required_runs = [run for run in check_runs if run.get("name") in required_check_runs]
+    required_runs = [run for run in current_check_runs if run.get("name") in required_check_runs]
     unsuccessful_required = [
         f"{run.get('name')} ({run.get('status')}/{run.get('conclusion')})"
         for run in required_runs
@@ -117,7 +135,7 @@ def validate_state(
         errors.append("Required checks are not successful: " + ", ".join(unsuccessful_required))
     failed_optional = [
         f"{run.get('name', 'unnamed check')} ({run.get('conclusion')})"
-        for run in check_runs
+        for run in current_check_runs
         if run.get("name") not in required_check_runs
         and run.get("name") != GATE_CHECK_NAME
         and run.get("status") == "completed"

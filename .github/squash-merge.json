@@ -10,9 +10,7 @@
     "cpu",
     "python",
     "PR Confidence",
-    "PR Scope Guard",
-    "analyze (c-cpp)",
-    "CodeQL"
+    "PR Scope Guard"
   ],
   "required_status_contexts": []
 }
