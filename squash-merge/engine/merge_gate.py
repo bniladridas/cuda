@@ -162,6 +162,23 @@ def validate_state(
     return errors
 
 
+def required_checks_are_pending(errors: list[str]) -> bool:
+    """Return true only when every validation error is a not-yet-settled required check."""
+    if not errors:
+        return False
+    for error in errors:
+        if error.startswith("Required check runs are missing:"):
+            continue
+        if error.startswith("Required checks are not successful:"):
+            if any(
+                f"({status}/" in error
+                for status in ("queued", "in_progress", "waiting", "requested", "pending")
+            ):
+                continue
+        return False
+    return True
+
+
 def is_already_merged(pr: dict[str, Any]) -> bool:
     """Return whether GitHub has already completed this pull request."""
     return pr.get("merged") is True
@@ -335,14 +352,27 @@ def main() -> int:
         print("Pull request is already merged; treating this event as a no-op.")
         return 0
 
-    pr, reviews, checks, status = collect_state(args.repo, args.pr, args.event_head)
-    errors = validate_state(
-        pr=pr,
-        reviews=reviews,
-        check_runs=checks,
-        combined_status=status,
-        **policy,
-    )
+    # Label application also retriggers pull_request CI in this repository.
+    # Wait for those fresh required checks to start and finish, but never wait
+    # through a failed check or any unrelated policy error.
+    check_wait_deadline = time.monotonic() + 600
+    while True:
+        pr, reviews, checks, status = collect_state(args.repo, args.pr, args.event_head)
+        errors = validate_state(
+            pr=pr,
+            reviews=reviews,
+            check_runs=checks,
+            combined_status=status,
+            **policy,
+        )
+        if not required_checks_are_pending(errors):
+            break
+        remaining = check_wait_deadline - time.monotonic()
+        if remaining <= 0:
+            errors.append("Timed out after 10 minutes waiting for required checks triggered by the approval label.")
+            break
+        print("Required checks are still starting or running; waiting before revalidation.", flush=True)
+        time.sleep(min(15, remaining))
     if errors:
         if any("head changed" in error for error in errors):
             errors.append(
