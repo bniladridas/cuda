@@ -28,12 +28,16 @@ class ResolutionError(Exception):
 
 
 def git(repo, args, check=True):
+    child_env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    # Git must never inherit the model credential. In particular, hooks or
+    # other Git child processes must not receive OPENROUTER_API_KEY.
+    child_env.pop("OPENROUTER_API_KEY", None)
     result = subprocess.run(
         ["git", "-C", str(repo), *args],
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        env=child_env,
     )
     if check and result.returncode:
         detail = (result.stderr or result.stdout or "git command failed").strip()
