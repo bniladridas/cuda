@@ -85,6 +85,7 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           BASE_SHA: ${{ steps.gate.outputs.base_sha }}
+          OLD_HEAD: ${{ steps.gate.outputs.old_head }}
         run: |
           set -euo pipefail
           if ! git rebase "$BASE_SHA"; then
