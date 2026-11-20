@@ -45,9 +45,6 @@ class SafeConflictPathTests(unittest.TestCase):
                 outside.rmdir()
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 class ModelReplacementValidationTests(unittest.TestCase):
     def test_requires_exact_conflict_path_coverage(self):
         answer = {
@@ -86,3 +83,5 @@ class ModelReplacementValidationTests(unittest.TestCase):
             validate_replacements(["src/kernel.cu"], answer)
 
 
+if __name__ == "__main__":
+    unittest.main()
