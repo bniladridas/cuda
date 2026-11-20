@@ -4,7 +4,11 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
-from ai_conflict_resolver import ResolutionError, safe_conflict_path
+from ai_conflict_resolver import (
+    ResolutionError,
+    safe_conflict_path,
+    validate_replacements,
+)
 
 
 class SafeConflictPathTests(unittest.TestCase):
@@ -43,3 +47,42 @@ class SafeConflictPathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ModelReplacementValidationTests(unittest.TestCase):
+    def test_requires_exact_conflict_path_coverage(self):
+        answer = {
+            "needs_human": False,
+            "files": [{"path": "src/kernel.cu", "content": "int main() {}\\n"}],
+        }
+        self.assertEqual(
+            validate_replacements(["src/kernel.cu"], answer),
+            {"src/kernel.cu": "int main() {}\\n"},
+        )
+
+    def test_rejects_unrequested_path(self):
+        answer = {
+            "needs_human": False,
+            "files": [{"path": "../outside", "content": "bad"}],
+        }
+        with self.assertRaises(ResolutionError):
+            validate_replacements(["src/kernel.cu"], answer)
+
+    def test_rejects_remaining_conflict_markers(self):
+        answer = {
+            "needs_human": False,
+            "files": [
+                {
+                    "path": "src/kernel.cu",
+                    "content": "<<<<<<< ours\\nleft\\n=======\\nright\\n>>>>>>> theirs\\n",
+                }
+            ],
+        }
+        with self.assertRaises(ResolutionError):
+            validate_replacements(["src/kernel.cu"], answer)
+
+    def test_requires_human_on_ambiguous_model_response(self):
+        answer = {"needs_human": True, "files": []}
+        with self.assertRaises(ResolutionError):
+            validate_replacements(["src/kernel.cu"], answer)
+
+
