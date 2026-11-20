@@ -255,7 +255,7 @@ def resolve(repo, token, report_path):
         raise ResolutionError("unmerged paths remain after model resolution")
     report["resolved"] = True
     Path(report_path).write_text(
-        json.dumps(report, indent=2) + "\\n", encoding="utf-8"
+        json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     return report
 
