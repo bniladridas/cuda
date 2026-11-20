@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           install -D -m 600 rebase-agent/engine/ai_conflict_resolver.py "$RUNNER_TEMP/ai_conflict_resolver.py"
-          python3 -m py_compile "$RUNNER_TEMP/ai_conflict_resolver.py"
+          python3 -I -m py_compile "$RUNNER_TEMP/ai_conflict_resolver.py"
 
       - name: Verify maintainer authorization and exact PR state
         id: gate
@@ -112,7 +112,7 @@ jobs:
               exit 1
             fi
             resolver_args=(--repo "$GITHUB_WORKSPACE" --report ai-conflict-report.json)
-            OPENROUTER_API_KEY="$MODEL_API_KEY" python3 "$RUNNER_TEMP/ai_conflict_resolver.py" "${resolver_args[@]}"
+            OPENROUTER_API_KEY="$MODEL_API_KEY" python3 -I "$RUNNER_TEMP/ai_conflict_resolver.py" "${resolver_args[@]}"
           else
             printf '{"model":"not-needed","rounds":[],"resolved":true}\n' > ai-conflict-report.json
           fi
