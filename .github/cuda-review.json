@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "maintainers": [
+    "bniladridas"
+  ],
+  "default_model": "openrouter/free",
+  "max_diff_bytes": 180000
+}

@@ -1,0 +1,239 @@
+name: cuda-review
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: cuda-review-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    if: >-
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@cuda review')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.authorize.outputs.skip }}
+      pr_number: ${{ steps.authorize.outputs.pr_number }}
+      base_sha: ${{ steps.authorize.outputs.base_sha }}
+      head_sha: ${{ steps.authorize.outputs.head_sha }}
+      base_ref: ${{ steps.authorize.outputs.base_ref }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Validate request and deduplicate current head
+        id: authorize
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const policy = JSON.parse(fs.readFileSync(".github/cuda-review.json", "utf8"));
+            const body = context.payload.comment?.body || "";
+            const actor = context.actor;
+            const number = context.issue.number;
+            const skip = (reason) => {
+              core.warning(reason);
+              core.setOutput("skip", "true");
+            };
+
+            if (!/^@cuda\s+review\s*$/i.test(body.trim())) {
+              skip("Comment is not the exact @cuda review command.");
+              return;
+            }
+            if (!policy.maintainers.includes(actor) || actor.endsWith("[bot]")) {
+              skip("Commenter is not in the CUDA Review maintainer allowlist.");
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner, repo: context.repo.repo, pull_number: number
+            });
+            if (pr.state !== "open" || pr.draft) {
+              skip("Only open, ready-for-review pull requests are eligible.");
+              return;
+            }
+            if (pr.head.repo?.full_name !== context.payload.repository.full_name ||
+                pr.base.repo?.full_name !== context.payload.repository.full_name) {
+              skip("Fork pull requests are not supported.");
+              return;
+            }
+
+            const marker = `<!-- cuda-review:${pr.head.sha} -->`;
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: number, per_page: 100
+            });
+            if (reviews.some(review =>
+              review.user?.login === "github-actions[bot]" &&
+              (review.body || "").includes(marker)
+            )) {
+              skip("This exact PR head already has a CUDA Review.");
+              return;
+            }
+
+            core.setOutput("skip", "false");
+            core.setOutput("pr_number", String(number));
+            core.setOutput("base_sha", pr.base.sha);
+            core.setOutput("head_sha", pr.head.sha);
+            core.setOutput("base_ref", pr.base.ref);
+
+  snapshot:
+    needs: authorize
+    if: needs.authorize.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Export exact PR source and diff without executing PR code
+        env:
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+          BASE_SHA: ${{ needs.authorize.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          BASE_REF: ${{ needs.authorize.outputs.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "refs/heads/$BASE_REF:refs/remotes/origin/cuda-review-base"
+          git fetch --no-tags origin "refs/pull/$PR_NUMBER/head:refs/remotes/origin/cuda-review-head"
+          test "$(git rev-parse refs/remotes/origin/cuda-review-base)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/cuda-review-head)" = "$HEAD_SHA"
+          git archive --format=tar "$HEAD_SHA" > source.tar
+          git diff --binary "$BASE_SHA...$HEAD_SHA" > pr.diff
+          git diff --name-only -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
+          test -s pr.diff
+          test -s pr-files.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cuda-review-snapshot
+          path: |
+            source.tar
+            pr.diff
+            pr-files.txt
+          if-no-files-found: error
+          retention-days: 2
+
+  review:
+    needs: [authorize, snapshot]
+    if: needs.authorize.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cuda-review-snapshot
+          path: input
+
+      - name: Prepare inert source snapshot
+        run: |
+          set -euo pipefail
+          mkdir source
+          python3 rebase-agent/engine/extract_safe_archive.py input/source.tar source
+          git -C source init -q
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Run bounded read-only model review
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.CUDA_REVIEW_MODEL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 cuda-review/engine/review.py \
+            --source source \
+            --diff input/pr.diff \
+            --files input/pr-files.txt \
+            --report review.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cuda-review-result
+          path: |
+            review.json
+            input/pr.diff
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [authorize, review]
+    if: needs.authorize.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cuda-review-result
+          path: result
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify exact live PR head and base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          live="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" --jq '.head.sha + " " + .base.sha')"
+          test "$live" = "$EXPECTED_HEAD $EXPECTED_BASE"
+
+      - name: Prepare comment-only review payload
+        env:
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+        run: |
+          python3 cuda-review/engine/publish.py \
+            --report result/review.json \
+            --diff result/pr.diff \
+            --commit "$EXPECTED_HEAD" \
+            --output review-payload.json
+
+      - name: Publish advisory PR review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.authorize.outputs.pr_number }}
+        run: |
+          gh api "repos/$REPOSITORY/pulls/$PR_NUMBER/reviews" \
+            --method POST --input review-payload.json

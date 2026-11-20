@@ -1,0 +1,175 @@
+name: cuda-title
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+jobs:
+  title-command:
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/github-script@v8
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.CUDA_REVIEW_MODEL }}
+        with:
+          script: |
+            const body = (context.payload.comment?.body || '').trim().toLowerCase();
+            const commands = {
+              '@cuda suggest-title': 'suggest',
+              '@cuda decline-title': 'decline',
+            };
+            const command = commands[body];
+            if (!command) return;
+
+            const fs = require('fs');
+            const policy = JSON.parse(
+              fs.readFileSync('.github/cuda-review.json', 'utf8')
+            );
+            if (
+              !policy.maintainers.includes(context.actor) ||
+              context.actor.endsWith('[bot]')
+            ) return;
+
+            const n = context.issue.number;
+            const pullRequestArgs = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: n,
+            };
+            const { data: pr } = await github.rest.pulls.get(pullRequestArgs);
+            const repository = context.payload.repository.full_name;
+            if (
+              pr.state !== 'open' ||
+              pr.draft ||
+              pr.head.repo?.full_name !== repository ||
+              pr.base.repo?.full_name !== repository
+            ) return;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: n,
+              per_page: 100,
+            });
+            const head = pr.head.sha;
+            const marker = '<!-- cuda-title-suggestion:' + head + ' -->';
+            const declined = '<!-- cuda-title-declined:' + head + ' -->';
+
+            if (command === 'decline') {
+              const hasSuggestion = comments.some(
+                comment => (comment.body || '').includes(marker)
+              );
+              const alreadyDeclined = comments.some(
+                comment => (comment.body || '').includes(declined)
+              );
+              if (!hasSuggestion || alreadyDeclined) return;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: n,
+                body:
+                  'Title suggestion declined. The PR title is unchanged.\\n\\n' +
+                  declined,
+              });
+              return;
+            }
+
+            const alreadyHandled = comments.some(comment => {
+              const text = comment.body || '';
+              return text.includes(marker) || text.includes(declined);
+            });
+            if (alreadyHandled) return;
+            if (!process.env.OPENROUTER_API_KEY) {
+              throw new Error('OPENROUTER_API_KEY is required');
+            }
+
+            const diffResult = await github.request(
+              'GET /repos/{owner}/{repo}/pulls/{pull_number}',
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: n,
+                headers: { accept: 'application/vnd.github.v3.diff' },
+              }
+            );
+            const diff = typeof diffResult.data === 'string'
+              ? diffResult.data
+              : String(diffResult.data);
+            if (!diff.trim() || Buffer.byteLength(diff, 'utf8') > 120000) {
+              throw new Error('PR diff is empty or exceeds 120 KB');
+            }
+
+            const guidance = fs.existsSync('CONTRIBUTING.md')
+              ? fs.readFileSync('CONTRIBUTING.md', 'utf8').slice(0, 12000)
+              : '';
+            const prompt = [
+              'Suggest one concise PR title based on the actual diff.',
+              'Follow repository title guidance exactly.',
+              'Preserve required scope syntax.',
+              'Return only one title, no explanation or markdown.',
+              'Current title: ' + pr.title,
+              'PR description: ' + (pr.body || '').slice(0, 5000),
+              'Title guidance: ' + guidance,
+              'Diff: ' + diff,
+            ].join('\\n');
+
+            const response = await fetch(
+              'https://openrouter.ai/api/v1/chat/completions',
+              {
+                method: 'POST',
+                headers: {
+                  authorization: 'Bearer ' + process.env.OPENROUTER_API_KEY,
+                  'content-type': 'application/json',
+                  'HTTP-Referer':
+                    'https://github.com/' + context.repo.owner + '/' +
+                    context.repo.repo,
+                  'X-Title': 'CUDA Review',
+                },
+                body: JSON.stringify({
+                  model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+                  messages: [{ role: 'user', content: prompt }],
+                  temperature: 0.1,
+                  max_tokens: 120,
+                  provider: { data_collection: 'deny' },
+                }),
+              }
+            );
+            if (!response.ok) {
+              throw new Error('OpenRouter request failed: HTTP ' + response.status);
+            }
+            const result = await response.json();
+            const title = String(
+              result.choices?.[0]?.message?.content || ''
+            ).trim().replace(/^['"\\x60]|['"\\x60]$/g, '');
+            if (
+              title.length < 10 ||
+              title.length > 100 ||
+              /[\\r\\n\\x00-\\x1f]/.test(title)
+            ) {
+              throw new Error('Model returned an invalid title');
+            }
+
+            const { data: live } = await github.rest.pulls.get(pullRequestArgs);
+            if (live.head.sha !== head || live.base.sha !== pr.base.sha) {
+              throw new Error('PR changed while title suggestion was generated');
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: n,
+              body:
+                'Suggested title: **' + title + '**\\n\\n' +
+                'The PR title was not changed. Apply it manually if you agree, ' +
+                'or reply with @cuda decline-title.\\n\\n' + marker,
+            });

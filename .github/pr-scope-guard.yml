@@ -46,6 +46,11 @@ scopes:
     - ".github/codex-review.json"
     - ".github/workflows/codex-review.yml"
     - "docs/codex-review.md"
+  cuda-review:
+    - "cuda-review/**"
+    - ".github/cuda-review.json"
+    - ".github/workflows/cuda-review.yml"
+    - "docs/cuda-review.md"
   docs:
     - "docs/**"
     - "README.md"
