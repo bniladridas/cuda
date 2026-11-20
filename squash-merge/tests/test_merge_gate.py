@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 from merge_gate import (  # noqa: E402
     latest_review_states,
+    latest_check_runs,
     outstanding_change_request_reviewers,
     validate_state,
     perform_squash_merge,
@@ -326,6 +327,33 @@ class MergeGateTests(unittest.TestCase):
             ]
         )
         self.assertTrue(any("Checks have failed" in error for error in errors))
+
+    def test_latest_success_supersedes_older_cancelled_check(self):
+        checks = [
+            {"id": 10, "name": "CI", "status": "completed", "conclusion": "cancelled"},
+            {"id": 11, "name": "CI", "status": "completed", "conclusion": "success"},
+        ]
+        self.assertEqual(
+            latest_check_runs(checks),
+            [checks[1]],
+        )
+        self.assertEqual(self.errors(check_runs=checks), [])
+
+    def test_latest_cancelled_check_does_not_hide_behind_older_success(self):
+        checks = [
+            {"id": 10, "name": "CI", "status": "completed", "conclusion": "success"},
+            {"id": 11, "name": "CI", "status": "completed", "conclusion": "cancelled"},
+        ]
+        errors = self.errors(check_runs=checks)
+        self.assertTrue(any("Required checks are not successful" in error for error in errors))
+
+    def test_latest_running_check_blocks_older_success(self):
+        checks = [
+            {"id": 10, "name": "CI", "status": "completed", "conclusion": "success"},
+            {"id": 11, "name": "CI", "status": "in_progress", "conclusion": None},
+        ]
+        errors = self.errors(check_runs=checks)
+        self.assertTrue(any("Required checks are not successful" in error for error in errors))
 
     def test_running_or_failed_checks_fail(self):
         running = [{"name": "CI", "status": "in_progress", "conclusion": None}]
