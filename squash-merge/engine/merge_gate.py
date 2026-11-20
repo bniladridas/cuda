@@ -170,10 +170,7 @@ def required_checks_are_pending(errors: list[str]) -> bool:
         if error.startswith("Required check runs are missing:"):
             continue
         if error.startswith("Required checks are not successful:"):
-            if any(
-                f"({status}/" in error
-                for status in ("queued", "in_progress", "waiting", "requested", "pending")
-            ):
+            if any(f"({status}/" in error for status in ("queued", "in_progress", "waiting", "requested", "pending")):
                 continue
         return False
     return True
