@@ -51,7 +51,7 @@ jobs:
           git -C pr diff --binary --full-index "$BASE_SHA...$HEAD_SHA" > pr.diff
           git -C pr diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
           python3 trusted/rebase-agent/engine/extract_review_feedback.py review-feedback.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: review-feedback-snapshot
           path: |
@@ -114,7 +114,7 @@ jobs:
           git -C source diff --cached --binary --full-index > proposed.patch
           test -s proposed.patch
           python3 rebase-agent/engine/verify_agent_report.py agent-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: review-feedback-proposal
           path: |

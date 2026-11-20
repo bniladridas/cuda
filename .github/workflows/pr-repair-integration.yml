@@ -98,7 +98,7 @@ jobs:
           git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA" > pr-files.txt
           test -s pr.diff
           test -s pr-files.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pr-source-snapshot
           path: |
@@ -162,7 +162,7 @@ jobs:
           git -C source diff --cached --binary --full-index > proposed.patch
           test -s proposed.patch
           python3 rebase-agent/engine/verify_agent_report.py agent-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: repair-proposal
           path: |
@@ -241,7 +241,7 @@ jobs:
           git bundle create prepared.bundle HEAD
           echo "result_sha=$(cat prepared-sha.txt)" >> "$GITHUB_OUTPUT"
           echo "result_tree=$(cat prepared-tree.txt)" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: prepared-integration
           path: |
@@ -294,7 +294,7 @@ jobs:
             --files input/final-files.txt --feedback feedback.txt \
             --report final-review.json --review-only
           python3 rebase-agent/engine/verify_agent_report.py final-review.json --final
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: final-review
           path: final-review.json
@@ -404,7 +404,7 @@ jobs:
             sleep 10
           done
           python3 rebase-agent/engine/summarize_checks.py checks.json audit.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pr-repair-audit-${{ inputs.pull_request }}
