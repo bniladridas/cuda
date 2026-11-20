@@ -103,7 +103,8 @@ jobs:
               echo "Rebase failed without a resolvable conflict state." >&2
               exit 1
             fi
-            python3 rebase-agent/engine/ai_conflict_resolver.py --repo "$GITHUB_WORKSPACE" --report ai-conflict-report.json
+            resolver_args=(--repo "$GITHUB_WORKSPACE" --report ai-conflict-report.json)
+            python3 rebase-agent/engine/ai_conflict_resolver.py "${resolver_args[@]}"
           else
             printf '{"model":"not-needed","rounds":[],"resolved":true}\n' > ai-conflict-report.json
           fi
