@@ -5,9 +5,11 @@ model-assisted repair agent and never approves or merges a pull request.
 
 The repository workflow `.github/workflows/rebase-approved.yml` invokes a
 real Git rebase when a maintainer adds `rebase:approved`. It checks the actor
-against the trusted maintainer list, verifies the exact PR head and base SHAs,
-rejects forks and protected branches, and pushes only with an exact
-`--force-with-lease`. It does not use GitHub's update-branch API, which
+against the trusted maintainer list, verifies the exact PR head SHA, captures
+the live base-branch SHA, rejects forks and protected branches, and pushes
+only with an exact `--force-with-lease`. The captured base SHA is checked again
+before the push, so a stale cached `pull_request.base.sha` does not silently
+pin the operation to an old base. It does not use GitHub's update-branch API, which
 creates a merge commit rather than rebasing. A conflict aborts the operation,
 reports the conflicting paths, and requires human resolution. The workflow
 requires the `PR_REBASE_TOKEN` secret with contents-write access.
