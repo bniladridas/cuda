@@ -64,7 +64,7 @@ def unmerged_paths(repo):
     result = git(repo, ["diff", "--name-only", "--diff-filter=U", "-z"])
     return [
         item.decode("utf-8")
-        for item in result.stdout.encode().split(b"\\0")
+        for item in result.stdout.encode().split(b"\0")
         if item
     ]
 
