@@ -76,6 +76,10 @@ scopes:
     - ".github/pr-scope-guard.yml"
     - ".github/workflows/pr-scope-guard.yml"
     - "docs/pr-scope-guard.md"
+  pr-title:
+    - "pr-title/**"
+    - ".github/workflows/pr-title-assistant.yml"
+    - "docs/pr-title-assistant.md"
   rebase-agent:
     - "rebase-agent/**"
     - "docs/rebase-agent.md"

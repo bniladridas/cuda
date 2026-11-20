@@ -59,6 +59,10 @@
     {
       "name": "squash-merge",
       "description": "The maintainer-approved squash-merge policy engine and workflow."
+    },
+    {
+      "name": "pr-title",
+      "description": "Model-assisted pull request title selection and validation."
     }
   ]
 }
