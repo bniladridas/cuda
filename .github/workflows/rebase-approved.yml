@@ -142,7 +142,7 @@ jobs:
             .base.repo.full_name == $repo and
             .head.sha == $head_sha and
             .head.ref == $head_ref and
-            .base.ref == $base_ref and
+            .base.ref == $base_ref
           ' pr-before-push.json >/dev/null
 
           git push --force-with-lease="refs/heads/$HEAD_REF:$HEAD_SHA" \
