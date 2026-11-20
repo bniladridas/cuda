@@ -60,11 +60,7 @@ def safe_conflict_path(repo, raw):
 
 def unmerged_paths(repo):
     result = git(repo, ["diff", "--name-only", "--diff-filter=U", "-z"])
-    return [
-        item.decode("utf-8")
-        for item in result.stdout.encode().split(b"\0")
-        if item
-    ]
+    return [item.decode("utf-8") for item in result.stdout.encode().split(b"\0") if item]
 
 
 def stage_versions(repo, path):
@@ -230,9 +226,7 @@ def resolve(repo, token, report_path):
     if unmerged_paths(repo):
         raise ResolutionError("unmerged paths remain after model resolution")
     report["resolved"] = True
-    Path(report_path).write_text(
-        json.dumps(report, indent=2) + "\n", encoding="utf-8"
-    )
+    Path(report_path).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 
 
