@@ -223,7 +223,7 @@ def perform_squash_merge(
     status = request.get("status")
     if status == "merged":
         return {"merged": True, **request}, None
-    request_id = request.get("uuid")
+    request_id = request.get("uuid") or (request.get("details") or {}).get("uuid")
     if status != "pending" or not request_id:
         return None, f"GitHub did not accept an asynchronous squash merge: {request}"
     for _ in range(40):
