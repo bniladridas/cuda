@@ -91,10 +91,10 @@ Run it with a read-only token:
       --repository owner/repo --pull-request 123 \
       --output conflict-inspection.json
 
-The `conflict:inspect` label triggers the read-only
-`.github/workflows/conflict-inspection.yml` workflow. It checks out only the
-trusted base SHA, has read-only repository permissions, executes no PR code,
-and uploads the JSON report as an artifact. It does not update a branch.
+The read-only `.github/workflows/conflict-inspection.yml` workflow remains
+available through manual `workflow_dispatch`. It checks out only the trusted
+base SHA, has read-only repository permissions, executes no PR code, and
+uploads the JSON report as an artifact. It does not update a branch.
 
 Tree overlap is not proof of a textual or semantic conflict. The report
 distinguishes tree inventory from actual Git rebase/merge outcomes.
