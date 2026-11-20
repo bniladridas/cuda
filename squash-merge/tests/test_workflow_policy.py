@@ -39,7 +39,12 @@ class SquashMergeWorkflowPolicyTests(unittest.TestCase):
 
     def test_policy_requires_successful_checks_and_squash_only(self):
         self.assertEqual(self.config["merge_method"], "squash")
-        self.assertTrue(self.config["required_check_runs"])
+        self.assertEqual(
+            set(self.config["required_check_runs"]),
+            {"cpu", "python", "PR Confidence", "PR Scope Guard"},
+        )
+        self.assertNotIn("analyze (c-cpp)", self.config["required_check_runs"])
+        self.assertNotIn("CodeQL", self.config["required_check_runs"])
         self.assertEqual(self.config["required_status_contexts"], [])
         self.assertIn("bniladridas", self.config["maintainers"])
 
