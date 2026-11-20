@@ -415,19 +415,25 @@ class MergeGateTests(unittest.TestCase):
     def test_required_checks_wait_only_while_missing_or_running(self):
         self.assertTrue(required_checks_are_pending(["Required check runs are missing: cpu, python"]))
         self.assertTrue(required_checks_are_pending(["Required checks are not successful: cpu (in_progress/None)"]))
-        self.assertTrue(required_checks_are_pending([
-            "Required check runs are missing: PR Confidence",
-            "Required checks are not successful: python (queued/None)",
-        ]))
+        self.assertTrue(
+            required_checks_are_pending(
+                [
+                    "Required check runs are missing: PR Confidence",
+                    "Required checks are not successful: python (queued/None)",
+                ]
+            )
+        )
 
     def test_required_checks_do_not_wait_on_failures_or_other_policy_errors(self):
-        self.assertFalse(required_checks_are_pending([
-            "Required checks are not successful: cpu (completed/failure)"
-        ]))
-        self.assertFalse(required_checks_are_pending([
-            "Required checks are not successful: cpu (in_progress/None)",
-            "Unauthorized approval actor: contributor",
-        ]))
+        self.assertFalse(required_checks_are_pending(["Required checks are not successful: cpu (completed/failure)"]))
+        self.assertFalse(
+            required_checks_are_pending(
+                [
+                    "Required checks are not successful: cpu (in_progress/None)",
+                    "Unauthorized approval actor: contributor",
+                ]
+            )
+        )
         self.assertFalse(required_checks_are_pending([]))
 
     def test_missing_required_check_fails(self):
