@@ -1,14 +1,31 @@
+import os
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 from ai_conflict_resolver import (
     ResolutionError,
+    git,
     safe_conflict_path,
     validate_replacements,
 )
+
+
+class GitCredentialIsolationTests(unittest.TestCase):
+    def test_git_subprocess_does_not_receive_model_key(self):
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-secret"}):
+            with patch(
+                "ai_conflict_resolver.subprocess.run",
+                return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+            ) as run:
+                git(Path("/tmp/repo"), ["status"])
+        child_env = run.call_args.kwargs["env"]
+        self.assertNotIn("OPENROUTER_API_KEY", child_env)
+        self.assertEqual(child_env["GIT_TERMINAL_PROMPT"], "0")
 
 
 class SafeConflictPathTests(unittest.TestCase):
