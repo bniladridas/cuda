@@ -69,10 +69,18 @@ class CppQualityWorkflowTests(unittest.TestCase):
     def test_gpu_job_remains_optional_and_self_hosted(self):
         workflow = self.load_workflow()
         gpu = workflow["jobs"]["gpu"]
-        self.assertEqual(gpu["if"], "vars.CUDA_CI_ENABLED == 'true'")
+        condition = gpu["if"]
+        self.assertIn("vars.CUDA_CI_ENABLED == 'true'", condition)
+        self.assertIn("github.event_name == 'pull_request'", condition)
+        self.assertIn(
+            "github.event.pull_request.head.repo.full_name == github.repository",
+            condition,
+        )
+        self.assertIn("gpu-ci:approved", condition)
         self.assertIn("self-hosted", gpu["runs-on"])
         self.assertIn("nvidia", gpu["runs-on"])
         self.assertIn("cuda", gpu["runs-on"])
+        self.assertIn("ephemeral", gpu["runs-on"])
 
     def test_clang_format_config(self):
         with FORMAT_PATH.open(encoding="utf-8") as handle:

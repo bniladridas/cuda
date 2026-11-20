@@ -4,6 +4,7 @@ self-hosted-runner:
   labels:
     - nvidia
     - cuda
+    - ephemeral
 
 # job.workflow_repository and job.workflow_sha are documented for reusable
 # workflows on GitHub.com and check out the engine at the commit that defines
