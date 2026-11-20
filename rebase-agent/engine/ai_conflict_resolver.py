@@ -43,9 +43,7 @@ def git(repo, args, check=True):
 
 def safe_conflict_path(repo, raw):
     path = Path(raw)
-    if not raw or path.is_absolute() or any(
-        part in ("", ".", "..") for part in path.parts
-    ):
+    if not raw or path.is_absolute() or any(part in ("", ".", "..") for part in path.parts):
         raise ResolutionError("unsafe conflict path")
     if path.parts[0] == ".git":
         raise ResolutionError("refusing to modify Git metadata")
@@ -78,15 +76,11 @@ def stage_versions(repo, path):
             continue
         raw = result.stdout.encode("utf-8", errors="surrogateescape")
         if len(raw) > MAX_FILE_BYTES:
-            raise ResolutionError(
-                "conflict file exceeds per-file size limit: " + path
-            )
+            raise ResolutionError("conflict file exceeds per-file size limit: " + path)
         try:
             values[stage] = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
-            raise ResolutionError(
-                "binary or non-UTF-8 conflict is unsupported: " + path
-            ) from exc
+            raise ResolutionError("binary or non-UTF-8 conflict is unsupported: " + path) from exc
     if all(value is None for value in values.values()):
         raise ResolutionError("Git did not provide conflict stages for " + path)
     return {
@@ -100,9 +94,7 @@ def validate_replacements(paths, answer):
     if not isinstance(answer, dict):
         raise ResolutionError("model response must be a JSON object")
     if answer.get("needs_human") is not False:
-        raise ResolutionError(
-            "model marked the conflict ambiguous or requested human resolution"
-        )
+        raise ResolutionError("model marked the conflict ambiguous or requested human resolution")
     replacements = answer.get("files")
     if not isinstance(replacements, list):
         raise ResolutionError("model response has no files array")
@@ -113,30 +105,19 @@ def validate_replacements(paths, answer):
             raise ResolutionError("model response contains an invalid file entry")
         path = item["path"]
         content = item["content"]
-        if (
-            not isinstance(path, str)
-            or not isinstance(content, str)
-            or path in by_path
-        ):
-            raise ResolutionError(
-                "model response contains duplicate or invalid paths"
-            )
+        if not isinstance(path, str) or not isinstance(content, str) or path in by_path:
+            raise ResolutionError("model response contains duplicate or invalid paths")
         encoded = content.encode("utf-8")
         if len(encoded) > MAX_FILE_BYTES:
             raise ResolutionError("model replacement exceeds per-file limit: " + path)
         total += len(encoded)
         if total > MAX_TOTAL_BYTES:
             raise ResolutionError("model replacements exceed combined size limit")
-        if any(
-            line.startswith(("<<<<<<<", "=======", ">>>>>>>"))
-            for line in content.splitlines()
-        ):
+        if any(line.startswith(("<<<<<<<", "=======", ">>>>>>>")) for line in content.splitlines()):
             raise ResolutionError("model replacement still contains conflict markers")
         by_path[path] = content
     if set(by_path) != set(paths):
-        raise ResolutionError(
-            "model response did not cover exactly every conflicted path"
-        )
+        raise ResolutionError("model response did not cover exactly every conflicted path")
     return by_path
 
 
@@ -208,19 +189,14 @@ def resolve(repo, token, report_path):
             report["resolved"] = True
             break
         if len(paths) > MAX_FILES:
-            raise ResolutionError(
-                "too many conflicted files; refusing partial resolution"
-            )
+            raise ResolutionError("too many conflicted files; refusing partial resolution")
 
         conflicts = []
         total = 0
         for raw in paths:
             safe_conflict_path(repo, raw)
             versions = stage_versions(repo, raw)
-            total += sum(
-                len((value or "").encode("utf-8"))
-                for value in versions.values()
-            )
+            total += sum(len((value or "").encode("utf-8")) for value in versions.values())
             conflicts.append({"path": raw, **versions})
         if total > MAX_TOTAL_BYTES:
             raise ResolutionError("combined conflict context exceeds size limit")
@@ -266,9 +242,7 @@ def main():
     parser.add_argument("--report", required=True)
     args = parser.parse_args()
     try:
-        result = resolve(
-            args.repo, os.environ.get("OPENROUTER_API_KEY"), args.report
-        )
+        result = resolve(args.repo, os.environ.get("OPENROUTER_API_KEY"), args.report)
     except (OSError, ValueError, ResolutionError) as exc:
         print("AI conflict resolver: " + str(exc), file=sys.stderr)
         raise SystemExit(1) from exc
