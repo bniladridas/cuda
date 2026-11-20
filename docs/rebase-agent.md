@@ -1,7 +1,16 @@
 # Safe PR branch rebase
 
-This is the first Git-operation slice of issue #79. It is not the autonomous
-repair agent and is not wired to a GitHub workflow.
+This is the Git-operation layer for issue #79. It is separate from the
+model-assisted repair agent and never approves or merges a pull request.
+
+The repository workflow `.github/workflows/rebase-approved.yml` invokes a
+real Git rebase when a maintainer adds `rebase:approved`. It checks the actor
+against the trusted maintainer list, verifies the exact PR head and base SHAs,
+rejects forks and protected branches, and pushes only with an exact
+`--force-with-lease`. It does not use GitHub's update-branch API, which
+creates a merge commit rather than rebasing. A conflict aborts the operation,
+reports the conflicting paths, and requires human resolution. The workflow
+requires the `PR_REBASE_TOKEN` secret with contents-write access.
 
 ## Contract
 
@@ -39,9 +48,8 @@ PR head and base SHAs returned by GitHub immediately before the operation.
 - A rejected lease is a hard failure, not a reason to retry with a newer SHA.
 - The module does not resolve conflicts, approve reviews, merge PRs, or close issues.
 - A merge-commit fallback requires separate explicit authorization and audit.
-- Offline policy and command-sequence tests are included. End-to-end Git
-  integration tests and workflow integration remain follow-up work.
-
+- Offline policy and command-sequence tests are included. Real-Git integration
+  tests cover clean rebases, conflicting rebases, abort/recovery, and stale refs.
 
 ## Separate merge-based integration mode
 
@@ -64,8 +72,7 @@ the operation is authorized to update a PR branch. The helper itself is a
 Git-operation primitive, not a GitHub workflow or the complete model-assisted
 repair agent. End-to-end orchestration, trusted metadata acquisition, sandbox
 isolation, validation-before-write enforcement, and post-update CI reporting
-remain required before autonomous use.
-
+remain required before autonomous merge-based integration.
 
 ## GitHub API tree inspection
 
@@ -89,7 +96,6 @@ and uploads the JSON report as an artifact. It does not update a branch.
 
 Tree overlap is not proof of a textual or semantic conflict. The report
 distinguishes tree inventory from actual Git rebase/merge outcomes.
-
 
 ## Maintainer-dispatched repair workflow
 
@@ -176,7 +182,6 @@ This workflow is an initial bounded implementation, not a guarantee of
 semantic correctness. Model review is advisory. Deterministic tests, exact
 SHA gates, independent human review, and repository branch protections remain
 necessary. The first successful run should be on a low-risk CPU-only PR.
-
 
 ## Review-comment feedback proposals
 
