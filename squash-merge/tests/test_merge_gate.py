@@ -11,6 +11,7 @@ from merge_gate import (  # noqa: E402
     perform_squash_merge,
     collect_state,
     is_already_merged,
+    required_checks_are_pending,
 )
 
 
@@ -410,6 +411,30 @@ class MergeGateTests(unittest.TestCase):
                     ]
                 )
                 self.assertTrue(any("Required checks are not successful" in error for error in errors))
+
+    def test_required_checks_wait_only_while_missing_or_running(self):
+        self.assertTrue(required_checks_are_pending(["Required check runs are missing: cpu, python"]))
+        self.assertTrue(required_checks_are_pending(["Required checks are not successful: cpu (in_progress/None)"]))
+        self.assertTrue(
+            required_checks_are_pending(
+                [
+                    "Required check runs are missing: PR Confidence",
+                    "Required checks are not successful: python (queued/None)",
+                ]
+            )
+        )
+
+    def test_required_checks_do_not_wait_on_failures_or_other_policy_errors(self):
+        self.assertFalse(required_checks_are_pending(["Required checks are not successful: cpu (completed/failure)"]))
+        self.assertFalse(
+            required_checks_are_pending(
+                [
+                    "Required checks are not successful: cpu (in_progress/None)",
+                    "Unauthorized approval actor: contributor",
+                ]
+            )
+        )
+        self.assertFalse(required_checks_are_pending([]))
 
     def test_missing_required_check_fails(self):
         errors = self.errors(check_runs=[])

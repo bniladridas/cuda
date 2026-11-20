@@ -18,7 +18,7 @@ jobs:
       github.event.action == 'labeled' &&
       github.event.label.name == 'squash-merge:approved'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     permissions:
       checks: read
       contents: write
