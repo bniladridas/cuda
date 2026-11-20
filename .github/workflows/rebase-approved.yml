@@ -46,12 +46,12 @@ jobs:
           jq -e --arg actor "$EVENT_ACTOR" '.maintainers | index($actor) != null' .github/squash-merge.json >/dev/null
 
           gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" > pr.json
-          jq -e \
-            --arg repo "$REPOSITORY" \
-            --arg head_sha "$EVENT_HEAD_SHA" \
-            --arg head_ref "$EVENT_HEAD_REF" \
-            --arg base_sha "$EVENT_BASE_SHA" \
-            --arg base_ref "$EVENT_BASE_REF" \
+          jq -e \\
+            --arg repo "$REPOSITORY" \\
+            --arg head_sha "$EVENT_HEAD_SHA" \\
+            --arg head_ref "$EVENT_HEAD_REF" \\
+            --arg base_sha "$EVENT_BASE_SHA" \\
+            --arg base_ref "$EVENT_BASE_REF" \\
             '.state == "open" and
              .merged == false and
              .draft == false and
@@ -65,23 +65,26 @@ jobs:
 
           test "$EVENT_HEAD_REF" != "main"
           test "$EVENT_HEAD_REF" != "$EVENT_BASE_REF"
+          git check-ref-format --branch "$EVENT_HEAD_REF"
 
           encoded_ref="$(jq -rn --arg ref "$EVENT_HEAD_REF" '$ref | @uri')"
           branch_info="$(gh api "repos/$REPOSITORY/branches/$encoded_ref")"
           jq -e '.protected == false' <<<"$branch_info" >/dev/null
 
           BASE_SHA="$(gh api "repos/$REPOSITORY/git/ref/heads/$EVENT_BASE_REF" --jq '.object.sha')"
-          test -n "$BASE_SHA"
+          test "$BASE_SHA" = "$EVENT_BASE_SHA" || {
+            echo "Base branch moved after the label event; reapply approval to the current PR state." >&2
+            exit 1
+          }
 
           {
             echo "head_ref=$EVENT_HEAD_REF"
             echo "head_sha=$EVENT_HEAD_SHA"
             echo "base_ref=$EVENT_BASE_REF"
             echo "base_sha=$BASE_SHA"
-            echo "event_base_sha=$EVENT_BASE_SHA"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Update the PR branch onto the pinned base branch tip
+      - name: Rebase the PR branch and push with an exact lease
         env:
           GH_TOKEN: ${{ secrets.PR_REBASE_TOKEN }}
           REPOSITORY: ${{ github.repository }}
@@ -89,7 +92,6 @@ jobs:
           HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
           BASE_REF: ${{ steps.verify.outputs.base_ref }}
           BASE_SHA: ${{ steps.verify.outputs.base_sha }}
-          EVENT_BASE_SHA: ${{ steps.verify.outputs.event_base_sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
@@ -97,38 +99,51 @@ jobs:
             echo "Configure PR_REBASE_TOKEN with repository contents write access." >&2
             exit 1
           }
-          test "$(gh api "repos/$REPOSITORY/git/ref/heads/$HEAD_REF" --jq '.object.sha')" = "$HEAD_SHA"
-          test "$(gh api "repos/$REPOSITORY/git/ref/heads/$BASE_REF" --jq '.object.sha')" = "$BASE_SHA"
+          gh auth setup-git
+          git config user.name "cuda-pr-rebase"
+          git config user.email "cuda-pr-rebase@users.noreply.github.com"
 
-          gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" > pr-before-push.json
-          jq -e \
-            --arg repo "$REPOSITORY" \
-            --arg head_sha "$HEAD_SHA" \
-            --arg head_ref "$HEAD_REF" \
-            --arg event_base_sha "$EVENT_BASE_SHA" \
-            --arg base_ref "$BASE_REF" \
-            '.state == "open" and .merged == false and .draft == false and
-             .head.repo.full_name == $repo and .base.repo.full_name == $repo and
-             .head.sha == $head_sha and .head.ref == $head_ref and
-             .base.sha == $event_base_sha and .base.ref == $base_ref' pr-before-push.json >/dev/null
+          git fetch --no-tags origin \\
+            "refs/heads/$HEAD_REF:refs/remotes/origin/approved-pr" \\
+            "refs/heads/$BASE_REF:refs/remotes/origin/approved-base"
+          test "$(git rev-parse refs/remotes/origin/approved-pr)" = "$HEAD_SHA"
+          test "$(git rev-parse refs/remotes/origin/approved-base)" = "$BASE_SHA"
 
-          status="$(gh api "repos/$REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" --jq '.status')"
-          if [ "$status" = "ahead" ] || [ "$status" = "identical" ]; then
+          git switch --detach "$HEAD_SHA"
+          if git merge-base --is-ancestor "$BASE_SHA" HEAD; then
             echo "PR #$PR_NUMBER is already based on $BASE_REF ($BASE_SHA)."
             exit 0
           fi
 
-          gh api -X PUT "repos/$REPOSITORY/pulls/$PR_NUMBER/update-branch" \
-            -f expected_head_sha="$HEAD_SHA" >/dev/null
+          if ! git rebase "$BASE_SHA"; then
+            conflicts="$(git diff --name-only --diff-filter=U || true)"
+            git rebase --abort || true
+            echo "Rebase stopped. No branch update was made." >&2
+            if [ -n "$conflicts" ]; then
+              printf 'Conflicting paths:\\n%s\\n' "$conflicts" >&2
+            else
+              echo "Git reported a rebase failure without unmerged paths." >&2
+            fi
+            exit 1
+          fi
 
-          updated=""
-          for _ in 1 2 3 4 5 6 7 8 9 10; do
-            updated="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" --jq '.head.sha')"
-            [ "$updated" != "$HEAD_SHA" ] && break
-            sleep 3
-          done
-          test -n "$updated"
-          test "$updated" != "$HEAD_SHA"
+          git merge-base --is-ancestor "$BASE_SHA" HEAD
+          test "$(gh api "repos/$REPOSITORY/git/ref/heads/$HEAD_REF" --jq '.object.sha')" = "$HEAD_SHA"
+          test "$(gh api "repos/$REPOSITORY/git/ref/heads/$BASE_REF" --jq '.object.sha')" = "$BASE_SHA"
 
-          echo "Updated PR #$PR_NUMBER onto $BASE_REF ($BASE_SHA)."
-          echo "GitHub created a signed merge commit, so the signature requirement stays satisfied."
+          gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" > pr-before-push.json
+          jq -e \\
+            --arg repo "$REPOSITORY" \\
+            --arg head_sha "$HEAD_SHA" \\
+            --arg head_ref "$HEAD_REF" \\
+            --arg base_sha "$BASE_SHA" \\
+            --arg base_ref "$BASE_REF" \\
+            '.state == "open" and .merged == false and .draft == false and
+             .head.repo.full_name == $repo and .base.repo.full_name == $repo and
+             .head.sha == $head_sha and .head.ref == $head_ref and
+             .base.ref == $base_ref and .base.sha == $base_sha' pr-before-push.json >/dev/null
+
+          git push --force-with-lease="refs/heads/$HEAD_REF:$HEAD_SHA" \\
+            origin "HEAD:refs/heads/$HEAD_REF"
+          echo "Rebased PR #$PR_NUMBER onto $BASE_REF ($BASE_SHA)."
+          echo "The PR remains open and requires its normal review and merge process."
