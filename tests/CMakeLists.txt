@@ -20,6 +20,12 @@ target_include_directories(test_benchmark_options PRIVATE
 cuda_kernels_set_host_warnings(test_benchmark_options)
 add_test(NAME benchmark_options COMMAND test_benchmark_options)
 
+add_executable(test_benchmark_statistics test_benchmark_statistics.cpp)
+target_include_directories(test_benchmark_statistics PRIVATE
+  ${PROJECT_SOURCE_DIR}/benchmarks)
+cuda_kernels_set_host_warnings(test_benchmark_statistics)
+add_test(NAME benchmark_statistics COMMAND test_benchmark_statistics)
+
 add_executable(test_benchmark_metadata test_benchmark_metadata.cpp)
 target_include_directories(test_benchmark_metadata PRIVATE
   ${PROJECT_SOURCE_DIR}/benchmarks)

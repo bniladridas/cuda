@@ -20,6 +20,12 @@ before it collects a single timing, and exits non-zero if any case is wrong.
 - **Reported statistic**: the **median** of per-batch times. The mean is
   sensitive to a single scheduler hiccup; the min is the best case and is
   reported too but is not the headline figure. p90 is included to show spread.
+- **p90 convention**: nearest rank. For sorted samples and percentile fraction
+  `p`, select the value at one-based rank `ceil(p * sample_count)`, with `p` in
+  `[0, 1]`. The empty sample set returns `0`; `p = 0` selects the minimum and
+  `p = 1` selects the maximum. With the default seven batches, p90 is the
+  maximum sample. This conservative convention avoids understating the tail
+  with a small sample count.
 - **Defaults**: 200 iterations, 7 batches, 20 warmup launches.
 - **Input limits**: each value must be a positive decimal integer. Iterations and warmup are capped at 100,000, batches at 1,000, and the product of iterations and batches at 100,000 timed launches. This rejects malformed input and bounds accidental long runs before CUDA work begins.
 
