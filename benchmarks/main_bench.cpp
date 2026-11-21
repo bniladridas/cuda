@@ -253,6 +253,15 @@ int main(int argc, char** argv) {
   const std::vector<std::size_t> sizes = {1u << 16, 1u << 20, 1u << 24};
 
   // Correctness gate. No timings are collected unless every size matches.
+  const std::vector<std::pair<std::size_t, std::size_t>> softmax_shapes = {
+      {128, 128}, {1024, 512}, {64, 4096}};
+  for (const auto& shape : softmax_shapes) {
+    if (!softmax_correct(shape.first, shape.second)) {
+      std::fprintf(stderr, "softmax incorrect at shape=%zux%zu; refusing to benchmark\\n",
+                   shape.first, shape.second);
+      return 1;
+    }
+  }
   for (std::size_t n : sizes) {
     if (!vecadd_correct(n)) {
       std::fprintf(stderr, "vecadd incorrect at n=%zu; refusing to benchmark\n", n);
