@@ -37,7 +37,7 @@ def configured_max_rounds(value=None):
 
 
 def write_report(report_path, report):
-    Path(report_path).write_text(json.dumps(report, indent=2) + "\\n", encoding="utf-8")
+    Path(report_path).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
 class ResolutionError(Exception):
