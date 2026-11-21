@@ -85,7 +85,6 @@ int main() {
 }
 ```
 
-The example omits input initialization and host result verification. In a
-complete application, enqueue input copies on the same stream (or establish
-explicit dependencies), then copy results back and check that copy and
-synchronization operations as well.
+The example initializes its inputs and prints one result after synchronization.
+A complete application should verify the full output and check every CUDA
+operation, including copies and synchronization.
