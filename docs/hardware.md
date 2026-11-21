@@ -108,32 +108,6 @@ not enable this job. The hosted checks remain available to all PRs.
 The job runs the tests with `GPU_REQUIRED=1`. If the runner cannot see a device,
 `runners/test.sh` fails instead of reporting skipped tests as a pass.
 
-### Compute Sanitizer
-
-Compute Sanitizer is distributed with the CUDA toolkit. The workflow reports
-`compute-sanitizer --version` so each run records the installed tool version;
-the toolkit version is not independently pinned by this repository. A runner
-without Compute Sanitizer fails at the version-report step rather than silently
-omitting instrumentation.
-
-After ordinary correctness tests and before benchmarking, the GPU job runs:
-
-- `memcheck` on `test_vecadd` and `test_reduce` to detect invalid device
-  memory accesses and uninitialized global-memory reads.
-- `racecheck` on `test_reduce` to check shared-memory hazards.
-- `synccheck` on `test_reduce` to check synchronization misuse.
-
-Every invocation uses `--error-exitcode 1`, so a reported sanitizer finding
-fails the job. These runs are separate from the benchmark step; never use
-instrumented timings as benchmark results. The full sanitizer suite is limited
-to the reduction and vector-add tests for routine CI. More expensive
-`initcheck` coverage is not part of the routine job and can be run manually
-when investigating device-memory initialization.
-
-Compute Sanitizer evidence is distinct from ordinary correctness evidence:
-passing numerical tests does not establish the absence of memory or
-synchronization hazards, and a sanitizer run only covers the tested workloads.
-
 ## Reproducibility notes
 
 Benchmark numbers depend on the exact GPU, driver, toolkit and clock state.
