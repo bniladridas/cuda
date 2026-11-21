@@ -132,7 +132,24 @@ int main() {
                   kTolFloat);
 
   std::vector<double> d_small = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
-  run_case<double>(d_small, "double-cancellation", kTolDouble);
+  run_case<double>(d_small, "double-positive-small", kTolDouble);
+
+  // Large terms cancel in pairs, leaving a small exactly representable residual.
+  // The 0.25 and -0.125 terms are binary fractions, so the reference sum is
+  // stable while the 1e12 terms exercise mixed-sign, mixed-magnitude reduction.
+  std::vector<double> d_cancellation;
+  d_cancellation.reserve(4 * 4096);
+  for (std::size_t i = 0; i < 4096; ++i) {
+    d_cancellation.insert(d_cancellation.end(), {1.0e12, -1.0e12, 0.25, -0.125});
+  }
+  run_case<double>(d_cancellation, "double-cancellation", kTolDouble);
+
+  std::vector<float> f_cancellation;
+  f_cancellation.reserve(4 * 4096);
+  for (std::size_t i = 0; i < 4096; ++i) {
+    f_cancellation.insert(f_cancellation.end(), {1.0e6f, -1.0e6f, 0.25f, -0.125f});
+  }
+  run_case<float>(f_cancellation, "float-cancellation", kTolFloat);
   std::vector<double> d_big(1000003);
   for (std::size_t i = 0; i < d_big.size(); ++i) {
     d_big[i] = static_cast<double>(i % 1000) * 0.001;
