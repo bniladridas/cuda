@@ -1,6 +1,6 @@
 # CUDA launch and error-reporting contract
 
-The public launchers `launch_vecadd` and `launch_reduce` enqueue their kernels
+The public launchers `launch_vecadd`, `launch_reduce`, and `launch_softmax` enqueue their kernels
 on the caller-supplied CUDA stream. They do not synchronize that stream before
 returning.
 
@@ -88,3 +88,4 @@ int main() {
 The example initializes its inputs and prints one result after synchronization.
 A complete application should verify the full output and check every CUDA
 operation, including copies and synchronization.
+\n## Row-wise softmax\n\n`launch_softmax(input, output, rows, columns, stream)` accepts contiguous row-major FP32 input and output matrices. Each row is normalized independently using max-subtracted exponentials. Positive, non-power-of-two column counts are supported. If either dimension is zero, the call is a no-op and does not access either pointer. Input and output ranges must not overlap. One block is launched per row, so `rows` must fit the device grid-x limit. The launch is asynchronous and follows the same stream and error-reporting contract described above.\n
