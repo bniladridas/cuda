@@ -44,7 +44,8 @@ immediate launch check.
 
 static void check_cuda(cudaError_t status) {
   if (status != cudaSuccess) {
-    std::fprintf(stderr, "CUDA error: %s\n", cudaGetErrorString(status));
+    std::fprintf(stderr, "CUDA error: %s
+", cudaGetErrorString(status));
     std::abort();
   }
 }
@@ -75,7 +76,8 @@ int main() {
   // here, so check the synchronization result.
   check_cuda(cudaStreamSynchronize(stream));
 
-  std::printf("c[0] = %.1f\n", host_c[0]);
+  std::printf("c[0] = %.1f
+", host_c[0]);
 
   check_cuda(cudaFree(a));
   check_cuda(cudaFree(b));
@@ -91,4 +93,4 @@ operation, including copies and synchronization.
 
 ## Row-wise softmax
 
-`launch_softmax(input, output, rows, columns, stream)` accepts contiguous row-major FP32 input and output matrices. Each row is normalized independently using max-subtracted exponentials. Positive, non-power-of-two column counts are supported. If either dimension is zero, the call is a no-op and does not access either pointer. Input and output ranges must not overlap. One block is launched per row, so `rows` must fit the device grid-x limit. The launch is asynchronous and follows the same stream and error-reporting contract described above.\n
+`launch_softmax(input, output, rows, columns, stream)` accepts contiguous row-major FP32 input and output matrices. Each row is normalized independently using max-subtracted exponentials. Positive, non-power-of-two column counts are supported. If either dimension is zero, the call is a no-op and does not access either pointer. Input and output ranges must not overlap. One block is launched per row, so `rows` must fit the device grid-x limit. The launch is asynchronous and follows the same stream and error-reporting contract described above.
