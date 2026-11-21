@@ -76,8 +76,7 @@ void run_null_zero_length_case() {
                               reinterpret_cast<void*>(stream));
   CHECK_CUDA(cudaStreamSynchronize(stream));
   CHECK_CUDA(cudaStreamDestroy(stream));
-  std::printf("PASS [%s] n=0 (all-null-pointers, default-and-explicit-stream)\\n",
-              kTest);
+  std::printf("PASS [%s] n=0 (all-null-pointers, default-and-explicit-stream)\\n", kTest);
 }
 
 void run_non_default_stream_case() {
