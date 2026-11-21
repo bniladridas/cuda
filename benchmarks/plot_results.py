@@ -26,7 +26,7 @@ RESULT_KEYS = {"gpu", "results"}
 POINT_KEYS = {"kernel", "n", "gb_per_s"}
 MAX_ELEMENT_COUNT = (1 << 63) - 1
 DEVICE_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
-PCI_BUS_ID_RE = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\\.[0-7]$")
+PCI_BUS_ID_RE = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$")
 
 
 def load(path):

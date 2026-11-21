@@ -472,9 +472,12 @@ int main(int argc, char** argv) {
     }
     std::printf("  ]\n}\n");
   } else {
-    std::printf("gpu=%s sm_%s driver=%s cuda=%s iterations=%d batches=%d warmup=%d\n\n",
-                gpu_name.c_str(), capability.c_str(), driver.c_str(), runtime.c_str(),
-                opts.iterations, opts.reps, opts.warmup);
+    std::printf("gpu=%s device_uuid=%s pci_bus_id=%s sm_%s driver=%s cuda=%s "
+                "iterations=%d batches=%d warmup=%d\n\n",
+                gpu_name.c_str(), device_uuid.c_str(),
+                pci_bus_id.empty() ? "unavailable" : pci_bus_id.c_str(),
+                capability.c_str(), driver.c_str(), runtime.c_str(), opts.iterations,
+                opts.reps, opts.warmup);
     for (const Row& r : rows) {
       bench::print_stats(r.kernel, r.n, r.bytes, r.stats);
     }
