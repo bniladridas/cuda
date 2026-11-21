@@ -56,6 +56,10 @@ never stranded. The result is not bit-reproducible across launch
 configurations: float addition is not associative, so a different block count
 reorders the sums. Tests compare with a relative tolerance, not for equality.
 
+## Public API contract
+
+The launchers are asynchronous and report immediate launch failures using a fail-fast check. Callers must synchronize the relevant stream before consuming results. See [`docs/api.md`](docs/api.md) for the error-reporting details and a usage example.
+
 ## Requirements
 
 - CMake 3.24 or newer, and a C++17 compiler with `nvcc`-compatible flags:
