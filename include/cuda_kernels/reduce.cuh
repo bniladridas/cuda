@@ -23,6 +23,17 @@ namespace cuda_kernels {
 // chunk size, so changing either (e.g. a different GPU, a different n, or a
 // change to kReduceMaxBlocks) can change the last bits of the result. Compare
 // results within a documented tolerance, never for exact equality.
+//
+// Streams the launch on `stream` (cudaStream_t as void*). The function
+// enqueues work and returns without synchronizing the stream. The caller must
+// synchronize the relevant stream before reading out or otherwise depending
+// on the result.
+//
+// An immediate CUDA API or kernel-launch error is checked with
+// cudaGetLastError() and currently prints a diagnostic and aborts the process.
+// A successful return does not mean device execution has completed. Errors
+// raised during asynchronous execution may be reported by a later stream
+// synchronization or another CUDA runtime operation.
 
 // Upper bound on the number of per-block partial sums written in pass 1.
 constexpr std::size_t kReduceMaxBlocks = 4096;
