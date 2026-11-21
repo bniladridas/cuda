@@ -329,7 +329,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::string gpu_name, capability, runtime, driver, device_uuid, pci_bus_id, metadata_error;
+  std::string gpu_name, capability, runtime, driver, device_uuid, pci_bus_id,
+      metadata_error;
   if (!device_strings(&gpu_name, &capability, &runtime, &driver, &device_uuid,
                       &pci_bus_id, &metadata_error)) {
     if (!metadata_error.empty()) {
