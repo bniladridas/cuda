@@ -213,7 +213,10 @@ bool softmax_correct(std::size_t rows, std::size_t columns) {
   }
   return true;
 }
-\n}  // namespace\n\nint main(int argc, char** argv) {
+
+}  // namespace
+
+int main(int argc, char** argv) {
   bench_options::Options opts;
   std::vector<std::string> arguments;
   arguments.reserve(static_cast<std::size_t>(argc > 1 ? argc - 1 : 0));
