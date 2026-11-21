@@ -86,18 +86,22 @@ class MessageContentExtractionTests(unittest.TestCase):
         self.assertEqual(diagnostic["content_type"], "string")
 
     def test_accepts_text_blocks(self):
-        text, diagnostic = extract_message_text([
-            {"type": "text", "text": '{"needs_human": false,'},
-            {"type": "text", "text": '"files": []}'},
-        ])
+        text, diagnostic = extract_message_text(
+            [
+                {"type": "text", "text": '{"needs_human": false,'},
+                {"type": "text", "text": '"files": []}'},
+            ]
+        )
         self.assertEqual(text, '{"needs_human": false,"files": []}')
         self.assertEqual(diagnostic["block_types"], ["text", "text"])
 
     def test_ignores_non_text_blocks_without_coercing_them(self):
-        text, diagnostic = extract_message_text([
-            {"type": "image", "image_url": {"url": "private"}},
-            {"type": "text", "text": "answer"},
-        ])
+        text, diagnostic = extract_message_text(
+            [
+                {"type": "image", "image_url": {"url": "private"}},
+                {"type": "text", "text": "answer"},
+            ]
+        )
         self.assertEqual(text, "answer")
         self.assertEqual(diagnostic["block_types"], ["image", "text"])
 
