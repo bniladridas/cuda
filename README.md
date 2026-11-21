@@ -18,7 +18,7 @@ point is the kernel, not the call into CUB.
 
 ## Status
 
-Two kernels, both implemented end to end:
+Three kernels, all implemented end to end:
 
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
