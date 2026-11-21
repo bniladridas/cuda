@@ -13,7 +13,9 @@ inline double median(std::vector<double> values) {
   }
   std::sort(values.begin(), values.end());
   const std::size_t mid = values.size() / 2;
-  return values.size() % 2 == 0 ? 0.5 * (values[mid - 1] + values[mid]) : values[mid];
+  return values.size() % 2 == 0
+             ? 0.5 * (values[mid - 1] + values[mid])
+             : values[mid];
 }
 
 // Uses the nearest-rank convention. p is a fraction in [0, 1]; out-of-range
@@ -29,8 +31,8 @@ inline double percentile(std::vector<double> values, double p) {
   if (p >= 1.0) {
     return values.back();
   }
-  const std::size_t rank = static_cast<std::size_t>(
-      std::ceil(p * static_cast<double>(values.size())));
+  const std::size_t rank = std::max<std::size_t>(
+      1, static_cast<std::size_t>(std::ceil(p * static_cast<double>(values.size()))));
   return values[rank - 1];
 }
 
