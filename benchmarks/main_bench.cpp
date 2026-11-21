@@ -104,7 +104,8 @@ bool device_strings(std::string* name, std::string* capability, std::string* run
   *device_uuid = uuid_text;
 
   char pci_text[32]{};
-  const cudaError_t pci_status = cudaDeviceGetPCIBusId(pci_text, sizeof(pci_text), device);
+  const cudaError_t pci_status =
+      cudaDeviceGetPCIBusId(pci_text, sizeof(pci_text), device);
   if (pci_status == cudaSuccess) {
     *pci_bus_id = pci_text;
   } else {
