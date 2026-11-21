@@ -240,11 +240,7 @@ def request_resolution(files, token):
         # failed provider on the next bounded attempt when its identity is known.
         retryable = response_text is None or choice.get("finish_reason") == "length"
         if retryable:
-            if (
-                attempt_number < MAX_MODEL_ATTEMPTS
-                and isinstance(provider, str)
-                and provider.strip()
-            ):
+            if attempt_number < MAX_MODEL_ATTEMPTS and isinstance(provider, str) and provider.strip():
                 provider_slug = provider.strip().lower()
                 if provider_slug not in ignored_providers:
                     ignored_providers.append(provider_slug)
