@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import tempfile
@@ -13,6 +14,7 @@ from ai_conflict_resolver import (
     extract_message_text,
     git,
     safe_conflict_path,
+    request_resolution,
     validate_replacements,
 )
 
@@ -111,6 +113,42 @@ class MessageContentExtractionTests(unittest.TestCase):
                 text, diagnostic = extract_message_text(content)
                 self.assertIsNone(text)
                 self.assertTrue(diagnostic["content_type"])
+
+
+class ProviderRetryTests(unittest.TestCase):
+
+    def test_retries_empty_provider_response_with_provider_exclusion(self):
+        responses = [
+            {
+                "model": "openrouter/free",
+                "provider": "Nvidia",
+                "choices": [{"message": {"content": None}, "finish_reason": "length"}],
+            },
+            {
+                "model": "openrouter/free",
+                "provider": "Other",
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"needs_human": false, "summary": "resolved", "files": []}'
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"total_tokens": 12},
+            },
+        ]
+        encoded = [json.dumps(item).encode("utf-8") for item in responses]
+        with patch("ai_conflict_resolver.urllib.request.urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value.read.side_effect = encoded
+            answer, metadata = request_resolution([], "test-token")
+
+        self.assertFalse(answer["needs_human"])
+        self.assertEqual(metadata["ignored_providers"], ["nvidia"])
+        self.assertEqual(len(metadata["attempts"]), 2)
+        retry_request = urlopen.call_args_list[1].args[0]
+        retry_payload = json.loads(retry_request.data.decode("utf-8"))
+        self.assertEqual(retry_payload["provider"]["ignore"], ["nvidia"])
 
 
 class ModelReplacementValidationTests(unittest.TestCase):
