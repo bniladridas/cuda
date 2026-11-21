@@ -150,7 +150,7 @@ jobs:
       - name: Check out the approved PR head as data
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.target.outputs.head }}
+          ref: ${{ github.event.pull_request.head.sha }}
           path: work
           persist-credentials: false
 
