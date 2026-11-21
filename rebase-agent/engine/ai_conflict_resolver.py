@@ -222,7 +222,9 @@ def resolve(repo, token, report_path, max_rounds=None):
         if total > MAX_TOTAL_BYTES:
             raise ResolutionError("combined conflict context exceeds size limit")
 
-        fingerprint = hashlib.sha256(json.dumps(conflicts, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+        fingerprint = hashlib.sha256(
+            json.dumps(conflicts, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
         if fingerprint in seen_conflicts:
             report["error"] = "conflict stages repeated without progress"
             write_report(report_path, report)
