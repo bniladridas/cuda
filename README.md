@@ -13,7 +13,8 @@ point is the kernel, not the call into CUB.
 
 > Two badges, two different claims. **CPU checks** reports the GitHub-hosted
 > job: configuration, host-side build, reference checks, formatting, and host
-> static analysis. **GPU validation: pending** is static because no device has
+> static analysis. The separate CUDA compile job builds device code without a
+> GPU. **GPU validation: pending** is static because no device has
 > run this code. See [Status](#status).
 
 ## Status
@@ -26,9 +27,10 @@ Three kernels, all implemented end to end:
 | `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
 | `softmax` | stable row-wise FP32 normalization, one block per row | written | **GPU run pending** |
 
-No kernel has been compiled with `nvcc` or executed on a device yet. No
-performance numbers are published: they will be added only after a run on real
-hardware with the recorded environment (see
+The hosted `cuda-compile` job compiles the CUDA sources with `nvcc`, but no
+kernel has been executed on a device yet. No performance numbers are published:
+they will be added only after a run on real hardware with the recorded
+environment (see
 [`docs/methodology.md`](docs/methodology.md)). A CPU-only build proves the tree
 configures and the reference maths is right; it does not verify the kernels.
 
@@ -221,6 +223,11 @@ rebase-agent/            safe PR rebase and bounded repair engines with tests
   the CPU job. Dependency versions are pinned in
   `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
   toolkit is required.
+- `cuda-compile`: GitHub-hosted Ubuntu 22.04 container using the pinned
+  `nvidia/cuda:12.6.3-devel-ubuntu22.04` image and CMake 3.31.6. It compiles the
+  kernel library, all GPU test executables, and the benchmark for architectures
+  70, 75, 80, 86, 89, and 90. It does not execute tests or require an NVIDIA
+  device. This is compile evidence only, not GPU runtime validation.
 - `pr-confidence`: triggered by pull request activity, waits for the configured
   checks, and publishes a read-only `PR Confidence` summary in the Checks UI. It
   uses `pull_request_target`, so the workflow and engine come from the base
