@@ -76,7 +76,7 @@ void run_null_zero_length_case() {
                               reinterpret_cast<void*>(stream));
   CHECK_CUDA(cudaStreamSynchronize(stream));
   CHECK_CUDA(cudaStreamDestroy(stream));
-  std::printf("PASS [%s] n=0 (all-null-pointers, default-and-explicit-stream)\\n", kTest);
+  std::printf("PASS [%s] n=0 (all-null-pointers, default-and-explicit-stream)\n", kTest);
 }
 
 void run_non_default_stream_case() {
@@ -138,7 +138,7 @@ int main() {
   // 0 (no-op), 1 (sub-warp), 255/256/257 (block boundary), 1Mi (grid stride),
   // plus an odd size that is a multiple of nothing convenient.
   run_case(0, "empty");
-  \n run_null_zero_length_case();
+  run_null_zero_length_case();
   run_case(1, "single");
   run_case(255, "block-1");
   run_case(256, "block");

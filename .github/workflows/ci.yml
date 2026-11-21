@@ -179,6 +179,47 @@ jobs:
           path: coverage.xml
           if-no-files-found: warn
 
+  # Compile CUDA device code on a hosted runner without requiring an NVIDIA
+  # device. This validates NVCC compilation only; no test binary is executed.
+  cuda-compile:
+    runs-on: ubuntu-22.04
+    container: nvidia/cuda:12.6.3-devel-ubuntu22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pinned CMake
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3-pip
+          python3 -m pip install --user cmake==3.31.6
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Report CUDA build environment
+        run: |
+          nvcc --version
+          g++ --version
+          cmake --version
+          echo "CUDA architectures: 70;75;80;86;89;90"
+
+      - name: Configure CUDA targets
+        run: |
+          cmake -S . -B build-cuda \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CUDA_ARCHITECTURES="70;75;80;86;89;90" \
+            -DCUDA_KERNELS_WERROR=ON
+
+      - name: Compile kernels, GPU test binaries, and benchmark
+        run: cmake --build build-cuda --parallel 2
+
+      - name: Verify compile targets exist
+        run: |
+          test -x build-cuda/tests/test_vecadd
+          test -x build-cuda/tests/test_reduce
+          test -x build-cuda/tests/test_softmax
+          test -x build-cuda/benchmarks/cuda_benchmarks
+          echo "CUDA compilation targets were built; no GPU tests were executed."
+
   # Kernel compilation, correctness and benchmarks. Requires a self-hosted
   # NVIDIA Linux runner labelled as below. Until such a runner is registered,
   # set the repository variable CUDA_CI_ENABLED to anything other than "true"

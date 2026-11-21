@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include <cuda_runtime.h>
+#include <math_constants.h>
 
 #include "cuda_check.h"
 

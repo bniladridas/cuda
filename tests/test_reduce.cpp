@@ -64,6 +64,38 @@ double run_case(const std::vector<T>& x, const char* label, double tol) {
 }
 
 template <typename T>
+void run_zero_length_null_pointer_case(const char* label, bool use_non_default_stream) {
+  T* d_out = nullptr;
+  CHECK_CUDA(cudaMalloc(&d_out, sizeof(T)));
+
+  const T initial = static_cast<T>(42);
+  CHECK_CUDA(cudaMemcpy(d_out, &initial, sizeof(T), cudaMemcpyHostToDevice));
+
+  cudaStream_t stream = nullptr;
+  if (use_non_default_stream) {
+    CHECK_CUDA(cudaStreamCreate(&stream));
+  }
+
+  cuda_kernels::launch_reduce(nullptr, d_out, nullptr, 0,
+                              reinterpret_cast<void*>(stream));
+  if (use_non_default_stream) {
+    CHECK_CUDA(cudaStreamSynchronize(stream));
+    CHECK_CUDA(cudaStreamDestroy(stream));
+  } else {
+    CHECK_CUDA(cudaDeviceSynchronize());
+  }
+
+  T got{};
+  CHECK_CUDA(cudaMemcpy(&got, d_out, sizeof(T), cudaMemcpyDeviceToHost));
+  host::check(got == T{0}, kTest,
+              std::string("zero-length null-pointer output was not zero (") + label +
+                  ")");
+  std::printf("PASS [%s] n=0 (null input and scratch, %s)\n", kTest, label);
+
+  CHECK_CUDA(cudaFree(d_out));
+}
+
+template <typename T>
 void run_non_default_stream_case(const std::vector<T>& x, const char* label, double tol) {
   const std::size_t n = x.size();
   const std::size_t scratch_elems = cuda_kernels::launch_reduce_scratch_elems<T>(n);

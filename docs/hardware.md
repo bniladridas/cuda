@@ -31,6 +31,21 @@ not overwrite each other.
 This does not compile `src/*.cu` and does not run any GPU kernel. It validates
 the build configuration and the reference maths only.
 
+## Hosted CUDA compile check
+
+The `cuda-compile` job in `.github/workflows/ci.yml` uses the versioned
+`nvidia/cuda:12.6.3-devel-ubuntu22.04` development image on a standard
+GitHub-hosted Ubuntu runner. It installs CMake 3.31.6, reports the NVCC, host
+compiler, and CMake versions, then configures and builds the kernel library,
+GPU test executables, and benchmark for architectures `70;75;80;86;89;90`.
+
+This job does not need an NVIDIA device. It compiles device code and verifies
+that the expected binaries exist, but it does not execute those binaries,
+run CTest, perform sanitizer checks, or produce benchmark results. A passing
+compile job therefore establishes CUDA source compilation for the reported
+toolchain and architecture list only. Runtime correctness still requires the
+separate optional NVIDIA GPU job or a documented manual GPU session.
+
 The same CPU-only configuration can export a compilation database for
 `clang-tidy`; [C++ quality](cpp-quality.md) documents the pinned formatter and
 static-analysis commands. Those checks are host-only and do not compile the
