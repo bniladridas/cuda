@@ -273,6 +273,7 @@ jobs:
         if: inputs.bundle_artifact != ''
         env:
           EXPECTED_RESULT_SHA: ${{ inputs.result_sha }}
+        shell: bash
         run: |
           set -euo pipefail
           if ! command -v git >/dev/null 2>&1; then
