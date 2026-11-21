@@ -60,9 +60,7 @@ def load(path):
         if not isinstance(device_uuid, str) or not DEVICE_UUID_RE.fullmatch(device_uuid):
             raise ValueError(f"{path}: field 'device_uuid' must be a canonical UUID")
         pci_bus_id = data["pci_bus_id"]
-        if pci_bus_id is not None and (
-            not isinstance(pci_bus_id, str) or not PCI_BUS_ID_RE.fullmatch(pci_bus_id)
-        ):
+        if pci_bus_id is not None and (not isinstance(pci_bus_id, str) or not PCI_BUS_ID_RE.fullmatch(pci_bus_id)):
             raise ValueError(f"{path}: field 'pci_bus_id' must be a PCI bus ID or null")
 
     if has_commit:
