@@ -83,17 +83,24 @@ bool device_strings(std::string* name, std::string* capability, std::string* run
     return false;
   }
   char uuid_text[37]{};
-  std::snprintf(
-      uuid_text, sizeof(uuid_text),
-      "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-      static_cast<unsigned char>(uuid.bytes[0]), static_cast<unsigned char>(uuid.bytes[1]),
-      static_cast<unsigned char>(uuid.bytes[2]), static_cast<unsigned char>(uuid.bytes[3]),
-      static_cast<unsigned char>(uuid.bytes[4]), static_cast<unsigned char>(uuid.bytes[5]),
-      static_cast<unsigned char>(uuid.bytes[6]), static_cast<unsigned char>(uuid.bytes[7]),
-      static_cast<unsigned char>(uuid.bytes[8]), static_cast<unsigned char>(uuid.bytes[9]),
-      static_cast<unsigned char>(uuid.bytes[10]), static_cast<unsigned char>(uuid.bytes[11]),
-      static_cast<unsigned char>(uuid.bytes[12]), static_cast<unsigned char>(uuid.bytes[13]),
-      static_cast<unsigned char>(uuid.bytes[14]), static_cast<unsigned char>(uuid.bytes[15]));
+  std::snprintf(uuid_text, sizeof(uuid_text),
+                "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+                static_cast<unsigned char>(uuid.bytes[0]),
+                static_cast<unsigned char>(uuid.bytes[1]),
+                static_cast<unsigned char>(uuid.bytes[2]),
+                static_cast<unsigned char>(uuid.bytes[3]),
+                static_cast<unsigned char>(uuid.bytes[4]),
+                static_cast<unsigned char>(uuid.bytes[5]),
+                static_cast<unsigned char>(uuid.bytes[6]),
+                static_cast<unsigned char>(uuid.bytes[7]),
+                static_cast<unsigned char>(uuid.bytes[8]),
+                static_cast<unsigned char>(uuid.bytes[9]),
+                static_cast<unsigned char>(uuid.bytes[10]),
+                static_cast<unsigned char>(uuid.bytes[11]),
+                static_cast<unsigned char>(uuid.bytes[12]),
+                static_cast<unsigned char>(uuid.bytes[13]),
+                static_cast<unsigned char>(uuid.bytes[14]),
+                static_cast<unsigned char>(uuid.bytes[15]));
   *device_uuid = uuid_text;
 
   char pci_text[32]{};
