@@ -1,0 +1,70 @@
+#include "cuda_kernels/softmax.cuh"
+#include <cstddef>
+#include <cuda_runtime.h>
+#include "cuda_check.h"
+namespace cuda_kernels {
+namespace {
+constexpr int kBlockSize = 256;
+constexpr int kWarpSize = 32;
+constexpr int kWarpsPerBlock = kBlockSize / kWarpSize;
+static_assert(kBlockSize % kWarpSize == 0, "block size must be a whole number of warps");
+__device__ __forceinline__ float warp_reduce_max(float v) {
+  for (int offset = 16; offset > 0; offset >>= 1)
+    v = fmaxf(v, __shfl_down_sync(0xffffffffu, v, offset));
+  return v;
+}
+__device__ __forceinline__ float warp_reduce_sum(float v) {
+  for (int offset = 16; offset > 0; offset >>= 1)
+    v += __shfl_down_sync(0xffffffffu, v, offset);
+  return v;
+}
+__device__ __forceinline__ float block_reduce_max(float v, float* shared) {
+  const int lane = threadIdx.x % kWarpSize;
+  const int warp = threadIdx.x / kWarpSize;
+  v = warp_reduce_max(v);
+  if (lane == 0) shared[warp] = v;
+  __syncthreads();
+  float total = threadIdx.x < kWarpsPerBlock ? shared[lane] : -CUDART_INF_F;
+  if (threadIdx.x < kWarpSize) total = warp_reduce_max(total);
+  return total;
+}
+__device__ __forceinline__ float block_reduce_sum(float v, float* shared) {
+  const int lane = threadIdx.x % kWarpSize;
+  const int warp = threadIdx.x / kWarpSize;
+  v = warp_reduce_sum(v);
+  if (lane == 0) shared[warp] = v;
+  __syncthreads();
+  float total = threadIdx.x < kWarpsPerBlock ? shared[lane] : 0.0f;
+  if (threadIdx.x < kWarpSize) total = warp_reduce_sum(total);
+  return total;
+}
+__global__ void softmax_rows_kernel(const float* __restrict__ input,
+                                    float* __restrict__ output, std::size_t columns) {
+  __shared__ float warp_values[kWarpsPerBlock];
+  const std::size_t offset = static_cast<std::size_t>(blockIdx.x) * columns;
+  float local_max = -CUDART_INF_F;
+  for (std::size_t col = threadIdx.x; col < columns; col += blockDim.x)
+    local_max = fmaxf(local_max, input[offset + col]);
+  const float max_result = block_reduce_max(local_max, warp_values);
+  if (threadIdx.x == 0) warp_values[0] = max_result;
+  __syncthreads();
+  const float row_max = warp_values[0];
+  float local_sum = 0.0f;
+  for (std::size_t col = threadIdx.x; col < columns; col += blockDim.x)
+    local_sum += expf(input[offset + col] - row_max);
+  const float sum_result = block_reduce_sum(local_sum, warp_values);
+  if (threadIdx.x == 0) warp_values[0] = sum_result;
+  __syncthreads();
+  const float row_sum = warp_values[0];
+  for (std::size_t col = threadIdx.x; col < columns; col += blockDim.x)
+    output[offset + col] = expf(input[offset + col] - row_max) / row_sum;
+}
+}  // namespace
+void launch_softmax(const float* input, float* output, std::size_t rows,
+                    std::size_t columns, void* stream) {
+  if (rows == 0 || columns == 0) return;
+  softmax_rows_kernel<<<static_cast<unsigned int>(rows), kBlockSize, 0,
+                        reinterpret_cast<cudaStream_t>(stream)>>>(input, output, columns);
+  CUDA_CHECK_LAST_ERROR();
+}
+}  // namespace cuda_kernels
