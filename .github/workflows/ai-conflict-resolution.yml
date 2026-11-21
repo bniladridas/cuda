@@ -25,6 +25,7 @@ jobs:
       old_head: ${{ steps.gate.outputs.old_head }}
       base_ref: ${{ steps.gate.outputs.base_ref }}
       base_sha: ${{ steps.gate.outputs.base_sha }}
+      result_sha: ${{ steps.rebase.outputs.result_sha }}
     steps:
       - name: Check out trusted workflow code
         uses: actions/checkout@v7
@@ -97,6 +98,7 @@ jobs:
           git config user.email "cuda-ai-conflict-resolver@users.noreply.github.com"
 
       - name: Rebase and request bounded AI resolution only for conflicts
+        id: rebase
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           AI_CONFLICT_MAX_ROUNDS: ${{ vars.AI_CONFLICT_MAX_ROUNDS || '6' }}
@@ -119,6 +121,7 @@ jobs:
           fi
           unset MODEL_API_KEY
           git merge-base --is-ancestor "$BASE_SHA" HEAD
+          echo "result_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           test -z "$(git diff --name-only --diff-filter=U)"
           git diff --check "$BASE_SHA...HEAD"
           git diff --binary --full-index "$BASE_SHA...HEAD" > resolved.patch
@@ -147,8 +150,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  publish:
+  validate:
     needs: resolve
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.resolve.outputs.result_sha }}
+
+  publish:
+    needs: [resolve, validate]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: pr-repair-write
