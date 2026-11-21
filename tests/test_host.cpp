@@ -53,14 +53,16 @@ void check_sum_reference() {
 }
 
 void check_softmax_reference() {
-  const std::vector<float> input = {1000.0f, 1001.0f, 999.0f, -1000.0f, -999.0f, -1001.0f};
+  const std::vector<float> input = {1000.0f, 1001.0f, 999.0f,
+                                    -1000.0f, -999.0f, -1001.0f};
   const auto output = host::softmax_reference(input, 2, 3);
   host::check(output.size() == input.size(), kTest, "softmax output size");
   for (std::size_t row = 0; row < 2; ++row) {
     double sum = 0.0;
     for (std::size_t col = 0; col < 3; ++col) {
       const float v = output[row * 3 + col];
-      host::check(std::isfinite(v) && v >= 0.0f, kTest, "softmax finite and non-negative");
+      host::check(std::isfinite(v) && v >= 0.0f, kTest,
+                  "softmax finite and non-negative");
       sum += v;
     }
     host::check(std::fabs(sum - 1.0) < 1e-6, kTest, "softmax row sum");
