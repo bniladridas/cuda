@@ -138,7 +138,7 @@ int main() {
   // 0 (no-op), 1 (sub-warp), 255/256/257 (block boundary), 1Mi (grid stride),
   // plus an odd size that is a multiple of nothing convenient.
   run_case(0, "empty");
-  \n run_null_zero_length_case();
+  run_null_zero_length_case();
   run_case(1, "single");
   run_case(255, "block-1");
   run_case(256, "block");
