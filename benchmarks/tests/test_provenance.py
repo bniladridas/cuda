@@ -30,10 +30,12 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(result["device_uuid"], data["device_uuid"])
 
     def test_allows_missing_optional_pci_bus_id(self):
-        validate_device_identity({
-            "device_uuid": "12345678-1234-5678-9abc-def012345678",
-            "pci_bus_id": None,
-        })
+        validate_device_identity(
+            {
+                "device_uuid": "12345678-1234-5678-9abc-def012345678",
+                "pci_bus_id": None,
+            }
+        )
 
     def test_rejects_invalid_device_identity_before_publishing(self):
         invalid = (
