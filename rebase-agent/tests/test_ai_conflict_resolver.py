@@ -116,7 +116,6 @@ class MessageContentExtractionTests(unittest.TestCase):
 
 
 class ProviderRetryTests(unittest.TestCase):
-
     def test_retries_empty_provider_response_with_provider_exclusion(self):
         responses = [
             {
@@ -129,9 +128,7 @@ class ProviderRetryTests(unittest.TestCase):
                 "provider": "Other",
                 "choices": [
                     {
-                        "message": {
-                            "content": '{"needs_human": false, "summary": "resolved", "files": []}'
-                        },
+                        "message": {"content": '{"needs_human": false, "summary": "resolved", "files": []}'},
                         "finish_reason": "stop",
                     }
                 ],
