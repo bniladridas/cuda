@@ -23,15 +23,15 @@ Two kernels, both implemented end to end:
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
 | `vecadd` | `c = a + b`, grid-stride | written | **GPU run pending** |
-| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
+| `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |\n| `softmax` | stable row-wise FP32 normalization, one block per row | written | **GPU run pending** |
 
-Neither kernel has been compiled with `nvcc` or executed on a device yet. No
+No kernel has been compiled with `nvcc` or executed on a device yet. No
 performance numbers are published: they will be added only after a run on real
 hardware with the recorded environment (see
 [`docs/methodology.md`](docs/methodology.md)). A CPU-only build proves the tree
 configures and the reference maths is right; it does not verify the kernels.
 
-### How `reduce` works
+### How `softmax` works\n\nOne CUDA block processes each row. Threads make strided passes to find the row maximum, sum the max-subtracted exponentials, and write normalized values. Warp shuffles and shared memory combine the eight warp partials. Arbitrary positive widths are supported, including widths that are not powers of two. Empty dimensions are no-ops.\n\n### How `reduce` works
 
 Two passes over the data, so any `n` uses at most 4096 blocks regardless of
 size. Both passes share the same block reduction: a warp shuffle tree, the 8
@@ -106,7 +106,7 @@ CUDA_KERNELS_ARCH="86" ./runners/build.sh
 ```
 
 `test_host` runs anywhere and checks the CPU reference implementations.
-`test_vecadd` and `test_reduce` need a GPU. A successful device query that
+`test_vecadd`, `test_reduce`, and `test_softmax` need a GPU. A successful device query that
 reports zero devices, or CUDA's explicit `cudaErrorNoDevice`, prints
 `SKIPPED: no CUDA device` and exits 0, so CTest counts them as passed.
 Other `cudaGetDeviceCount` failures, including insufficient-driver and
@@ -125,7 +125,7 @@ default list is `70;75;80;86;89;90`; rebuild with the target's value, for
 example `CUDA_KERNELS_ARCH="86" ./runners/build.sh`, then run the tests against
 the same `BUILD_DIR`.
 
-Covered edge cases: empty input, sub-warp sizes, block boundaries
+Softmax tests cover empty dimensions, one-column rows, uniform rows, large positive and negative logits, mixed magnitudes, irregular widths, multiple rows, and a non-default stream.\n\nCovered reduction edge cases: empty input, sub-warp sizes, block boundaries
 (255/256/257), grid-stride sizes, odd non-power-of-two lengths, all-zero and
 all-one data, large-magnitude values for float precision, and `double`
 cancellation.
