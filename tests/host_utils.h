@@ -67,21 +67,27 @@ inline double rel_error(double ref, double got, std::size_t n) {
 
 inline std::vector<float> softmax_reference(const std::vector<float>& input,
                                             std::size_t rows, std::size_t columns) {
-  if (rows == 0 || columns == 0) return {};
-  if (input.size() != rows * columns) fail("softmax_reference", "shape mismatch");
+  if (rows == 0 || columns == 0) {
+    return {};
+  }
+  if (input.size() != rows * columns) {
+    fail("softmax_reference", "shape mismatch");
+  }
   std::vector<float> output(input.size());
   for (std::size_t row = 0; row < rows; ++row) {
     const std::size_t offset = row * columns;
     float maximum = input[offset];
-    for (std::size_t col = 1; col < columns; ++col)
+    for (std::size_t col = 1; col < columns; ++col) {
       maximum = std::fmax(maximum, input[offset + col]);
+    }
     double denominator = 0.0;
     for (std::size_t col = 0; col < columns; ++col) {
       output[offset + col] = std::exp(input[offset + col] - maximum);
       denominator += output[offset + col];
     }
-    for (std::size_t col = 0; col < columns; ++col)
+    for (std::size_t col = 0; col < columns; ++col) {
       output[offset + col] = static_cast<float>(output[offset + col] / denominator);
+    }
   }
   return output;
 }
