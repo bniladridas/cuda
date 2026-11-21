@@ -23,6 +23,7 @@ MAX_FILE_BYTES = 24_000
 MAX_TOTAL_BYTES = 80_000
 DEFAULT_MAX_ROUNDS = 6
 MAX_ALLOWED_ROUNDS = 8
+MAX_MODEL_ATTEMPTS = 3
 
 
 def configured_max_rounds(value=None):
@@ -184,59 +185,94 @@ def request_resolution(files, token):
         "supplied path and no other paths. Content must be the complete resulting "
         "UTF-8 file, without Markdown fences."
     )
-    payload = {
-        "model": MODEL,
-        "temperature": 0,
-        "max_tokens": 16000,
-        "messages": [
-            {"role": "system", "content": prompt},
-            {
-                "role": "user",
-                "content": json.dumps({"conflicts": files}, ensure_ascii=False),
+    ignored_providers = []
+    attempts = []
+    for attempt_number in range(1, MAX_MODEL_ATTEMPTS + 1):
+        payload = {
+            "model": MODEL,
+            "temperature": 0,
+            "max_tokens": 24000,
+            "messages": [
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": json.dumps({"conflicts": files}, ensure_ascii=False),
+                },
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        if ignored_providers:
+            payload["provider"] = {"ignore": ignored_providers}
+        request = urllib.request.Request(
+            API_URL,
+            data=json.dumps(payload).encode(),
+            headers={
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/bniladridas/cuda",
+                "X-Title": "CUDA AI conflict resolver",
             },
-        ],
-        "response_format": {"type": "json_object"},
-    }
-    request = urllib.request.Request(
-        API_URL,
-        data=json.dumps(payload).encode(),
-        headers={
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/bniladridas/cuda",
-            "X-Title": "CUDA AI conflict resolver",
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=90) as response:
-            result = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
-        raise ResolutionError("model request failed: " + str(exc)) from exc
-    choices = result.get("choices") or []
-    if not choices:
-        raise ResolutionError("model returned no choices")
-    choice = choices[0] if isinstance(choices[0], dict) else {}
-    message = choice.get("message") or {}
-    response_text, content_diagnostic = extract_message_text(message.get("content"))
-    response_metadata = {
-        "model": result.get("model"),
-        "provider": result.get("provider"),
-        "finish_reason": choice.get("finish_reason"),
-        "content_type": content_diagnostic["content_type"],
-        "content_block_types": content_diagnostic["block_types"],
-    }
-    if response_text is None:
-        raise ResolutionError(
-            "model response contained no usable text (" + json.dumps(response_metadata, sort_keys=True) + ")"
         )
-    try:
-        decoded = json.loads(response_text)
-    except ValueError as exc:
-        raise ResolutionError(
-            "model response was not valid JSON (" + json.dumps(response_metadata, sort_keys=True) + ")"
-        ) from exc
-    metadata = {**response_metadata, "usage": result.get("usage")}
-    return decoded, metadata
+        try:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+            raise ResolutionError("model request failed: " + str(exc)) from exc
+
+        choices = result.get("choices") or []
+        if not choices:
+            raise ResolutionError("model returned no choices")
+        choice = choices[0] if isinstance(choices[0], dict) else {}
+        message = choice.get("message") or {}
+        response_text, content_diagnostic = extract_message_text(message.get("content"))
+        provider = result.get("provider")
+        response_metadata = {
+            "attempt": attempt_number,
+            "model": result.get("model"),
+            "provider": provider,
+            "finish_reason": choice.get("finish_reason"),
+            "content_type": content_diagnostic["content_type"],
+            "content_block_types": content_diagnostic["block_types"],
+        }
+        attempts.append(response_metadata)
+
+        # A length-truncated or empty response is not a resolution. Exclude the
+        # failed provider on the next bounded attempt when its identity is known.
+        retryable = response_text is None or choice.get("finish_reason") == "length"
+        if retryable:
+            if (
+                attempt_number < MAX_MODEL_ATTEMPTS
+                and isinstance(provider, str)
+                and provider.strip()
+            ):
+                provider_slug = provider.strip().lower()
+                if provider_slug not in ignored_providers:
+                    ignored_providers.append(provider_slug)
+                    continue
+            detail = {
+                "reason": "model response contained no usable text"
+                if response_text is None
+                else "model response was truncated",
+                "attempts": attempts,
+                "ignored_providers": ignored_providers,
+            }
+            raise ResolutionError(json.dumps(detail, sort_keys=True))
+
+        try:
+            decoded = json.loads(response_text)
+        except ValueError as exc:
+            detail = {"reason": "model response was not valid JSON", "attempts": attempts}
+            raise ResolutionError(json.dumps(detail, sort_keys=True)) from exc
+
+        metadata = {
+            **response_metadata,
+            "usage": result.get("usage"),
+            "attempts": attempts,
+            "ignored_providers": ignored_providers,
+        }
+        return decoded, metadata
+
+    raise ResolutionError("model provider retry limit exhausted")
 
 
 def resolve(repo, token, report_path, max_rounds=None):
