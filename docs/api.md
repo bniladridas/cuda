@@ -44,7 +44,7 @@ immediate launch check.
 
 static void check_cuda(cudaError_t status) {
   if (status != cudaSuccess) {
-    std::fprintf(stderr, "CUDA error: %s\\n", cudaGetErrorString(status));
+    std::fprintf(stderr, "CUDA error: %s\n", cudaGetErrorString(status));
     std::abort();
   }
 }
@@ -75,7 +75,7 @@ int main() {
   // here, so check the synchronization result.
   check_cuda(cudaStreamSynchronize(stream));
 
-  std::printf("c[0] = %.1f\\n", host_c[0]);
+  std::printf("c[0] = %.1f\n", host_c[0]);
 
   check_cuda(cudaFree(a));
   check_cuda(cudaFree(b));
