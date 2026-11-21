@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 from ai_conflict_resolver import (
     ResolutionError,
     configured_max_rounds,
+    extract_message_text,
     git,
     safe_conflict_path,
     validate_replacements,
@@ -76,6 +77,40 @@ class SafeConflictPathTests(unittest.TestCase):
                     safe_conflict_path(root, "linked/file.txt")
             finally:
                 outside.rmdir()
+
+
+class MessageContentExtractionTests(unittest.TestCase):
+    def test_accepts_plain_text_content(self):
+        text, diagnostic = extract_message_text('{"files": []}')
+        self.assertEqual(text, '{"files": []}')
+        self.assertEqual(diagnostic["content_type"], "string")
+
+    def test_accepts_text_blocks(self):
+        text, diagnostic = extract_message_text(
+            [
+                {"type": "text", "text": '{"needs_human": false,'},
+                {"type": "text", "text": '"files": []}'},
+            ]
+        )
+        self.assertEqual(text, '{"needs_human": false,"files": []}')
+        self.assertEqual(diagnostic["block_types"], ["text", "text"])
+
+    def test_ignores_non_text_blocks_without_coercing_them(self):
+        text, diagnostic = extract_message_text(
+            [
+                {"type": "image", "image_url": {"url": "private"}},
+                {"type": "text", "text": "answer"},
+            ]
+        )
+        self.assertEqual(text, "answer")
+        self.assertEqual(diagnostic["block_types"], ["image", "text"])
+
+    def test_reports_empty_or_unsupported_content(self):
+        for content in (None, [], [{"type": "image"}], {"reasoning": "hidden"}):
+            with self.subTest(content_type=type(content).__name__):
+                text, diagnostic = extract_message_text(content)
+                self.assertIsNone(text)
+                self.assertTrue(diagnostic["content_type"])
 
 
 class ModelReplacementValidationTests(unittest.TestCase):
