@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEVICE_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
-PCI_BUS_ID_RE = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\\.[0-7]$")
+PCI_BUS_ID_RE = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}[.][0-7]$")
 
 
 def current_commit(root: Path) -> str | None:
