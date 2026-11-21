@@ -1,6 +1,6 @@
 // Host-only checks. These run on any machine, including CPU-only CI, and
 // verify the reference implementations themselves. They say nothing about the
-// GPU kernels; those are covered by test_vecadd / test_reduce on real hardware.
+// GPU kernels; those are covered by the GPU tests on real hardware.
 
 #include <cstddef>
 #include <cstdio>
