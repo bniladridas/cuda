@@ -120,6 +120,9 @@ int main() {
   }
 
   run_case<float>(constant_floats(0, 1.0f), "empty", kTolFloat);
+  run_zero_length_null_pointer_case<float>("default-stream", false);
+  run_zero_length_null_pointer_case<double>("default-stream", false);
+  run_zero_length_null_pointer_case<float>("non-default-stream", true);
   run_case<float>(constant_floats(1, 3.5f), "single", kTolFloat);
   run_case<float>(constant_floats(255, 1.0f), "block-1", kTolFloat);
   run_case<float>(constant_floats(256, 1.0f), "block", kTolFloat);

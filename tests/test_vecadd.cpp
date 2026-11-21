@@ -64,6 +64,22 @@ void run_case(std::size_t n, const char* label) {
   CHECK_CUDA(cudaFree(d_c));
 }
 
+void run_null_zero_length_case() {
+  // The public contract promises that all three data pointers are untouched
+  // when n == 0. Exercise both the default and an explicit stream.
+  cuda_kernels::launch_vecadd(nullptr, nullptr, nullptr, 0, nullptr);
+  CHECK_CUDA(cudaDeviceSynchronize());
+
+  cudaStream_t stream = nullptr;
+  CHECK_CUDA(cudaStreamCreate(&stream));
+  cuda_kernels::launch_vecadd(nullptr, nullptr, nullptr, 0,
+                              reinterpret_cast<void*>(stream));
+  CHECK_CUDA(cudaStreamSynchronize(stream));
+  CHECK_CUDA(cudaStreamDestroy(stream));
+  std::printf("PASS [%s] n=0 (all-null-pointers, default-and-explicit-stream)\\n",
+              kTest);
+}
+
 void run_non_default_stream_case() {
   constexpr std::size_t n = 100003;
   const std::vector<float> a = host::random_floats(n, -100.0f, 100.0f, 31u);
@@ -122,7 +138,7 @@ int main() {
 
   // 0 (no-op), 1 (sub-warp), 255/256/257 (block boundary), 1Mi (grid stride),
   // plus an odd size that is a multiple of nothing convenient.
-  run_case(0, "empty");
+  run_case(0, "empty");\n  run_null_zero_length_case();
   run_case(1, "single");
   run_case(255, "block-1");
   run_case(256, "block");
