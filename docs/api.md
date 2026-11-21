@@ -38,6 +38,7 @@ immediate launch check.
 
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 #include "cuda_kernels/vecadd.cuh"
 
@@ -51,6 +52,9 @@ static void check_cuda(cudaError_t status) {
 int main() {
   constexpr std::size_t n = 1024;
   constexpr std::size_t bytes = n * sizeof(float);
+  std::vector<float> host_a(n, 1.0F);
+  std::vector<float> host_b(n, 2.0F);
+  std::vector<float> host_c(n);
   float *a = nullptr, *b = nullptr, *c = nullptr;
   cudaStream_t stream = nullptr;
 
@@ -59,14 +63,19 @@ int main() {
   check_cuda(cudaMalloc(&b, bytes));
   check_cuda(cudaMalloc(&c, bytes));
 
-  // Initialize a and b before this point, or enqueue their copies on stream.
+  check_cuda(cudaMemcpyAsync(a, host_a.data(), bytes,
+                             cudaMemcpyHostToDevice, stream));
+  check_cuda(cudaMemcpyAsync(b, host_b.data(), bytes,
+                             cudaMemcpyHostToDevice, stream));
   cuda_kernels::launch_vecadd(a, b, c, n, stream);
+  check_cuda(cudaMemcpyAsync(host_c.data(), c, bytes,
+                             cudaMemcpyDeviceToHost, stream));
 
-  // This is where asynchronous execution errors can be reported.
+  // Wait for the queued copies and kernel. Async execution errors can surface
+  // here, so check the synchronization result.
   check_cuda(cudaStreamSynchronize(stream));
 
-  // c is now ready for host consumption or a correctly ordered next operation.
-  // For example, enqueue a device-to-host copy and synchronize again.
+  std::printf("c[0] = %.1f\\n", host_c[0]);
 
   check_cuda(cudaFree(a));
   check_cuda(cudaFree(b));
