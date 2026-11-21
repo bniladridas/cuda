@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from provenance import attach_provenance, current_commit, write_provenance
+from provenance import attach_provenance, current_commit, validate_device_identity, write_provenance
 
 
 class ProvenanceTests(unittest.TestCase):
@@ -19,6 +19,32 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(result["git_commit"], "a" * 40)
         self.assertEqual(result["timestamp_utc"], "2026-11-17T12:00:00Z")
         self.assertNotIn("git_commit", data)
+
+    def test_validates_device_identity_before_publishing(self):
+        data = {
+            "device_uuid": "12345678-1234-5678-9abc-def012345678",
+            "pci_bus_id": "0000:65:00.0",
+        }
+        validate_device_identity(data)
+        result = attach_provenance(data, None, "2026-11-17T12:00:00Z")
+        self.assertEqual(result["device_uuid"], data["device_uuid"])
+
+    def test_allows_missing_optional_pci_bus_id(self):
+        validate_device_identity({
+            "device_uuid": "12345678-1234-5678-9abc-def012345678",
+            "pci_bus_id": None,
+        })
+
+    def test_rejects_invalid_device_identity_before_publishing(self):
+        invalid = (
+            {"device_uuid": "bad", "pci_bus_id": None},
+            {"device_uuid": "12345678-1234-5678-9abc-def012345678"},
+            {"device_uuid": "12345678-1234-5678-9abc-def012345678", "pci_bus_id": "bad"},
+        )
+        for data in invalid:
+            with self.subTest(data=data):
+                with self.assertRaises(ValueError):
+                    attach_provenance(data, None, "2026-11-17T12:00:00Z")
 
     def test_represents_missing_git_metadata_as_null(self):
         result = attach_provenance({"gpu": "Test GPU"}, None, "2026-11-17T12:00:00Z")
