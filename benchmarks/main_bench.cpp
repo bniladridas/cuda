@@ -69,13 +69,41 @@ void usage(const char* argv0) {
 }
 
 bool device_strings(std::string* name, std::string* capability, std::string* runtime,
-                    std::string* driver, std::string* error) {
+                    std::string* driver, std::string* device_uuid,
+                    std::string* pci_bus_id, std::string* error) {
   int device = 0;
   cudaDeviceProp prop{};
   if (!bench::check_cuda(cudaGetDevice(&device), "cudaGetDevice")) return false;
   if (!bench::check_cuda(cudaGetDeviceProperties(&prop, device),
                          "cudaGetDeviceProperties"))
     return false;
+
+  cudaUUID_t uuid{};
+  if (!bench::check_cuda(cudaDeviceGetUuid(&uuid, device), "cudaDeviceGetUuid")) {
+    return false;
+  }
+  char uuid_text[37]{};
+  std::snprintf(
+      uuid_text, sizeof(uuid_text),
+      "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+      static_cast<unsigned char>(uuid.bytes[0]), static_cast<unsigned char>(uuid.bytes[1]),
+      static_cast<unsigned char>(uuid.bytes[2]), static_cast<unsigned char>(uuid.bytes[3]),
+      static_cast<unsigned char>(uuid.bytes[4]), static_cast<unsigned char>(uuid.bytes[5]),
+      static_cast<unsigned char>(uuid.bytes[6]), static_cast<unsigned char>(uuid.bytes[7]),
+      static_cast<unsigned char>(uuid.bytes[8]), static_cast<unsigned char>(uuid.bytes[9]),
+      static_cast<unsigned char>(uuid.bytes[10]), static_cast<unsigned char>(uuid.bytes[11]),
+      static_cast<unsigned char>(uuid.bytes[12]), static_cast<unsigned char>(uuid.bytes[13]),
+      static_cast<unsigned char>(uuid.bytes[14]), static_cast<unsigned char>(uuid.bytes[15]));
+  *device_uuid = uuid_text;
+
+  char pci_text[32]{};
+  const cudaError_t pci_status = cudaDeviceGetPCIBusId(pci_text, sizeof(pci_text), device);
+  if (pci_status == cudaSuccess) {
+    *pci_bus_id = pci_text;
+  } else {
+    (void)cudaGetLastError();
+    pci_bus_id->clear();
+  }
 
   int runtime_version = 0;
   int driver_version = 0;
@@ -293,8 +321,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  std::string gpu_name, capability, runtime, driver, metadata_error;
-  if (!device_strings(&gpu_name, &capability, &runtime, &driver, &metadata_error)) {
+  std::string gpu_name, capability, runtime, driver, device_uuid, pci_bus_id, metadata_error;
+  if (!device_strings(&gpu_name, &capability, &runtime, &driver, &device_uuid,
+                      &pci_bus_id, &metadata_error)) {
     if (!metadata_error.empty()) {
       std::fprintf(stderr, "could not query benchmark metadata: %s\n",
                    metadata_error.c_str());
@@ -419,6 +448,12 @@ int main(int argc, char** argv) {
   if (opts.json) {
     std::printf("{\n");
     std::printf("  \"gpu\": \"%s\",\n", gpu_name.c_str());
+    std::printf("  \"device_uuid\": \"%s\",\n", device_uuid.c_str());
+    if (pci_bus_id.empty()) {
+      std::printf("  \"pci_bus_id\": null,\n");
+    } else {
+      std::printf("  \"pci_bus_id\": \"%s\",\n", pci_bus_id.c_str());
+    }
     std::printf("  \"compute_capability\": \"%s\",\n", capability.c_str());
     std::printf("  \"driver\": \"%s\",\n", driver.c_str());
     std::printf("  \"cuda_runtime\": \"%s\",\n", runtime.c_str());

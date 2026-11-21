@@ -59,13 +59,17 @@ not implement.
 
 ## Recorded context
 
-Every JSON result published by `runners/benchmark.sh` carries the GPU name,
-compute capability, driver version, CUDA runtime version,
-iteration/batch/warmup counts, the full Git commit SHA, and an ISO 8601 UTC
-completion timestamp. The commit and timestamp are embedded in the JSON, so
-copying or renaming the file does not detach its provenance. If the benchmark
-runs outside a Git checkout, `git_commit` is JSON `null`; the timestamp is
-still recorded. Older result files without embedded provenance remain
+Every new JSON result published by `runners/benchmark.sh` carries the GPU
+name, CUDA device UUID, PCI bus ID when the device exposes one, compute
+capability, driver version, CUDA runtime version, iteration/batch/warmup
+counts, the full Git commit SHA, and an ISO 8601 UTC completion timestamp.
+The UUID identifies the CUDA device; the PCI bus ID is additional placement
+context and may be JSON `null` in virtualized environments. Both fields are
+validated by `benchmarks/plot_results.py` before a result is plotted. The
+commit and timestamp are embedded in the JSON, so copying or renaming the
+file does not detach its provenance. If the benchmark runs outside a Git
+checkout, `git_commit` is JSON `null`; the timestamp is still recorded.
+Older result files without device identifiers or embedded provenance remain
 readable and are identified as legacy in plots. A number without this context
 is not a result.
 
