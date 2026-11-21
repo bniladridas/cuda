@@ -90,7 +90,7 @@ void run_zero_length_null_pointer_case(const char* label, bool use_non_default_s
   host::check(got == T{0}, kTest,
               std::string("zero-length null-pointer output was not zero (") + label +
                   ")");
-  std::printf("PASS [%s] n=0 (null input and scratch, %s)\\n", kTest, label);
+  std::printf("PASS [%s] n=0 (null input and scratch, %s)\n", kTest, label);
 
   CHECK_CUDA(cudaFree(d_out));
 }
