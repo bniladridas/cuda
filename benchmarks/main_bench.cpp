@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
       {128, 128}, {1024, 512}, {64, 4096}};
   for (const auto& shape : softmax_shapes) {
     if (!softmax_correct(shape.first, shape.second)) {
-      std::fprintf(stderr, "softmax incorrect at shape=%zux%zu; refusing to benchmark\\n",
+      std::fprintf(stderr, "softmax incorrect at shape=%zux%zu; refusing to benchmark\n",
                    shape.first, shape.second);
       return 1;
     }
