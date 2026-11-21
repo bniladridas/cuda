@@ -4,9 +4,19 @@ on:
   workflow_call:
     inputs:
       ref:
-        description: Commit SHA to validate after an automated rebase.
+        description: Public commit SHA to use as the validation checkout base.
         required: true
         type: string
+      result_sha:
+        description: Exact rebased commit SHA contained in the resolver bundle.
+        required: false
+        type: string
+        default: ""
+      bundle_artifact:
+        description: Artifact name containing the trusted resolver's Git bundle.
+        required: false
+        type: string
+        default: ""
   push:
     branches: [main]
   pull_request:
@@ -32,9 +42,35 @@ jobs:
   cpu:
     runs-on: ubuntu-latest
     steps:
+      - name: Download resolved Git bundle
+        if: inputs.bundle_artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.bundle_artifact }}
+          path: ${{ runner.temp }}/resolved-bundle
+
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
+
+      - name: Restore and verify rebased tree
+        if: inputs.bundle_artifact != ''
+        env:
+          EXPECTED_RESULT_SHA: ${{ inputs.result_sha }}
+        run: |
+          set -euo pipefail
+          if ! command -v git >/dev/null 2>&1; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+          fi
+          if [ ! -d .git ]; then
+            git init
+          fi
+          git fetch "${RUNNER_TEMP}/resolved-bundle/resolved.bundle" HEAD
+          ACTUAL_RESULT_SHA="$(git rev-parse FETCH_HEAD)"
+          test "$ACTUAL_RESULT_SHA" = "$EXPECTED_RESULT_SHA"
+          git checkout --detach "$ACTUAL_RESULT_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RESULT_SHA"
 
       - name: Lint YAML
         run: |
@@ -140,9 +176,35 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
+      - name: Download resolved Git bundle
+        if: inputs.bundle_artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.bundle_artifact }}
+          path: ${{ runner.temp }}/resolved-bundle
+
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
+
+      - name: Restore and verify rebased tree
+        if: inputs.bundle_artifact != ''
+        env:
+          EXPECTED_RESULT_SHA: ${{ inputs.result_sha }}
+        run: |
+          set -euo pipefail
+          if ! command -v git >/dev/null 2>&1; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+          fi
+          if [ ! -d .git ]; then
+            git init
+          fi
+          git fetch "${RUNNER_TEMP}/resolved-bundle/resolved.bundle" HEAD
+          ACTUAL_RESULT_SHA="$(git rev-parse FETCH_HEAD)"
+          test "$ACTUAL_RESULT_SHA" = "$EXPECTED_RESULT_SHA"
+          git checkout --detach "$ACTUAL_RESULT_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RESULT_SHA"
 
       - uses: actions/setup-python@v7
         with:
@@ -196,9 +258,35 @@ jobs:
     container: nvidia/cuda:12.6.3-devel-ubuntu22.04
     timeout-minutes: 30
     steps:
+      - name: Download resolved Git bundle
+        if: inputs.bundle_artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.bundle_artifact }}
+          path: ${{ runner.temp }}/resolved-bundle
+
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.sha }}
+
+      - name: Restore and verify rebased tree
+        if: inputs.bundle_artifact != ''
+        env:
+          EXPECTED_RESULT_SHA: ${{ inputs.result_sha }}
+        run: |
+          set -euo pipefail
+          if ! command -v git >/dev/null 2>&1; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git
+          fi
+          if [ ! -d .git ]; then
+            git init
+          fi
+          git fetch "${RUNNER_TEMP}/resolved-bundle/resolved.bundle" HEAD
+          ACTUAL_RESULT_SHA="$(git rev-parse FETCH_HEAD)"
+          test "$ACTUAL_RESULT_SHA" = "$EXPECTED_RESULT_SHA"
+          git checkout --detach "$ACTUAL_RESULT_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_RESULT_SHA"
 
       - name: Install pinned CMake
         run: |
