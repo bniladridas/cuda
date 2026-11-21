@@ -78,10 +78,8 @@ bool device_strings(std::string* name, std::string* capability, std::string* run
                          "cudaGetDeviceProperties"))
     return false;
 
-  cudaUUID_t uuid{};
-  if (!bench::check_cuda(cudaDeviceGetUuid(&uuid, device), "cudaDeviceGetUuid")) {
-    return false;
-  }
+  // cudaDeviceProp exposes the 16-byte device UUID in CUDA 12.6.
+  const cudaUUID_t& uuid = prop.uuid;
   char uuid_text[37]{};
   std::snprintf(uuid_text, sizeof(uuid_text),
                 "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
