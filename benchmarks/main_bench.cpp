@@ -181,7 +181,6 @@ struct Row {
   bench::Stats stats;
 };
 
-
 bool softmax_correct(std::size_t rows, std::size_t columns) {
   const std::size_t count = rows * columns;
   const auto input = host::random_floats(count, -30.0f, 30.0f, 17u);
@@ -375,7 +374,6 @@ int main(int argc, char** argv) {
     if (!cleanup_ok) return 1;
   }
 
-
   for (const auto& shape : softmax_shapes) {
     const std::size_t row_count = shape.first;
     const std::size_t columns = shape.second;
@@ -399,9 +397,11 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    Row softmax_row{
-        "softmax_" + std::to_string(row_count) + "x" + std::to_string(columns),
-        count, 2.0 * static_cast<double>(count) * sizeof(float), {}};
+    Row softmax_row{"softmax_" + std::to_string(row_count) + "x" +
+                        std::to_string(columns),
+                    count,
+                    2.0 * static_cast<double>(count) * sizeof(float),
+                    {}};
     if (!bench::measure(
             [&] {
               cuda_kernels::launch_softmax(d_input.get(), d_output.get(), row_count,

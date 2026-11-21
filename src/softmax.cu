@@ -37,8 +37,7 @@ __device__ __forceinline__ float block_reduce_max(float value, float* warp_value
   }
   __syncthreads();
 
-  float block_value =
-      threadIdx.x < kWarpsPerBlock ? warp_values[lane] : -CUDART_INF_F;
+  float block_value = threadIdx.x < kWarpsPerBlock ? warp_values[lane] : -CUDART_INF_F;
   if (threadIdx.x < kWarpSize) {
     block_value = warp_reduce_max(block_value);
   }
@@ -54,8 +53,7 @@ __device__ __forceinline__ float block_reduce_sum(float value, float* warp_value
   }
   __syncthreads();
 
-  float block_value =
-      threadIdx.x < kWarpsPerBlock ? warp_values[lane] : 0.0f;
+  float block_value = threadIdx.x < kWarpsPerBlock ? warp_values[lane] : 0.0f;
   if (threadIdx.x < kWarpSize) {
     block_value = warp_reduce_sum(block_value);
   }
@@ -63,8 +61,7 @@ __device__ __forceinline__ float block_reduce_sum(float value, float* warp_value
 }
 
 __global__ void softmax_rows_kernel(const float* __restrict__ input,
-                                    float* __restrict__ output,
-                                    std::size_t columns) {
+                                    float* __restrict__ output, std::size_t columns) {
   __shared__ float warp_values[kWarpsPerBlock];
   const std::size_t row_offset = static_cast<std::size_t>(blockIdx.x) * columns;
 

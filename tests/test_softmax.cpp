@@ -15,10 +15,10 @@ namespace {
 const char* const kTest = "softmax";
 constexpr float kTolerance = 2.0e-5f;
 
-#define CHECK_CUDA(expr)                                                     \
-  do {                                                                       \
-    cudaError_t error__ = (expr);                                            \
-    host::check(error__ == cudaSuccess, kTest,                               \
+#define CHECK_CUDA(expr)                                                       \
+  do {                                                                         \
+    cudaError_t error__ = (expr);                                              \
+    host::check(error__ == cudaSuccess, kTest,                                 \
                 std::string(#expr " failed: ") + cudaGetErrorString(error__)); \
   } while (0)
 
@@ -32,8 +32,8 @@ void run_case(std::size_t rows, std::size_t columns, const std::vector<float>& i
   CHECK_CUDA(cudaMalloc(&d_input, (count == 0 ? 1 : count) * sizeof(float)));
   CHECK_CUDA(cudaMalloc(&d_output, (count == 0 ? 1 : count) * sizeof(float)));
   if (count != 0) {
-    CHECK_CUDA(cudaMemcpy(d_input, input.data(), count * sizeof(float),
-                          cudaMemcpyHostToDevice));
+    CHECK_CUDA(
+        cudaMemcpy(d_input, input.data(), count * sizeof(float), cudaMemcpyHostToDevice));
   }
 
   cuda_kernels::launch_softmax(d_input, d_output, rows, columns, nullptr);
@@ -41,8 +41,8 @@ void run_case(std::size_t rows, std::size_t columns, const std::vector<float>& i
 
   std::vector<float> got(count);
   if (count != 0) {
-    CHECK_CUDA(cudaMemcpy(got.data(), d_output, count * sizeof(float),
-                          cudaMemcpyDeviceToHost));
+    CHECK_CUDA(
+        cudaMemcpy(got.data(), d_output, count * sizeof(float), cudaMemcpyDeviceToHost));
   }
   for (std::size_t row = 0; row < rows; ++row) {
     double sum = 0.0;
@@ -54,8 +54,7 @@ void run_case(std::size_t rows, std::size_t columns, const std::vector<float>& i
                   std::string(label) + ": reference mismatch");
       sum += got[index];
     }
-    host::check(std::fabs(sum - 1.0) <= 5.0e-5, kTest,
-                std::string(label) + ": row sum");
+    host::check(std::fabs(sum - 1.0) <= 5.0e-5, kTest, std::string(label) + ": row sum");
   }
 
   std::printf("PASS [%s] %s shape=%zux%zu\n", kTest, label, rows, columns);
@@ -119,8 +118,8 @@ int main() {
   run_case(3, 257, host::random_floats(771, -3.0f, 3.0f, 12u), "irregular-257");
   run_case(2, 513, host::random_floats(1026, -100.0f, 100.0f, 13u), "irregular-513");
   run_case(3, 4,
-           {1000.0f, 1001.0f, 999.0f, 1002.0f, -1000.0f, -999.0f, -1001.0f,
-            -1002.0f, 1.0e-4f, -1.0e-4f, 0.0f, 1.0f},
+           {1000.0f, 1001.0f, 999.0f, 1002.0f, -1000.0f, -999.0f, -1001.0f, -1002.0f,
+            1.0e-4f, -1.0e-4f, 0.0f, 1.0f},
            "large-and-mixed-magnitudes");
   run_stream_case();
 
