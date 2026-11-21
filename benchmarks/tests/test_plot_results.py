@@ -33,6 +33,36 @@ class LoadResultsTests(unittest.TestCase):
         path = self.write_json(self.valid_data())
         self.assertEqual(plot_results.load(path), self.valid_data())
 
+    def test_accepts_device_identity_with_optional_pci_bus_id(self):
+        data = self.valid_data()
+        data["device_uuid"] = "12345678-1234-5678-9abc-def012345678"
+        data["pci_bus_id"] = "0000:65:00.0"
+        self.assertEqual(plot_results.load(self.write_json(data)), data)
+        data["pci_bus_id"] = None
+        self.assertEqual(plot_results.load(self.write_json(data)), data)
+
+    def test_rejects_partial_device_identity(self):
+        data = self.valid_data()
+        data["device_uuid"] = "12345678-1234-5678-9abc-def012345678"
+        with self.assertRaisesRegex(ValueError, "device identity requires both"):
+            plot_results.load(self.write_json(data))
+
+    def test_rejects_invalid_device_uuid(self):
+        for value in ("", "not-a-uuid", "12345678123456789abcdef012345678"):
+            with self.subTest(value=value):
+                data = self.valid_data()
+                data["device_uuid"] = value
+                data["pci_bus_id"] = None
+                with self.assertRaisesRegex(ValueError, "device_uuid"):
+                    plot_results.load(self.write_json(data))
+
+    def test_rejects_invalid_pci_bus_id(self):
+        data = self.valid_data()
+        data["device_uuid"] = "12345678-1234-5678-9abc-def012345678"
+        data["pci_bus_id"] = "not-a-pci-id"
+        with self.assertRaisesRegex(ValueError, "pci_bus_id"):
+            plot_results.load(self.write_json(data))
+
     def test_rejects_non_object_top_level(self):
         path = self.write_json([])
         with self.assertRaisesRegex(ValueError, "expected a JSON object"):

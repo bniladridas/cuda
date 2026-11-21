@@ -19,11 +19,14 @@ one dashed line for the reference the measurement is judged against.
 import argparse
 import json
 import math
+import re
 import sys
 
 RESULT_KEYS = {"gpu", "results"}
 POINT_KEYS = {"kernel", "n", "gb_per_s"}
 MAX_ELEMENT_COUNT = (1 << 63) - 1
+DEVICE_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
+PCI_BUS_ID_RE = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$")
 
 
 def load(path):
@@ -48,6 +51,18 @@ def load(path):
     has_timestamp = "timestamp_utc" in data
     if has_commit != has_timestamp:
         raise ValueError(f"{path}: provenance requires both 'git_commit' and 'timestamp_utc'")
+    has_device_uuid = "device_uuid" in data
+    has_pci_bus_id = "pci_bus_id" in data
+    if has_device_uuid != has_pci_bus_id:
+        raise ValueError(f"{path}: device identity requires both 'device_uuid' and 'pci_bus_id'")
+    if has_device_uuid:
+        device_uuid = data["device_uuid"]
+        if not isinstance(device_uuid, str) or not DEVICE_UUID_RE.fullmatch(device_uuid):
+            raise ValueError(f"{path}: field 'device_uuid' must be a canonical UUID")
+        pci_bus_id = data["pci_bus_id"]
+        if pci_bus_id is not None and (not isinstance(pci_bus_id, str) or not PCI_BUS_ID_RE.fullmatch(pci_bus_id)):
+            raise ValueError(f"{path}: field 'pci_bus_id' must be a PCI bus ID or null")
+
     if has_commit:
         commit = data["git_commit"]
         if commit is not None and (
@@ -180,9 +195,15 @@ def main():
         provenance = f"commit {revision} | {data['timestamp_utc']}"
     else:
         provenance = "legacy result without embedded provenance"
+    if "device_uuid" in data:
+        device_identity = f"UUID {data['device_uuid']}"
+        if data["pci_bus_id"] is not None:
+            device_identity += f" | PCI {data['pci_bus_id']}"
+    else:
+        device_identity = "legacy result without device identifier"
     ax.set_title(
-        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\n"
-        f"achieved versus peak memory bandwidth\n{provenance}",
+        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\\n"
+        f"{device_identity}\\nachieved versus peak memory bandwidth\\n{provenance}",
         fontsize=9,
     )
     fig.tight_layout()
