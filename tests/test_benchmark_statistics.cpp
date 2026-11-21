@@ -31,7 +31,7 @@ void tests_nearest_rank_percentiles() {
         "four-sample p90 should select the maximum");
   check(bench::percentile({4, 1, 3, 2}, 0.50) == 2.0,
         "even-sample p50 should use nearest rank");
-  check(bench::percentile({4, 1, 3, 2}, 0.0) == 1.0,
+  check(bench::percentile({4, 1, 3, 2}, 1e-300) == 1.0,\n        "small positive percentile should select the minimum");\n  check(bench::percentile({4, 1, 3, 2}, 0.0) == 1.0,
         "zero percentile should select the minimum");
   check(bench::percentile({4, 1, 3, 2}, 1.0) == 4.0,
         "100th percentile should select the maximum");
