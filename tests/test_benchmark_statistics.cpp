@@ -42,8 +42,7 @@ void tests_nearest_rank_percentiles() {
 void tests_median_and_invalid_percentile() {
   check(bench::median({4, 1, 3, 2}) == 2.5, "even-sample median changed");
   check(bench::median({5, 1, 3}) == 3.0, "odd-sample median changed");
-  check(bench::percentile({1, 2, 3},
-                          std::numeric_limits<double>::quiet_NaN()) == 0.0,
+  check(bench::percentile({1, 2, 3}, std::numeric_limits<double>::quiet_NaN()) == 0.0,
         "non-finite percentile should return zero");
 }
 
