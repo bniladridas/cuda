@@ -13,9 +13,7 @@ inline double median(std::vector<double> values) {
   }
   std::sort(values.begin(), values.end());
   const std::size_t mid = values.size() / 2;
-  return values.size() % 2 == 0
-             ? 0.5 * (values[mid - 1] + values[mid])
-             : values[mid];
+  return values.size() % 2 == 0 ? 0.5 * (values[mid - 1] + values[mid]) : values[mid];
 }
 
 // Uses the nearest-rank convention. p is a fraction in [0, 1]; out-of-range
