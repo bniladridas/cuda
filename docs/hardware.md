@@ -116,3 +116,14 @@ CUDA runtime version alongside every result, and names the file after the GPU,
 timestamp and commit. Do not compare results across different GPUs; compare only
 within one device, or normalise by the device's peak memory bandwidth as
 `docs/methodology.md` describes.
+
+
+## GEMM validation
+
+The tiled FP32 GEMM path is compiled with the CUDA toolkit and tested by
+`test_gemm` on an NVIDIA device. The test covers scalar, square, rectangular,
+non-multiple-of-16 edge tiles, and a non-default stream. CPU-only CI validates
+the independent row-major reference implementation but does not compile or
+execute `src/gemm.cu`. Run `bash runners/gemm-benchmark.sh` only on a CUDA
+host with a working NVIDIA device; it correctness-checks each benchmark shape
+before publishing measurements.

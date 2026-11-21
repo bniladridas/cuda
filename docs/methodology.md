@@ -78,3 +78,19 @@ is not a result.
 `2^16`, `2^20`, `2^24` elements. The smallest fits in cache on most devices and
 is dominated by launch overhead; the largest is memory-bound on every current
 card and is the meaningful bandwidth figure; the middle one falls between.
+
+
+## GEMM benchmark
+
+The FP32 GEMM benchmark is separate from the vector-add and reduction
+bandwidth harness. It runs a CPU-reference correctness gate for every shape
+before timing, then records M, N, K, the 16×16 tile shape, median/min/p90
+milliseconds, GPU name, compute capability, driver, CUDA runtime, full Git
+commit, and UTC timestamp. Run it with:
+
+```bash
+bash runners/gemm-benchmark.sh
+```
+
+The recorded measurements are workload-specific. Do not compare them with
+vector-add bandwidth figures or claim a speedup without a controlled baseline.

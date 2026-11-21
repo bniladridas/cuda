@@ -18,14 +18,15 @@ point is the kernel, not the call into CUB.
 
 ## Status
 
-Two kernels, both implemented end to end:
+Three kernels, implemented end to end:
 
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
 | `vecadd` | `c = a + b`, grid-stride | written | **GPU run pending** |
 | `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
+| `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
 
-Neither kernel has been compiled with `nvcc` or executed on a device yet. No
+The kernels have not yet been compiled with `nvcc` or executed on a device. No
 performance numbers are published: they will be added only after a run on real
 hardware with the recorded environment (see
 [`docs/methodology.md`](docs/methodology.md)). A CPU-only build proves the tree
@@ -106,7 +107,7 @@ CUDA_KERNELS_ARCH="86" ./runners/build.sh
 ```
 
 `test_host` runs anywhere and checks the CPU reference implementations.
-`test_vecadd` and `test_reduce` need a GPU. A successful device query that
+`test_vecadd`, `test_reduce`, and `test_gemm` need a GPU. A successful device query that
 reports zero devices, or CUDA's explicit `cudaErrorNoDevice`, prints
 `SKIPPED: no CUDA device` and exits 0, so CTest counts them as passed.
 Other `cudaGetDeviceCount` failures, including insufficient-driver and
@@ -135,12 +136,13 @@ cancellation.
 ```bash
 ./runners/benchmark.sh
 ./build/cuda_benchmarks --help
+bash ./runners/gemm-benchmark.sh
 ```
 
-The binary verifies every kernel at every size against a CPU reference and
-refuses to print timings if any case fails. Results are written as JSON with
-the device, driver, toolkit, commit and timestamp recorded. Methodology
-(events, warmup, median-of-batches, achieved vs peak bandwidth) is in
+The existing binary benchmarks vector add and reduction. The separate GEMM
+benchmark checks every matrix shape against the CPU reference before timing. It
+records M, N, K, tile shape, GPU, driver, CUDA runtime, commit and UTC timestamp
+in a separate JSON result. Methodology is in
 [`docs/methodology.md`](docs/methodology.md).
 
 Until a GPU run has been performed, there are no recorded results in this
@@ -167,6 +169,8 @@ Once a result file exists, plot it against the device's spec-sheet peak:
 ```bash
 PEAK_GBPS=600 ./runners/plot.sh   # writes benchmarks/results/<result>.png
 ```
+
+`bash runners/gemm-benchmark.sh` runs the GEMM correctness gate and records M, N, K, tile shape, GPU, driver, CUDA runtime, commit, and UTC timestamp. It publishes a separate JSON result.
 
 `runners/plot.sh` uses the newest file in `benchmarks/results/` and needs
 matplotlib (`pip install matplotlib`); it is not a build dependency. With no
@@ -246,7 +250,7 @@ rebase-agent/            safe PR rebase and bounded repair engines with tests
   [`docs/hardware.md`](docs/hardware.md).
 - `codeql`: C/C++ static analysis on the hosted runner, using CodeQL's
   `build-mode: none` so no CUDA toolkit is needed. Two known limitations: it does
-  not extract `.cu` files, so `src/vecadd.cu` and `src/reduce.cu` are never
+  not extract `.cu` files, so `src/vecadd.cu`, `src/reduce.cu`, and `src/gemm.cu` are never
   scanned; and it reported zero results on deliberately planted bounds bugs,
   including one in a scanned `.cpp` file. It covers no kernel code and is not
   relied on as a safety net; the CPU job's host-side clang-tidy is complementary
@@ -266,9 +270,9 @@ CUDA C++ remains the implementation core. C interoperability and Fortran are
 separate, evidence-gated follow-up tracks, not additional implementations in
 the current build.
 
-Kernel work: matrix multiplication and tiling, shared-memory and occupancy
-study, profiling-driven optimization, then comparison benchmarks against
-vendor-library equivalents. GPU-dependent work remains pending a recorded
+Next GEMM work: profile the initial tiled kernel, study tile sizes and
+occupancy, then add profiling-driven optimization and separately measured
+vendor-library comparison benchmarks. GPU-dependent work remains pending a recorded
 NVIDIA device run.
 
 ## License
