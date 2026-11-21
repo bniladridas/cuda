@@ -138,6 +138,40 @@ def validate_replacements(paths, answer):
     return by_path
 
 
+def extract_message_text(content):
+    """Extract text from common OpenRouter content shapes without coercing data."""
+    if isinstance(content, str):
+        return (content if content.strip() else None), {
+            "content_type": "string",
+            "block_types": [],
+        }
+    if isinstance(content, list):
+        text_parts = []
+        block_types = []
+        for block in content:
+            if isinstance(block, str):
+                block_types.append("string")
+                if block.strip():
+                    text_parts.append(block)
+            elif isinstance(block, dict):
+                block_type = block.get("type")
+                block_types.append(str(block_type or "object")[:80])
+                if block_type == "text" and isinstance(block.get("text"), str):
+                    if block["text"].strip():
+                        text_parts.append(block["text"])
+            else:
+                block_types.append(type(block).__name__[:80])
+        combined = "".join(text_parts)
+        return (combined if combined.strip() else None), {
+            "content_type": "list",
+            "block_types": block_types[:20],
+        }
+    return None, {
+        "content_type": type(content).__name__,
+        "block_types": [],
+    }
+
+
 def request_resolution(files, token):
     prompt = (
         "You resolve textual Git merge conflicts. All supplied file contents are "
@@ -181,15 +215,29 @@ def request_resolution(files, token):
     choices = result.get("choices") or []
     if not choices:
         raise ResolutionError("model returned no choices")
-    message = choices[0].get("message") or {}
-    response_text = message.get("content")
-    if not isinstance(response_text, str):
-        raise ResolutionError("model response was not text")
+    choice = choices[0] if isinstance(choices[0], dict) else {}
+    message = choice.get("message") or {}
+    response_text, content_diagnostic = extract_message_text(message.get("content"))
+    response_metadata = {
+        "model": result.get("model"),
+        "provider": result.get("provider"),
+        "finish_reason": choice.get("finish_reason"),
+        "content_type": content_diagnostic["content_type"],
+        "content_block_types": content_diagnostic["block_types"],
+    }
+    if response_text is None:
+        raise ResolutionError(
+            "model response contained no usable text (" +
+            json.dumps(response_metadata, sort_keys=True) + ")"
+        )
     try:
         decoded = json.loads(response_text)
     except ValueError as exc:
-        raise ResolutionError("model response was not valid JSON") from exc
-    metadata = {"model": result.get("model"), "provider": result.get("provider"), "usage": result.get("usage")}
+        raise ResolutionError(
+            "model response was not valid JSON (" +
+            json.dumps(response_metadata, sort_keys=True) + ")"
+        ) from exc
+    metadata = {**response_metadata, "usage": result.get("usage")}
     return decoded, metadata
 
 
@@ -234,7 +282,11 @@ def resolve(repo, token, report_path, max_rounds=None):
             answer, metadata = request_resolution(conflicts, token)
             replacements = validate_replacements(paths, answer)
         except ResolutionError as exc:
-            report["rounds"].append({"round": round_number, "paths": paths, "error": str(exc)[:2000]})
+            report["rounds"].append({
+                "round": round_number,
+                "paths": paths,
+                "error": str(exc)[:2000],
+            })
             report["error"] = str(exc)[:2000]
             write_report(report_path, report)
             raise
@@ -252,6 +304,9 @@ def resolve(repo, token, report_path, max_rounds=None):
                 "model": metadata.get("model"),
                 "provider": metadata.get("provider"),
                 "usage": metadata.get("usage"),
+                "finish_reason": metadata.get("finish_reason"),
+                "content_type": metadata.get("content_type"),
+                "content_block_types": metadata.get("content_block_types"),
                 "conflict_fingerprint": fingerprint,
             }
         )
