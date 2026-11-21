@@ -44,7 +44,7 @@ cuda_kernels_set_host_warnings(test_benchmark_device_buffer)
 add_test(NAME benchmark_device_buffer COMMAND test_benchmark_device_buffer)
 
 if(CUDA_KERNELS_HAVE_CUDA)
-  foreach(name IN ITEMS vecadd reduce)
+  foreach(name IN ITEMS vecadd reduce softmax)
     add_executable(test_${name} test_${name}.cpp)
     target_include_directories(test_${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(test_${name} PRIVATE cuda_kernels::cudakernels)
