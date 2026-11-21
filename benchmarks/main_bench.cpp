@@ -5,10 +5,12 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <cuda_runtime.h>
 
@@ -19,6 +21,7 @@
 #include "device_status.h"
 #include "options.h"
 #include "cuda_kernels/reduce.cuh"
+#include "cuda_kernels/softmax.cuh"
 #include "cuda_kernels/vecadd.cuh"
 #include "host_utils.h"
 
@@ -178,6 +181,59 @@ struct Row {
   bench::Stats stats;
 };
 
+bool softmax_correct(std::size_t rows, std::size_t columns) {
+  const std::size_t count = rows * columns;
+  const auto input = host::random_floats(count, -30.0f, 30.0f, 17u);
+  const auto expected = host::softmax_reference(input, rows, columns);
+
+  CudaDeviceMemoryApi memory_api;
+  auto report = [](cudaError_t status, const char* operation) {
+    bench::check_cuda(status, operation);
+  };
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report)> d_input(memory_api,
+                                                                            report);
+  bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report)> d_output(memory_api,
+                                                                             report);
+  if (!d_input.allocate(count * sizeof(float), "cudaMalloc softmax input") ||
+      !d_output.allocate(count * sizeof(float), "cudaMalloc softmax output")) {
+    return false;
+  }
+  if (!checked_cuda_memcpy(d_input.get(), input.data(), count * sizeof(float),
+                           cudaMemcpyHostToDevice, "copy softmax input")) {
+    return false;
+  }
+
+  cuda_kernels::launch_softmax(d_input.get(), d_output.get(), rows, columns, nullptr);
+  if (!bench::check_cuda(cudaGetLastError(), "softmax correctness launch")) {
+    return false;
+  }
+  std::vector<float> got(count);
+  if (!checked_cuda_memcpy(got.data(), d_output.get(), count * sizeof(float),
+                           cudaMemcpyDeviceToHost, "copy softmax output")) {
+    return false;
+  }
+
+  bool ok = d_input.reset();
+  ok = d_output.reset() && ok;
+  if (!ok) {
+    return false;
+  }
+  for (std::size_t i = 0; i < count; ++i) {
+    if (!std::isfinite(got[i]) || std::fabs(got[i] - expected[i]) > 2.0e-5f) {
+      return false;
+    }
+  }
+  for (std::size_t row = 0; row < rows; ++row) {
+    double sum = 0.0;
+    for (std::size_t col = 0; col < columns; ++col) {
+      sum += got[row * columns + col];
+    }
+    if (std::fabs(sum - 1.0) > 5.0e-5) {
+      return false;
+    }
+  }
+  return true;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -217,6 +273,15 @@ int main(int argc, char** argv) {
   const std::vector<std::size_t> sizes = {1u << 16, 1u << 20, 1u << 24};
 
   // Correctness gate. No timings are collected unless every size matches.
+  const std::vector<std::pair<std::size_t, std::size_t>> softmax_shapes = {
+      {128, 128}, {1024, 512}, {64, 4096}};
+  for (const auto& shape : softmax_shapes) {
+    if (!softmax_correct(shape.first, shape.second)) {
+      std::fprintf(stderr, "softmax incorrect at shape=%zux%zu; refusing to benchmark\n",
+                   shape.first, shape.second);
+      return 1;
+    }
+  }
   for (std::size_t n : sizes) {
     if (!vecadd_correct(n)) {
       std::fprintf(stderr, "vecadd incorrect at n=%zu; refusing to benchmark\n", n);
@@ -307,6 +372,48 @@ int main(int argc, char** argv) {
     cleanup_ok = d_out.reset() && cleanup_ok;
     cleanup_ok = d_scratch.reset() && cleanup_ok;
     if (!cleanup_ok) return 1;
+  }
+
+  for (const auto& shape : softmax_shapes) {
+    const std::size_t row_count = shape.first;
+    const std::size_t columns = shape.second;
+    const std::size_t count = row_count * columns;
+    const auto input = host::random_floats(count, -1.0f, 1.0f, 19u);
+
+    CudaDeviceMemoryApi memory_api;
+    auto report = [](cudaError_t status, const char* operation) {
+      bench::check_cuda(status, operation);
+    };
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report)> d_input(memory_api,
+                                                                              report);
+    bench::DeviceBuffer<CudaDeviceMemoryApi, float, decltype(report)> d_output(memory_api,
+                                                                               report);
+    if (!d_input.allocate(count * sizeof(float), "cudaMalloc softmax input") ||
+        !d_output.allocate(count * sizeof(float), "cudaMalloc softmax output")) {
+      return 1;
+    }
+    if (!checked_cuda_memcpy(d_input.get(), input.data(), count * sizeof(float),
+                             cudaMemcpyHostToDevice, "copy softmax benchmark input")) {
+      return 1;
+    }
+
+    Row softmax_row{"softmax_" + std::to_string(row_count) + "x" +
+                        std::to_string(columns),
+                    count,
+                    2.0 * static_cast<double>(count) * sizeof(float),
+                    {}};
+    if (!bench::measure(
+            [&] {
+              cuda_kernels::launch_softmax(d_input.get(), d_output.get(), row_count,
+                                           columns, nullptr);
+            },
+            opts.iterations, opts.reps, opts.warmup, &softmax_row.stats)) {
+      return 1;
+    }
+    rows.push_back(softmax_row);
+    if (!d_input.reset() || !d_output.reset()) {
+      return 1;
+    }
   }
 
   if (opts.json) {

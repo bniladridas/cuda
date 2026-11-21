@@ -1,6 +1,6 @@
 // Host-only checks. These run on any machine, including CPU-only CI, and
 // verify the reference implementations themselves. They say nothing about the
-// GPU kernels; those are covered by test_vecadd / test_reduce on real hardware.
+// GPU kernels; those are covered by the GPU tests on real hardware.
 
 #include <cstddef>
 #include <cstdio>
@@ -52,6 +52,25 @@ void check_sum_reference() {
               "double sum not exact");
 }
 
+void check_softmax_reference() {
+  const std::vector<float> input = {1000.0f,  1001.0f, 999.0f,
+                                    -1000.0f, -999.0f, -1001.0f};
+  const auto output = host::softmax_reference(input, 2, 3);
+  host::check(output.size() == input.size(), kTest, "softmax output size");
+  for (std::size_t row = 0; row < 2; ++row) {
+    double sum = 0.0;
+    for (std::size_t col = 0; col < 3; ++col) {
+      const float v = output[row * 3 + col];
+      host::check(std::isfinite(v) && v >= 0.0f, kTest,
+                  "softmax finite and non-negative");
+      sum += v;
+    }
+    host::check(std::fabs(sum - 1.0) < 1e-6, kTest, "softmax row sum");
+  }
+  host::check(host::softmax_reference({}, 0, 3).empty(), kTest, "zero-row softmax");
+  host::check(host::softmax_reference({}, 3, 0).empty(), kTest, "zero-column softmax");
+}
+
 void check_random_floats() {
   const std::vector<float> v = host::random_floats(1000, -2.0f, 2.0f);
   host::check(v.size() == 1000, kTest, "random size");
@@ -72,6 +91,7 @@ int main() {
   check_vecadd_reference();
   check_sum_reference();
   check_random_floats();
+  check_softmax_reference();
   std::printf("OK [%s] all host reference checks passed\n", kTest);
   return 0;
 }
