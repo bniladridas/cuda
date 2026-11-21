@@ -14,6 +14,7 @@
 #include <cuda_runtime.h>
 
 #include "event_timer.h"
+#include "statistics.h"
 
 namespace bench {
 
@@ -24,21 +25,6 @@ struct Stats {
   double p90_ms = 0.0;
   int iterations = 0;
 };
-
-inline double median(std::vector<double> v) {
-  std::sort(v.begin(), v.end());
-  const std::size_t mid = v.size() / 2;
-  return v.size() % 2 == 0 ? 0.5 * (v[mid - 1] + v[mid]) : v[mid];
-}
-
-inline double percentile(std::vector<double> v, double p) {
-  std::sort(v.begin(), v.end());
-  if (v.empty()) {
-    return 0.0;
-  }
-  const std::size_t idx = static_cast<std::size_t>(p * static_cast<double>(v.size() - 1));
-  return v[idx];
-}
 
 inline bool check_cuda(cudaError_t err, const char* what) {
   if (err != cudaSuccess) {
