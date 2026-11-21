@@ -7,6 +7,7 @@ choose paths, or access GitHub credentials.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -20,7 +21,23 @@ MODEL = "openrouter/free"
 MAX_FILES = 12
 MAX_FILE_BYTES = 24_000
 MAX_TOTAL_BYTES = 80_000
-MAX_ROUNDS = 3
+DEFAULT_MAX_ROUNDS = 6
+MAX_ALLOWED_ROUNDS = 8
+
+
+def configured_max_rounds(value=None):
+    raw = os.environ.get("AI_CONFLICT_MAX_ROUNDS", str(DEFAULT_MAX_ROUNDS)) if value is None else str(value)
+    try:
+        rounds = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ResolutionError("AI_CONFLICT_MAX_ROUNDS must be an integer from 1 to 8") from exc
+    if not 1 <= rounds <= MAX_ALLOWED_ROUNDS:
+        raise ResolutionError("AI_CONFLICT_MAX_ROUNDS must be an integer from 1 to 8")
+    return rounds
+
+
+def write_report(report_path, report):
+    Path(report_path).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
 class ResolutionError(Exception):
@@ -172,18 +189,22 @@ def request_resolution(files, token):
         decoded = json.loads(response_text)
     except ValueError as exc:
         raise ResolutionError("model response was not valid JSON") from exc
-    return decoded
+    metadata = {"model": result.get("model"), "provider": result.get("provider"), "usage": result.get("usage")}
+    return decoded, metadata
 
 
-def resolve(repo, token, report_path):
+def resolve(repo, token, report_path, max_rounds=None):
     repo = Path(repo).resolve()
     if not (repo / ".git").exists():
         raise ResolutionError("worktree is not a Git repository")
     if not token:
         raise ResolutionError("OPENROUTER_API_KEY is required")
 
-    report = {"model": MODEL, "rounds": [], "resolved": False}
-    for round_number in range(1, MAX_ROUNDS + 1):
+    limit = configured_max_rounds(max_rounds)
+    report = {"requested_model": MODEL, "max_rounds": limit, "rounds": [], "resolved": False}
+    seen_conflicts = set()
+    write_report(report_path, report)
+    for round_number in range(1, limit + 1):
         paths = unmerged_paths(repo)
         if not paths:
             report["resolved"] = True
@@ -201,8 +222,22 @@ def resolve(repo, token, report_path):
         if total > MAX_TOTAL_BYTES:
             raise ResolutionError("combined conflict context exceeds size limit")
 
-        answer = request_resolution(conflicts, token)
-        replacements = validate_replacements(paths, answer)
+        fingerprint = hashlib.sha256(
+            json.dumps(conflicts, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        if fingerprint in seen_conflicts:
+            report["error"] = "conflict stages repeated without progress"
+            write_report(report_path, report)
+            raise ResolutionError(report["error"])
+        seen_conflicts.add(fingerprint)
+        try:
+            answer, metadata = request_resolution(conflicts, token)
+            replacements = validate_replacements(paths, answer)
+        except ResolutionError as exc:
+            report["rounds"].append({"round": round_number, "paths": paths, "error": str(exc)[:2000]})
+            report["error"] = str(exc)[:2000]
+            write_report(report_path, report)
+            raise
         for raw in paths:
             target = safe_conflict_path(repo, raw)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -214,8 +249,13 @@ def resolve(repo, token, report_path):
                 "round": round_number,
                 "paths": paths,
                 "summary": str(answer.get("summary", ""))[:2000],
+                "model": metadata.get("model"),
+                "provider": metadata.get("provider"),
+                "usage": metadata.get("usage"),
+                "conflict_fingerprint": fingerprint,
             }
         )
+        write_report(report_path, report)
         continued = git(
             repo,
             ["-c", "core.editor=true", "rebase", "--continue"],
@@ -223,9 +263,13 @@ def resolve(repo, token, report_path):
         )
         if continued.returncode and not unmerged_paths(repo):
             detail = (continued.stderr or continued.stdout)[-1200:]
-            raise ResolutionError("rebase continuation failed: " + detail)
+            report["error"] = "rebase continuation failed: " + detail
+            write_report(report_path, report)
+            raise ResolutionError(report["error"])
     else:
-        raise ResolutionError("conflict resolution exceeded the bounded round limit")
+        report["error"] = "conflict resolution exceeded the bounded round limit (" + str(limit) + ")"
+        write_report(report_path, report)
+        raise ResolutionError(report["error"])
 
     if unmerged_paths(repo):
         raise ResolutionError("unmerged paths remain after model resolution")

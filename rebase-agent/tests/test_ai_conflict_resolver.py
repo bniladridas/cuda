@@ -9,10 +9,26 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "engine"))
 from ai_conflict_resolver import (
     ResolutionError,
+    configured_max_rounds,
     git,
     safe_conflict_path,
     validate_replacements,
 )
+
+
+class ConfiguredRoundLimitTests(unittest.TestCase):
+    def test_default_is_six_rounds(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(configured_max_rounds(), 6)
+
+    def test_accepts_configured_limit(self):
+        self.assertEqual(configured_max_rounds("8"), 8)
+
+    def test_rejects_out_of_range_limit(self):
+        for value in ("0", "9", "many"):
+            with self.subTest(value=value):
+                with self.assertRaises(ResolutionError):
+                    configured_max_rounds(value)
 
 
 class GitCredentialIsolationTests(unittest.TestCase):
