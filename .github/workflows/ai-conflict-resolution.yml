@@ -156,7 +156,11 @@ jobs:
       contents: read
     uses: ./.github/workflows/ci.yml
     with:
-      ref: ${{ needs.resolve.outputs.result_sha }}
+      # Check out a public base commit, then restore the exact rebased tree
+      # from the artifact produced by the trusted resolver job.
+      ref: ${{ needs.resolve.outputs.base_sha }}
+      result_sha: ${{ needs.resolve.outputs.result_sha }}
+      bundle_artifact: ai-conflict-resolution-${{ github.event.pull_request.number }}
 
   publish:
     needs: [resolve, validate]
