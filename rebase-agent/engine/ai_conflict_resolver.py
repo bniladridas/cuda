@@ -227,15 +227,17 @@ def request_resolution(files, token):
     }
     if response_text is None:
         raise ResolutionError(
-            "model response contained no usable text (" +
-            json.dumps(response_metadata, sort_keys=True) + ")"
+            "model response contained no usable text ("
+            + json.dumps(response_metadata, sort_keys=True)
+            + ")"
         )
     try:
         decoded = json.loads(response_text)
     except ValueError as exc:
         raise ResolutionError(
-            "model response was not valid JSON (" +
-            json.dumps(response_metadata, sort_keys=True) + ")"
+            "model response was not valid JSON ("
+            + json.dumps(response_metadata, sort_keys=True)
+            + ")"
         ) from exc
     metadata = {**response_metadata, "usage": result.get("usage")}
     return decoded, metadata
@@ -282,11 +284,13 @@ def resolve(repo, token, report_path, max_rounds=None):
             answer, metadata = request_resolution(conflicts, token)
             replacements = validate_replacements(paths, answer)
         except ResolutionError as exc:
-            report["rounds"].append({
-                "round": round_number,
-                "paths": paths,
-                "error": str(exc)[:2000],
-            })
+            report["rounds"].append(
+                {
+                    "round": round_number,
+                    "paths": paths,
+                    "error": str(exc)[:2000],
+                }
+            )
             report["error"] = str(exc)[:2000]
             write_report(report_path, report)
             raise
