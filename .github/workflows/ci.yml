@@ -223,6 +223,22 @@ jobs:
           # is a failure here rather than a warning.
           GPU_REQUIRED: "1"
 
+      # Compute Sanitizer ships with the CUDA toolkit. Report the installed
+      # version explicitly rather than assuming every runner has the same one.
+      # Keep instrumentation separate from benchmark timing.
+      - name: Report Compute Sanitizer version
+        run: compute-sanitizer --version
+
+      - name: Compute Sanitizer (memcheck)
+        run: |
+          compute-sanitizer --error-exitcode 1 --tool memcheck build/tests/test_vecadd
+          compute-sanitizer --error-exitcode 1 --tool memcheck build/tests/test_reduce
+
+      - name: Compute Sanitizer (reduction synchronization)
+        run: |
+          compute-sanitizer --error-exitcode 1 --tool racecheck build/tests/test_reduce
+          compute-sanitizer --error-exitcode 1 --tool synccheck build/tests/test_reduce
+
       - name: Benchmark
         run: ./runners/benchmark.sh
         env:

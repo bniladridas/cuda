@@ -99,9 +99,27 @@ IPython `!` commands, because shell options do not persist between them.
    `no GPU tests are registered` means the kernels were never built, which is
    the step 3 failure showing up two steps later.
 
-5. Benchmark only after the tests pass. `runners/benchmark.sh` re-checks
-   correctness itself and refuses to run without a device, so a timing from it
-   cannot come from a broken build.
+5. Run Compute Sanitizer after correctness tests and before benchmarking. It
+   ships with the CUDA toolkit. Record its version and run memory checks on
+   both GPU test executables, plus synchronization checks on reduction:
+
+   ```bash
+   %%bash
+   cd cuda
+   compute-sanitizer --version
+   compute-sanitizer --error-exitcode 1 --tool memcheck build-gpu/tests/test_vecadd
+   compute-sanitizer --error-exitcode 1 --tool memcheck build-gpu/tests/test_reduce
+   compute-sanitizer --error-exitcode 1 --tool racecheck build-gpu/tests/test_reduce
+   compute-sanitizer --error-exitcode 1 --tool synccheck build-gpu/tests/test_reduce
+   ```
+
+   A nonzero exit or sanitizer finding means the validation failed. Keep these
+   logs separate from benchmark output. The toolkit supplies the sanitizer
+   version, so record `compute-sanitizer --version` with the session artifacts.
+
+6. Benchmark only after the tests and sanitizer checks pass.
+   `runners/benchmark.sh` re-checks correctness itself and refuses to run
+   without a device, so a timing from it cannot come from a broken build.
 
    ```bash
    %%bash
@@ -115,8 +133,8 @@ IPython `!` commands, because shell options do not persist between them.
    versions, iteration counts, commit SHA and timestamp. A number without that
    file is not a result.
 
-6. Download the session output. The three artifacts are the test log, the
-   benchmark JSON, and the recorded `nvidia-smi` line.
+7. Download the session output. Keep the test log, sanitizer version and
+   sanitizer logs, benchmark JSON, and recorded `nvidia-smi` line.
 
 ## What not to do
 
