@@ -143,6 +143,12 @@ class ProviderRetryTests(unittest.TestCase):
         self.assertFalse(answer["needs_human"])
         self.assertEqual(metadata["ignored_providers"], ["nvidia"])
         self.assertEqual(len(metadata["attempts"]), 2)
+        first_request = urlopen.call_args_list[0].args[0]
+        first_payload = json.loads(first_request.data.decode("utf-8"))
+        system_prompt = first_payload["messages"][0]["content"]
+        self.assertIn("CMake add_library source lists", system_prompt)
+        self.assertIn("combine independent source additions", system_prompt)
+        self.assertIn("require semantic review", system_prompt)
         retry_request = urlopen.call_args_list[1].args[0]
         retry_payload = json.loads(retry_request.data.decode("utf-8"))
         self.assertEqual(retry_payload["provider"]["ignore"], ["nvidia"])
