@@ -59,13 +59,19 @@ not implement.
 
 ## Recorded context
 
-Every new JSON result published by the benchmark runners carries the GPU name,
-compute capability, driver version, CUDA runtime version, workload parameters,
-the full Git commit SHA, and an ISO 8601 UTC completion timestamp. The main
-vector/reduction runner also records device UUID and PCI bus ID. LayerNorm and
-GEMM results are workload-specific and do not include those optional device
-identity fields yet. A number without its device and source context is not a
-reproducible result.
+Every new JSON result published by `runners/benchmark.sh` carries the GPU
+name, CUDA device UUID, PCI bus ID when the device exposes one, compute
+capability, driver version, CUDA runtime version, iteration/batch/warmup
+counts, the full Git commit SHA, and an ISO 8601 UTC completion timestamp.
+The UUID identifies the CUDA device; the PCI bus ID is additional placement
+context and may be JSON `null` in virtualized environments. Both fields are
+validated by `benchmarks/plot_results.py` before a result is plotted. The
+commit and timestamp are embedded in the JSON, so copying or renaming the
+file does not detach its provenance. If the benchmark runs outside a Git
+checkout, `git_commit` is JSON `null`; the timestamp is still recorded.
+Older result files without device identifiers or embedded provenance remain
+readable and are identified as legacy in plots. A number without this context
+is not a result.
 
 ## What would make a result invalid
 
@@ -86,14 +92,18 @@ card and is the meaningful bandwidth figure; the middle one falls between.
 ## GEMM benchmark
 
 The FP32 GEMM benchmark is separate from the vector-add and reduction
-bandwidth harness. It runs a CPU-reference correctness gate for every shape,
-then records M, N, K, the 16×16 tile shape, median/min/p90 milliseconds, GPU
-name, compute capability, driver, CUDA runtime, full Git commit, and UTC
-timestamp. Run it with:
+bandwidth harness. It runs a CPU-reference correctness gate for every shape
+before timing, then records M, N, K, the 16×16 tile shape, median/min/p90
+milliseconds, GPU name, compute capability, driver, CUDA runtime, full Git
+commit, and UTC timestamp. Run it with:
 
 ```bash
 bash runners/gemm-benchmark.sh
 ```
+
+The recorded measurements are workload-specific. Do not compare them with
+vector-add bandwidth figures or claim a speedup without a controlled baseline.
+
 
 ## LayerNorm benchmark
 
