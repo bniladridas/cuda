@@ -45,9 +45,15 @@ bool run_case(const Shape& s, bench::Stats* stats) {
     cleanup();
     return false;
   }
-  bool ok = bench::check_cuda(cudaMemcpy(dq, q.data(), q.size() * sizeof(float), cudaMemcpyHostToDevice), "copy Q") &&
-            bench::check_cuda(cudaMemcpy(dk, k.data(), k.size() * sizeof(float), cudaMemcpyHostToDevice), "copy K") &&
-            bench::check_cuda(cudaMemcpy(dvalue, v.data(), v.size() * sizeof(float), cudaMemcpyHostToDevice), "copy V");
+  bool ok = bench::check_cuda(cudaMemcpy(dq, q.data(), q.size() * sizeof(float),
+                                         cudaMemcpyHostToDevice),
+                              "copy Q") &&
+            bench::check_cuda(cudaMemcpy(dk, k.data(), k.size() * sizeof(float),
+                                         cudaMemcpyHostToDevice),
+                              "copy K") &&
+            bench::check_cuda(cudaMemcpy(dvalue, v.data(), v.size() * sizeof(float),
+                                         cudaMemcpyHostToDevice),
+                              "copy V");
   if (ok) {
     cuda_kernels::launch_attention_fp32(dq, dk, dvalue, dout, dscores, dprob,
                                         s.lq, s.lk, s.d, s.dv, nullptr);
