@@ -8,11 +8,11 @@ namespace host {
 
 inline std::vector<float> attention_reference(const std::vector<float>& q,
                                               const std::vector<float>& k,
-                                              const std::vector<float>& v,
-                                              std::size_t lq, std::size_t lk,
-                                              std::size_t d, std::size_t dv) {
-  if (lq == 0 || lk == 0 || d == 0 || dv == 0 ||
-      q.size() != lq * d || k.size() != lk * d || v.size() != lk * dv) {
+                                              const std::vector<float>& v, std::size_t lq,
+                                              std::size_t lk, std::size_t d,
+                                              std::size_t dv) {
+  if (lq == 0 || lk == 0 || d == 0 || dv == 0 || q.size() != lq * d ||
+      k.size() != lk * d || v.size() != lk * dv) {
     return {};
   }
   std::vector<float> output(lq * dv, 0.0f);
