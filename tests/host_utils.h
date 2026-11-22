@@ -133,7 +133,8 @@ inline std::vector<float> layernorm_reference(const std::vector<float>& input,
       squared_deviation += delta * delta;
     }
     const double variance = squared_deviation / static_cast<double>(features);
-    const double inverse_stddev = 1.0 / std::sqrt(variance + static_cast<double>(epsilon));
+    const double inverse_stddev =
+        1.0 / std::sqrt(variance + static_cast<double>(epsilon));
     for (std::size_t col = 0; col < features; ++col) {
       const double normalized =
           (static_cast<double>(input[offset + col]) - mean) * inverse_stddev;
