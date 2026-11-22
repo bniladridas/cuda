@@ -60,7 +60,10 @@ bool run_case(const Shape& s, bench::Stats* stats) {
     ok = bench::check_cuda(cudaDeviceSynchronize(), "attention correctness sync");
   }
   std::vector<float> got(expected.size());
-  if (ok) ok = bench::check_cuda(cudaMemcpy(got.data(), dout, got.size() * sizeof(float), cudaMemcpyDeviceToHost), "copy output");
+  if (ok)
+    ok = bench::check_cuda(
+        cudaMemcpy(got.data(), dout, got.size() * sizeof(float), cudaMemcpyDeviceToHost),
+        "copy output");
   for (std::size_t i = 0; ok && i < got.size(); ++i) {
     const double scale = std::max(1.0, std::fabs(static_cast<double>(expected[i])));
     ok = std::isfinite(got[i]) && std::fabs(static_cast<double>(got[i]) - expected[i]) <= 8.0e-4 * scale;
