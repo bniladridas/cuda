@@ -49,8 +49,8 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
                                       dprobabilities, lq, lk, d, dv, nullptr);
   CHECK_CUDA(cudaDeviceSynchronize());
   std::vector<float> got(expected.size());
-  CHECK_CUDA(cudaMemcpy(got.data(), dout, got.size() * sizeof(float),
-                        cudaMemcpyDeviceToHost));
+  CHECK_CUDA(
+      cudaMemcpy(got.data(), dout, got.size() * sizeof(float), cudaMemcpyDeviceToHost));
   for (std::size_t i = 0; i < got.size(); ++i) {
     const double scale = std::max(1.0, std::fabs(static_cast<double>(expected[i])));
     host::check(std::isfinite(got[i]) &&
