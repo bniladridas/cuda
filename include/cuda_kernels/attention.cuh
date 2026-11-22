@@ -10,7 +10,8 @@ namespace cuda_kernels {
 // scores and probabilities are separate Lq*Lk scratch allocations. The output
 // must not overlap Q, K, V, scores, or probabilities; scratch must not overlap
 // any input or output. Q, K, V, output, and scratch must remain alive until the
-// supplied stream completes. Dimensions must be positive and Lq <= 65535.
+// supplied stream completes. Lq must not exceed 65,535.
+// If any dimension is zero, the launcher is a no-op.
 // The staged implementation materializes scores and probabilities.
 // Enqueues asynchronously on stream (cudaStream_t represented as void*).
 void launch_attention_fp32(const float* q, const float* k, const float* v, float* output,

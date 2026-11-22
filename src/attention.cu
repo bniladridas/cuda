@@ -1,7 +1,7 @@
 #include "cuda_kernels/attention.cuh"
 
 #include <cstddef>
-#include <cstdint>
+#include <limits>
 
 #include <cuda_runtime.h>
 
@@ -52,22 +52,26 @@ void launch_attention_fp32(const float* q, const float* k, const float* v, float
                            std::size_t lk, std::size_t d, std::size_t dv, void* stream) {
   if (lq == 0 || lk == 0 || d == 0 || dv == 0) return;
 
-  CUDA_CHECK(lq <= kMaxGridY && (lk + kBlockSize - 1) / kBlockSize <= kMaxGridX &&
-                     (dv + kBlockSize - 1) / kBlockSize <= kMaxGridX
+  constexpr std::size_t kSizeMax = std::numeric_limits<std::size_t>::max();
+  const bool products_fit = lq <= kSizeMax / d && lk <= kSizeMax / d &&
+                            lk <= kSizeMax / dv && lq <= kSizeMax / lk &&
+                            lq <= kSizeMax / dv;
+  const std::size_t score_blocks = lk / kBlockSize + (lk % kBlockSize != 0);
+  const std::size_t value_blocks = dv / kBlockSize + (dv % kBlockSize != 0);
+  CUDA_CHECK(products_fit && lq <= kMaxGridY && score_blocks <= kMaxGridX &&
+                     value_blocks <= kMaxGridX
                  ? cudaSuccess
                  : cudaErrorInvalidValue);
 
   const cudaStream_t cuda_stream = reinterpret_cast<cudaStream_t>(stream);
-  const dim3 score_grid(static_cast<unsigned int>((lk + kBlockSize - 1) / kBlockSize),
-                        static_cast<unsigned int>(lq));
-  const dim3 value_grid(static_cast<unsigned int>((dv + kBlockSize - 1) / kBlockSize),
-                        static_cast<unsigned int>(lq));
+  const dim3 score_grid(static_cast<unsigned int>(score_blocks), static_cast<unsigned int>(lq));
+  const dim3 value_grid(static_cast<unsigned int>(value_blocks), static_cast<unsigned int>(lq));
   attention_scores_kernel<<<score_grid, kBlockSize, 0, cuda_stream>>>(
       q, k, scores, lq, lk, d, rsqrtf(static_cast<float>(d)));
   CUDA_CHECK_LAST_ERROR();
   launch_softmax(scores, probabilities, lq, lk, stream);
-  attention_values_kernel<<<value_grid, kBlockSize, 0, cuda_stream>>>(probabilities, v,
-                                                                      output, lq, lk, dv);
+  attention_values_kernel<<<value_grid, kBlockSize, 0, cuda_stream>>>(
+      probabilities, v, output, lq, lk, dv);
   CUDA_CHECK_LAST_ERROR();
 }
 

@@ -19,7 +19,7 @@ point is the kernel, not the call into CUB.
 
 ## Status
 
-Five kernels, all implemented end to end:
+Six kernels, all implemented end to end:
 
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
@@ -27,7 +27,7 @@ Five kernels, all implemented end to end:
 | `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
 | `softmax` | stable row-wise FP32 normalization, one block per row | written | **GPU run pending** |
 | `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
-| `layernorm` | row-wise FP32 normalization with population variance | written | **GPU run pending** |
+| `layernorm` | row-wise FP32 normalization with population variance | written | **GPU run pending** |\n| `attention` | staged non-causal single-head FP32 scaled dot-product attention | written | **GPU run pending** |
 
 The hosted `cuda-compile` job compiles the CUDA sources with `nvcc`, but no
 kernel has been executed on a device yet. No performance numbers are published:
@@ -123,7 +123,7 @@ CUDA_KERNELS_ARCH="86" ./runners/build.sh
 ```
 
 `test_host` runs anywhere and checks the CPU reference implementations.
-`test_vecadd`, `test_reduce`, `test_softmax`, `test_gemm`, and `test_layernorm` need a GPU. A successful device query that
+`test_vecadd`, `test_reduce`, `test_softmax`, `test_gemm`, `test_layernorm`, and `test_attention` need a GPU. A successful device query that
 reports zero devices, or CUDA's explicit `cudaErrorNoDevice`, prints
 `SKIPPED: no CUDA device` and exits 0, so CTest counts them as passed.
 Other `cudaGetDeviceCount` failures, including insufficient-driver and
@@ -142,7 +142,7 @@ default list is `70;75;80;86;89;90`; rebuild with the target's value, for
 example `CUDA_KERNELS_ARCH="86" ./runners/build.sh`, then run the tests against
 the same `BUILD_DIR`.
 
-Layer-normalization tests cover constant rows, single-feature rows, large magnitudes, irregular feature widths, and a non-default stream.
+Layer-normalization tests cover constant rows, single-feature rows, large magnitudes, irregular feature widths, and a non-default stream. Attention tests compare the scaled score matrix, normalized probability matrix, and final output against a double-precision CPU reference, including unequal sequence lengths and challenging logits.
 
 Softmax tests cover empty dimensions, one-column rows, uniform rows, large positive and negative logits, mixed magnitudes, irregular widths, multiple rows, and a non-default stream. GEMM tests cover scalar, rectangular, partial 16×16 edge tiles, K-edge cases, and a non-default stream.
 

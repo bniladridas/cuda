@@ -15,6 +15,8 @@
 namespace {
 const char* const kTest = "attention";
 constexpr double kTolerance = 8.0e-4;
+constexpr double kScoreTolerance = 8.0e-4;
+constexpr double kProbabilityTolerance = 2.0e-5;
 
 #define CHECK_CUDA(expr)                                                       \
   do {                                                                         \
@@ -33,6 +35,10 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
       value *= 40.0f;
   }
   const auto expected = host::attention_reference(q, k, v, lq, lk, d, dv);
+  std::vector<double> expected_scores;
+  std::vector<double> expected_probabilities;
+  host::attention_reference_intermediates(q, k, lq, lk, d, &expected_scores,
+                                          &expected_probabilities);
   const std::size_t score_count = lq * lk;
   float *dq = nullptr, *dk = nullptr, *dv_ptr = nullptr, *dout = nullptr;
   float *dscores = nullptr, *dprobabilities = nullptr;
@@ -50,9 +56,39 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
   cuda_kernels::launch_attention_fp32(dq, dk, dv_ptr, dout, dscores, dprobabilities, lq,
                                       lk, d, dv, nullptr);
   CHECK_CUDA(cudaDeviceSynchronize());
+
   std::vector<float> got(expected.size());
+  std::vector<float> got_scores(score_count);
+  std::vector<float> got_probabilities(score_count);
   CHECK_CUDA(
       cudaMemcpy(got.data(), dout, got.size() * sizeof(float), cudaMemcpyDeviceToHost));
+  CHECK_CUDA(cudaMemcpy(got_scores.data(), dscores, score_count * sizeof(float),
+                        cudaMemcpyDeviceToHost));
+  CHECK_CUDA(cudaMemcpy(got_probabilities.data(), dprobabilities,
+                        score_count * sizeof(float), cudaMemcpyDeviceToHost));
+
+  for (std::size_t i = 0; i < score_count; ++i) {
+    const double score_scale =
+        std::max(1.0, std::fabs(expected_scores[i]));
+    host::check(std::isfinite(got_scores[i]) &&
+                    std::fabs(static_cast<double>(got_scores[i]) - expected_scores[i]) <=
+                        kScoreTolerance * score_scale,
+                kTest, std::string(label) + ": score mismatch at " + std::to_string(i));
+
+    host::check(std::isfinite(got_probabilities[i]) &&
+                    std::fabs(static_cast<double>(got_probabilities[i]) -
+                              expected_probabilities[i]) <= kProbabilityTolerance,
+                kTest,
+                std::string(label) + ": probability mismatch at " + std::to_string(i));
+  }
+  for (std::size_t row = 0; row < lq; ++row) {
+    double probability_sum = 0.0;
+    for (std::size_t key = 0; key < lk; ++key) {
+      probability_sum += got_probabilities[row * lk + key];
+    }
+    host::check(std::fabs(probability_sum - 1.0) <= 5.0e-5, kTest,
+                std::string(label) + ": probability row does not sum to one");
+  }
   for (std::size_t i = 0; i < got.size(); ++i) {
     const double scale = std::max(1.0, std::fabs(static_cast<double>(expected[i])));
     host::check(std::isfinite(got[i]) && std::fabs(static_cast<double>(got[i]) -
