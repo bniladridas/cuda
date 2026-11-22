@@ -130,8 +130,8 @@ int main() {
 
   std::printf("{\n  \"gpu\": \"%s\",\n", prop.name);
   std::printf("  \"compute_capability\": \"%d.%d\",\n", prop.major, prop.minor);
-  std::printf("  \"driver_version\": %d,\n  \"cuda_runtime_version\": %d,\n",
-              driver, runtime);
+  std::printf("  \"driver_version\": %d,\n  \"cuda_runtime_version\": %d,\n", driver,
+              runtime);
   std::printf("  \"epsilon\": %.9g,\n  \"block_threads\": 256,\n  \"results\": [\n",
               kEpsilon);
   for (std::size_t i = 0; i < 3; ++i) {
