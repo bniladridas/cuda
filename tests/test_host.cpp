@@ -98,8 +98,8 @@ void check_random_floats() {
 }
 
 void check_layernorm_reference() {
-  const auto output = host::layernorm_reference(
-      {1.0f, 2.0f, 3.0f, 4.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, 2, 2, 1.0e-5f);
+  const auto output = host::layernorm_reference({1.0f, 2.0f, 3.0f, 4.0f}, {1.0f, 1.0f},
+                                                {0.0f, 0.0f}, 2, 2, 1.0e-5f);
   host::check(output.size() == 4, kTest, "layernorm output size");
   host::check(std::fabs(output[0] + output[1]) < 1.0e-5f, kTest,
               "layernorm first row is not centered");
