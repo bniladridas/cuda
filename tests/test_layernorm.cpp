@@ -74,7 +74,8 @@ void run_stream_case() {
   const std::vector<float> input = host::random_floats(rows * features, -5.0f, 5.0f, 71u);
   const std::vector<float> gamma = host::random_floats(features, 0.5f, 1.5f, 72u);
   const std::vector<float> beta = host::random_floats(features, -0.5f, 0.5f, 73u);
-  const auto expected = host::layernorm_reference(input, gamma, beta, rows, features, 1.0e-5f);
+  const auto expected =
+      host::layernorm_reference(input, gamma, beta, rows, features, 1.0e-5f);
 
   float *d_input = nullptr, *d_gamma = nullptr, *d_beta = nullptr, *d_output = nullptr;
   cudaStream_t stream = nullptr;
