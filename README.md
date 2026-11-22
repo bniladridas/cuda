@@ -28,7 +28,8 @@ Seven kernels, implemented with CPU references and GPU tests:
 | `softmax` | stable row-wise FP32 normalization, one block per row | written | **GPU run pending** |
 | `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
 | `int8_gemm` | signed int8 matrix multiplication with int32 accumulation | written | **GPU run pending** |
-| `layernorm` | row-wise FP32 normalization with population variance | written | **GPU run pending** |\n| `attention` | staged non-causal single-head FP32 scaled dot-product attention | written | **GPU run pending** |
+| `layernorm` | row-wise FP32 normalization with population variance | written | **GPU run pending** |
+| `attention` | staged non-causal single-head FP32 scaled dot-product attention | written | **GPU run pending** |
 
 The hosted `cuda-compile` job compiles the CUDA sources with `nvcc`, but no
 kernel has been executed on a device yet. No performance numbers are published:

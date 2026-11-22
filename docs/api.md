@@ -1,9 +1,8 @@
 # CUDA launch and error-reporting contract
 
 The public launchers `launch_vecadd`, `launch_reduce`, `launch_softmax`,
-`launch_gemm_fp32`, `launch_layernorm_fp32`, and
-`launch_attention_fp32, and
-`launch_gemm_int8`` enqueue their kernels on the caller-supplied CUDA
+`launch_gemm_fp32`, `launch_layernorm_fp32`, `launch_attention_fp32`, and
+`launch_gemm_int8` enqueue their kernels on the caller-supplied CUDA
 stream. They do not synchronize that stream before returning.
 
 ## Caller responsibilities
