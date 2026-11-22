@@ -66,7 +66,8 @@ bool run_case(const Shape& s, bench::Stats* stats) {
         "copy output");
   for (std::size_t i = 0; ok && i < got.size(); ++i) {
     const double scale = std::max(1.0, std::fabs(static_cast<double>(expected[i])));
-    ok = std::isfinite(got[i]) && std::fabs(static_cast<double>(got[i]) - expected[i]) <= 8.0e-4 * scale;
+    ok = std::isfinite(got[i]) &&
+         std::fabs(static_cast<double>(got[i]) - expected[i]) <= 8.0e-4 * scale;
   }
   if (ok) ok = bench::measure([&] {
     cuda_kernels::launch_attention_fp32(dq, dk, dvalue, dout, dscores, dprob,
