@@ -45,15 +45,16 @@ bool run_case(const Shape& shape, bench::Stats* stats) {
     return false;
   }
 
-  bool ok = bench::check_cuda(cudaMemcpy(d_input, input.data(), count * sizeof(float),
-                                         cudaMemcpyHostToDevice),
-                              "copy input") &&
-            bench::check_cuda(cudaMemcpy(d_gamma, gamma.data(), gamma.size() * sizeof(float),
-                                         cudaMemcpyHostToDevice),
-                              "copy gamma") &&
-            bench::check_cuda(cudaMemcpy(d_beta, beta.data(), beta.size() * sizeof(float),
-                                         cudaMemcpyHostToDevice),
-                              "copy beta");
+  bool ok =
+      bench::check_cuda(cudaMemcpy(d_input, input.data(), count * sizeof(float),
+                                   cudaMemcpyHostToDevice),
+                        "copy input") &&
+      bench::check_cuda(cudaMemcpy(d_gamma, gamma.data(), gamma.size() * sizeof(float),
+                                   cudaMemcpyHostToDevice),
+                        "copy gamma") &&
+      bench::check_cuda(cudaMemcpy(d_beta, beta.data(), beta.size() * sizeof(float),
+                                   cudaMemcpyHostToDevice),
+                        "copy beta");
   if (ok) {
     cuda_kernels::launch_layernorm_fp32(d_input, d_gamma, d_beta, d_output, shape.rows,
                                         shape.features, kEpsilon, nullptr);
