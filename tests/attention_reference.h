@@ -57,8 +57,7 @@ inline std::vector<float> attention_reference(const std::vector<float>& q,
     for (std::size_t col = 0; col < dv; ++col) {
       double acc = 0.0;
       for (std::size_t key = 0; key < lk; ++key) {
-        acc += probabilities[row * lk + key] *
-               static_cast<double>(v[key * dv + col]);
+        acc += probabilities[row * lk + key] * static_cast<double>(v[key * dv + col]);
       }
       output[row * dv + col] = static_cast<float>(acc);
     }
