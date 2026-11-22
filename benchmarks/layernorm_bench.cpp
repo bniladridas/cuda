@@ -110,7 +110,8 @@ int main() {
   int device = 0, runtime = 0, driver = 0;
   cudaDeviceProp prop{};
   if (!bench::check_cuda(cudaGetDevice(&device), "cudaGetDevice") ||
-      !bench::check_cuda(cudaGetDeviceProperties(&prop, device), "cudaGetDeviceProperties") ||
+      !bench::check_cuda(cudaGetDeviceProperties(&prop, device),
+                         "cudaGetDeviceProperties") ||
       !bench::check_cuda(cudaRuntimeGetVersion(&runtime), "cudaRuntimeGetVersion") ||
       !bench::check_cuda(cudaDriverGetVersion(&driver), "cudaDriverGetVersion")) {
     return 1;
