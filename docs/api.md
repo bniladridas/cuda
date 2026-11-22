@@ -118,3 +118,22 @@ read-only input ranges may overlap. The caller is responsible for providing
 valid device pointers and sufficient storage for the documented shapes.
 One CUDA block is launched per row. The operation is asynchronous and follows
 the stream and synchronization contract above.
+
+
+## Single-head scaled dot-product attention
+
+`launch_attention_fp32(q, k, v, output, scores, probabilities, lq, lk, d, dv, stream)`
+computes non-causal single-head FP32 attention for contiguous row-major
+`Q[Lq,D]`, `K[Lk,D]`, and `V[Lk,Dv]`:
+`softmax(Q * K^T / sqrt(D)) * V`. Query and key lengths may differ.
+All dimensions must be positive; `Lq` must not exceed 65,535. The caller
+provides two distinct scratch buffers, each containing at least `Lq*Lk`
+floats. The launcher materializes the scaled score matrix, applies the
+existing stable row-wise softmax, then computes the weighted value sum.
+This baseline is staged and is not a fused or memory-efficient attention
+implementation.
+
+The output and scratch ranges must not overlap each other or Q, K, or V.
+The caller must keep every allocation alive until the stream completes.
+The operation is asynchronous and follows the stream and error-reporting
+contract above. GPU runtime validation remains pending NVIDIA hardware.
