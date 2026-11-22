@@ -37,7 +37,8 @@ void run_case(std::size_t rows, std::size_t features, const std::vector<float>& 
   CHECK_CUDA(cudaMalloc(&d_beta, (features == 0 ? 1 : features) * sizeof(float)));
   CHECK_CUDA(cudaMalloc(&d_output, (count == 0 ? 1 : count) * sizeof(float)));
   if (count != 0) {
-    CHECK_CUDA(cudaMemcpy(d_input, input.data(), count * sizeof(float), cudaMemcpyHostToDevice));
+    CHECK_CUDA(
+        cudaMemcpy(d_input, input.data(), count * sizeof(float), cudaMemcpyHostToDevice));
   }
   if (features != 0) {
     CHECK_CUDA(cudaMemcpy(d_gamma, gamma.data(), features * sizeof(float), cudaMemcpyHostToDevice));
