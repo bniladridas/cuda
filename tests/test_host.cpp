@@ -107,8 +107,8 @@ void check_layernorm_reference() {
               "layernorm second row is not centered");
   const auto constant = host::layernorm_reference(
       std::vector<float>(4, 7.0f), {2.0f, 3.0f}, {1.0f, -1.0f}, 2, 2, 1.0e-5f);
-  host::check(constant[0] == 1.0f && constant[1] == -1.0f &&
-                  constant[2] == 1.0f && constant[3] == -1.0f,
+  host::check(constant[0] == 1.0f && constant[1] == -1.0f && constant[2] == 1.0f &&
+                  constant[3] == -1.0f,
               kTest, "constant-row layernorm should produce beta");
   host::check(host::layernorm_reference({}, {}, {}, 0, 3, 1.0e-5f).empty(),
               kTest, "zero-row layernorm");
