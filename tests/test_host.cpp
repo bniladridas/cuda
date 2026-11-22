@@ -4,10 +4,12 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <limits>
 #include <string>
 #include <vector>
 
 #include "cuda_kernels/gemm.cuh"
+#include "cuda_kernels/layernorm.cuh"
 #include "cuda_kernels/reduce.cuh"
 #include "cuda_kernels/vecadd.cuh"
 
@@ -96,6 +98,36 @@ void check_random_floats() {
   host::check(v != u, kTest, "different seeds produced identical data");
 }
 
+void check_layernorm_reference() {
+  const auto output = host::layernorm_reference({1.0f, 2.0f, 3.0f, 4.0f}, {1.0f, 1.0f},
+                                                {0.0f, 0.0f}, 2, 2, 1.0e-5f);
+  host::check(output.size() == 4, kTest, "layernorm output size");
+  host::check(std::fabs(output[0] + output[1]) < 1.0e-5f, kTest,
+              "layernorm first row is not centered");
+  host::check(std::fabs(output[2] + output[3]) < 1.0e-5f, kTest,
+              "layernorm second row is not centered");
+  const auto constant = host::layernorm_reference(
+      std::vector<float>(4, 7.0f), {2.0f, 3.0f}, {1.0f, -1.0f}, 2, 2, 1.0e-5f);
+  host::check(constant[0] == 1.0f && constant[1] == -1.0f && constant[2] == 1.0f &&
+                  constant[3] == -1.0f,
+              kTest, "constant-row layernorm should produce beta");
+  host::check(host::layernorm_reference({}, {}, {}, 0, 3, 1.0e-5f).empty(), kTest,
+              "zero-row layernorm");
+
+  host::check(cuda_kernels::detail::is_valid_layernorm_epsilon(1.0e-5f), kTest,
+              "positive finite epsilon rejected");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(0.0f), kTest,
+              "zero epsilon accepted");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(-1.0f), kTest,
+              "negative epsilon accepted");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(
+                  std::numeric_limits<float>::infinity()),
+              kTest, "infinite epsilon accepted");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(
+                  std::numeric_limits<float>::quiet_NaN()),
+              kTest, "NaN epsilon accepted");
+}
+
 }  // namespace
 
 int main() {
@@ -105,6 +137,7 @@ int main() {
   check_sum_reference();
   check_random_floats();
   check_softmax_reference();
+  check_layernorm_reference();
   std::printf("OK [%s] all host reference checks passed\n", kTest);
   return 0;
 }
