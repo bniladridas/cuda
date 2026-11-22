@@ -124,8 +124,8 @@ int main() {
     return 1;
   }
 
-  run_case(0, 17, {}, std::vector<float>(17, 1.0f), std::vector<float>(17, 0.0f),
-           1.0e-5f, "zero-rows");
+  run_case(0, 17, {}, std::vector<float>(17, 1.0f), std::vector<float>(17, 0.0f), 1.0e-5f,
+           "zero-rows");
   run_case(3, 0, {}, {}, {}, 1.0e-5f, "zero-features");
   run_case(1, 1, {4.0f}, {2.0f}, {-1.0f}, 1.0e-5f, "single-feature");
   run_case(4, 7, std::vector<float>(28, 3.0f), std::vector<float>(7, 1.0f),
