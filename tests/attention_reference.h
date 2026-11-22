@@ -7,9 +7,8 @@
 namespace host {
 
 inline void attention_reference_intermediates(const std::vector<float>& q,
-                                              const std::vector<float>& k,
-                                              std::size_t lq, std::size_t lk,
-                                              std::size_t d,
+                                              const std::vector<float>& k, std::size_t lq,
+                                              std::size_t lk, std::size_t d,
                                               std::vector<double>* scores,
                                               std::vector<double>* probabilities) {
   scores->assign(lq * lk, 0.0);
