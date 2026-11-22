@@ -53,11 +53,9 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
       cudaMemcpy(got.data(), dout, got.size() * sizeof(float), cudaMemcpyDeviceToHost));
   for (std::size_t i = 0; i < got.size(); ++i) {
     const double scale = std::max(1.0, std::fabs(static_cast<double>(expected[i])));
-    host::check(std::isfinite(got[i]) &&
-                    std::fabs(static_cast<double>(got[i]) - expected[i]) <=
-                        kTolerance * scale,
-                kTest, std::string(label) + ": output mismatch at " +
-                           std::to_string(i));
+    host::check(std::isfinite(got[i]) && std::fabs(static_cast<double>(got[i]) -
+                                                   expected[i]) <= kTolerance * scale,
+                kTest, std::string(label) + ": output mismatch at " + std::to_string(i));
   }
   std::printf("PASS [%s] %s Lq=%zu Lk=%zu D=%zu Dv=%zu\n",
               kTest, label, lq, lk, d, dv);
