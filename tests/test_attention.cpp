@@ -68,8 +68,7 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
                         score_count * sizeof(float), cudaMemcpyDeviceToHost));
 
   for (std::size_t i = 0; i < score_count; ++i) {
-    const double score_scale =
-        std::max(1.0, std::fabs(expected_scores[i]));
+    const double score_scale = std::max(1.0, std::fabs(expected_scores[i]));
     host::check(std::isfinite(got_scores[i]) &&
                     std::fabs(static_cast<double>(got_scores[i]) - expected_scores[i]) <=
                         kScoreTolerance * score_scale,
