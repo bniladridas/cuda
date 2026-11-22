@@ -66,8 +66,8 @@ void launch_attention_fp32(const float* q, const float* k, const float* v, float
       q, k, scores, lq, lk, d, rsqrtf(static_cast<float>(d)));
   CUDA_CHECK_LAST_ERROR();
   launch_softmax(scores, probabilities, lq, lk, stream);
-  attention_values_kernel<<<value_grid, kBlockSize, 0, cuda_stream>>>(
-      probabilities, v, output, lq, lk, dv);
+  attention_values_kernel<<<value_grid, kBlockSize, 0, cuda_stream>>>(probabilities, v,
+                                                                      output, lq, lk, dv);
   CUDA_CHECK_LAST_ERROR();
 }
 
