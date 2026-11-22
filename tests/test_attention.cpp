@@ -43,7 +43,8 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
   CHECK_CUDA(cudaMalloc(&dprobabilities, score_count * sizeof(float)));
   CHECK_CUDA(cudaMemcpy(dq, q.data(), q.size() * sizeof(float), cudaMemcpyHostToDevice));
   CHECK_CUDA(cudaMemcpy(dk, k.data(), k.size() * sizeof(float), cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(dv_ptr, v.data(), v.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CHECK_CUDA(
+      cudaMemcpy(dv_ptr, v.data(), v.size() * sizeof(float), cudaMemcpyHostToDevice));
 
   cuda_kernels::launch_attention_fp32(dq, dk, dv_ptr, dout, dscores,
                                       dprobabilities, lq, lk, d, dv, nullptr);
