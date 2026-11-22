@@ -15,11 +15,10 @@ int main() {
   }
   const auto empty = host::attention_reference({}, {}, {}, 0, 2, 2, 2);
   host::check(empty.empty(), "attention_reference", "zero query length");
-  const auto stable = host::attention_reference(
-      {1000.0f, 1000.0f}, {1000.0f, 999.0f, -1000.0f, -999.0f},
-      {1.0f, 2.0f, 3.0f, 4.0f}, 1, 2, 2, 2);
-  host::check(stable.size() == 2 && std::isfinite(stable[0]) &&
-                  std::isfinite(stable[1]),
+  const auto stable =
+      host::attention_reference({1000.0f, 1000.0f}, {1000.0f, 999.0f, -1000.0f, -999.0f},
+                                {1.0f, 2.0f, 3.0f, 4.0f}, 1, 2, 2, 2);
+  host::check(stable.size() == 2 && std::isfinite(stable[0]) && std::isfinite(stable[1]),
               "attention_reference", "stable large logits");
   std::printf("OK [attention_reference] all host checks passed\n");
   return 0;
