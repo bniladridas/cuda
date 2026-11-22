@@ -40,8 +40,8 @@ __device__ __forceinline__ float block_sum(float value, float* warp_sums) {
 __global__ void layernorm_rows_kernel(const float* __restrict__ input,
                                       const float* __restrict__ gamma,
                                       const float* __restrict__ beta,
-                                      float* __restrict__ output,
-                                      std::size_t features, float epsilon) {
+                                      float* __restrict__ output, std::size_t features,
+                                      float epsilon) {
   __shared__ float warp_sums[kWarpsPerBlock];
   const std::size_t offset = static_cast<std::size_t>(blockIdx.x) * features;
 
