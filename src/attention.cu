@@ -32,9 +32,8 @@ __global__ void attention_scores_kernel(const float* __restrict__ q,
 
 __global__ void attention_values_kernel(const float* __restrict__ probabilities,
                                         const float* __restrict__ v,
-                                        float* __restrict__ output,
-                                        std::size_t lq, std::size_t lk,
-                                        std::size_t dv) {
+                                        float* __restrict__ output, std::size_t lq,
+                                        std::size_t lk, std::size_t dv) {
   const std::size_t row = blockIdx.y;
   const std::size_t col = static_cast<std::size_t>(blockIdx.x) * blockDim.x +
                           threadIdx.x;
