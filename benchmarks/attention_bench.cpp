@@ -55,8 +55,8 @@ bool run_case(const Shape& s, bench::Stats* stats) {
                                          cudaMemcpyHostToDevice),
                               "copy V");
   if (ok) {
-    cuda_kernels::launch_attention_fp32(dq, dk, dvalue, dout, dscores, dprob,
-                                        s.lq, s.lk, s.d, s.dv, nullptr);
+    cuda_kernels::launch_attention_fp32(dq, dk, dvalue, dout, dscores, dprob, s.lq, s.lk,
+                                        s.d, s.dv, nullptr);
     ok = bench::check_cuda(cudaDeviceSynchronize(), "attention correctness sync");
   }
   std::vector<float> got(expected.size());
