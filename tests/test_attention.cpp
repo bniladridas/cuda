@@ -29,7 +29,8 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
   auto k = host::random_floats(lk * d, -2.0f, 2.0f, seed + 1);
   const auto v = host::random_floats(lk * dv, -2.0f, 2.0f, seed + 2);
   if (challenging) {
-    for (float& value : k) value *= 40.0f;
+    for (float& value : k)
+      value *= 40.0f;
   }
   const auto expected = host::attention_reference(q, k, v, lq, lk, d, dv);
   const std::size_t score_count = lq * lk;
