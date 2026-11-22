@@ -46,8 +46,8 @@ void check_gemm_reference() {
   const std::vector<float> b = {7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
   const auto c = host::gemm_fp32_reference(a, b, 2, 2, 3);
   host::check(c.size() == 4, kTest, "GEMM output size");
-  host::check(c[0] == 58.0f && c[1] == 64.0f && c[2] == 139.0f && c[3] == 154.0f,
-              kTest, "GEMM row-major reference values");
+  host::check(c[0] == 58.0f && c[1] == 64.0f && c[2] == 139.0f && c[3] == 154.0f, kTest,
+              "GEMM row-major reference values");
   const auto one = host::gemm_fp32_reference({2.0f}, {3.0f}, 1, 1, 1);
   host::check(one.size() == 1 && one[0] == 6.0f, kTest, "GEMM scalar case");
 }
