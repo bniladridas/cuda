@@ -6,9 +6,9 @@
 #include "host_utils.h"
 
 int main() {
-  const auto output = host::attention_reference(
-      {1.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f},
-      {2.0f, 4.0f, 6.0f, 8.0f}, 2, 2, 2, 2);
+  const auto output =
+      host::attention_reference({1.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f},
+                                {2.0f, 4.0f, 6.0f, 8.0f}, 2, 2, 2, 2);
   host::check(output.size() == 4, "attention_reference", "output shape");
   for (float value : output) {
     host::check(std::isfinite(value), "attention_reference", "non-finite output");
