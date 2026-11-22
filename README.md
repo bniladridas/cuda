@@ -26,6 +26,7 @@ Three kernels, all implemented end to end:
 | `vecadd` | `c = a + b`, grid-stride | written | **GPU run pending** |
 | `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
 | `softmax` | stable row-wise FP32 normalization, one block per row | written | **GPU run pending** |
+| `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
 
 The hosted `cuda-compile` job compiles the CUDA sources with `nvcc`, but no
 kernel has been executed on a device yet. No performance numbers are published:
@@ -37,6 +38,10 @@ configures and the reference maths is right; it does not verify the kernels.
 ### How `softmax` works
 
 One CUDA block processes each row. Threads make strided passes to find the row maximum, sum the max-subtracted exponentials, and write normalized values. Warp shuffles and shared memory combine the eight warp partials. Arbitrary positive widths are supported, including widths that are not powers of two. Empty dimensions are no-ops.
+
+### How `gemm` works
+
+One CUDA block computes a 16×16 output tile. Threads cooperatively load A and B tiles into shared memory, accumulate dot products with FP32 fused multiply-add, and mask partial edge tiles. The row-major launcher accepts an explicit stream and treats zero dimensions as no-ops.
 
 ### How `reduce` works
 
@@ -113,7 +118,7 @@ CUDA_KERNELS_ARCH="86" ./runners/build.sh
 ```
 
 `test_host` runs anywhere and checks the CPU reference implementations.
-`test_vecadd`, `test_reduce`, and `test_softmax` need a GPU. A successful device query that
+`test_vecadd`, `test_reduce`, `test_softmax`, and `test_gemm` need a GPU. A successful device query that
 reports zero devices, or CUDA's explicit `cudaErrorNoDevice`, prints
 `SKIPPED: no CUDA device` and exits 0, so CTest counts them as passed.
 Other `cudaGetDeviceCount` failures, including insufficient-driver and
@@ -132,7 +137,7 @@ default list is `70;75;80;86;89;90`; rebuild with the target's value, for
 example `CUDA_KERNELS_ARCH="86" ./runners/build.sh`, then run the tests against
 the same `BUILD_DIR`.
 
-Softmax tests cover empty dimensions, one-column rows, uniform rows, large positive and negative logits, mixed magnitudes, irregular widths, multiple rows, and a non-default stream.
+Softmax tests cover empty dimensions, one-column rows, uniform rows, large positive and negative logits, mixed magnitudes, irregular widths, multiple rows, and a non-default stream. GEMM tests cover scalar, rectangular, partial 16×16 edge tiles, K-edge cases, and a non-default stream.
 
 Covered reduction edge cases: empty input, sub-warp sizes, block boundaries
 (255/256/257), grid-stride sizes, odd non-power-of-two lengths, all-zero and
@@ -144,13 +149,13 @@ cancellation.
 ```bash
 ./runners/benchmark.sh
 ./build/cuda_benchmarks --help
+bash ./runners/gemm-benchmark.sh
 ```
 
-The binary verifies every kernel at every size against a CPU reference and
-refuses to print timings if any case fails. Results are written as JSON with
-the device, driver, toolkit, commit and timestamp recorded. Methodology
-(events, warmup, median-of-batches, achieved vs peak bandwidth) is in
-[`docs/methodology.md`](docs/methodology.md).
+The existing binary benchmarks vector add and reduction. The separate GEMM
+benchmark checks each matrix shape against the CPU reference before timing and
+records M, N, K, tile shape, GPU, driver, CUDA runtime, commit and UTC timestamp
+in JSON. Methodology is in [`docs/methodology.md`](docs/methodology.md).
 
 Until a GPU run has been performed, there are no recorded results in this
 repository. [`docs/kaggle-run.md`](docs/kaggle-run.md) is the manual procedure
@@ -280,10 +285,10 @@ CUDA C++ remains the implementation core. C interoperability and Fortran are
 separate, evidence-gated follow-up tracks, not additional implementations in
 the current build.
 
-Kernel work: matrix multiplication and tiling, shared-memory and occupancy
-study, profiling-driven optimization, then comparison benchmarks against
-vendor-library equivalents. GPU-dependent work remains pending a recorded
-NVIDIA device run.
+Next GEMM work: profile the initial tiled kernel, study tile sizes and
+occupancy, then add profiling-driven optimization and separately measured
+vendor-library comparison benchmarks. GPU-dependent work remains pending a
+recorded NVIDIA device run.
 
 ## License
 

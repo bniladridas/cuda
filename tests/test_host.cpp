@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "cuda_kernels/gemm.cuh"
 #include "cuda_kernels/reduce.cuh"
 #include "cuda_kernels/vecadd.cuh"
 
@@ -38,6 +39,17 @@ void check_vecadd_reference() {
 
   const std::vector<float> empty;
   host::check(host::vecadd_reference(empty, empty).empty(), kTest, "empty not empty");
+}
+
+void check_gemm_reference() {
+  const std::vector<float> a = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+  const std::vector<float> b = {7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
+  const auto c = host::gemm_fp32_reference(a, b, 2, 2, 3);
+  host::check(c.size() == 4, kTest, "GEMM output size");
+  host::check(c[0] == 58.0f && c[1] == 64.0f && c[2] == 139.0f && c[3] == 154.0f,
+              kTest, "GEMM row-major reference values");
+  const auto one = host::gemm_fp32_reference({2.0f}, {3.0f}, 1, 1, 1);
+  host::check(one.size() == 1 && one[0] == 6.0f, kTest, "GEMM scalar case");
 }
 
 void check_sum_reference() {
@@ -89,6 +101,7 @@ void check_random_floats() {
 int main() {
   check_rel_error();
   check_vecadd_reference();
+  check_gemm_reference();
   check_sum_reference();
   check_random_floats();
   check_softmax_reference();
