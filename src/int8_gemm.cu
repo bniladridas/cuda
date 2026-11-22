@@ -43,8 +43,7 @@ void launch_gemm_int8(const std::int8_t* a, const std::int8_t* b, std::int32_t* 
   if (m == 0 || n == 0 || k == 0) return;
 
   constexpr std::size_t kSizeMax = std::numeric_limits<std::size_t>::max();
-  const bool products_fit = m <= kSizeMax / k && k <= kSizeMax / n &&
-                            m <= kSizeMax / n;
+  const bool products_fit = m <= kSizeMax / k && k <= kSizeMax / n && m <= kSizeMax / n;
   const std::size_t total = products_fit ? m * n : 0;
   const std::size_t blocks =
       total / kBlockSize + static_cast<std::size_t>(total % kBlockSize != 0);

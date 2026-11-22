@@ -22,9 +22,8 @@ const char* const kTest = "int8-gemm";
                 std::string(#expr " failed: ") + cudaGetErrorString(err__)); \
   } while (0)
 
-void run_case(const std::vector<std::int8_t>& a,
-              const std::vector<std::int8_t>& b, std::size_t m,
-              std::size_t n, std::size_t k, const char* label) {
+void run_case(const std::vector<std::int8_t>& a, const std::vector<std::int8_t>& b,
+              std::size_t m, std::size_t n, std::size_t k, const char* label) {
   const auto expected = host::gemm_int8_reference(a, b, m, n, k);
   host::check(expected.size() == m * n, kTest, "invalid CPU reference result");
   std::vector<std::int32_t> got(expected.size());
@@ -33,10 +32,10 @@ void run_case(const std::vector<std::int8_t>& a,
   CHECK_CUDA(cudaMalloc(&d_a, a.size() * sizeof(std::int8_t)));
   CHECK_CUDA(cudaMalloc(&d_b, b.size() * sizeof(std::int8_t)));
   CHECK_CUDA(cudaMalloc(&d_c, got.size() * sizeof(std::int32_t)));
-  CHECK_CUDA(cudaMemcpy(d_a, a.data(), a.size() * sizeof(std::int8_t),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(d_b, b.data(), b.size() * sizeof(std::int8_t),
-                        cudaMemcpyHostToDevice));
+  CHECK_CUDA(
+      cudaMemcpy(d_a, a.data(), a.size() * sizeof(std::int8_t), cudaMemcpyHostToDevice));
+  CHECK_CUDA(
+      cudaMemcpy(d_b, b.data(), b.size() * sizeof(std::int8_t), cudaMemcpyHostToDevice));
   cuda_kernels::launch_gemm_int8(d_a, d_b, d_c, m, n, k, nullptr);
   CHECK_CUDA(cudaDeviceSynchronize());
   CHECK_CUDA(cudaMemcpy(got.data(), d_c, got.size() * sizeof(std::int32_t),
@@ -63,8 +62,7 @@ void run_stream_case() {
   CHECK_CUDA(cudaMalloc(&d_c, got.size() * sizeof(std::int32_t)));
   CHECK_CUDA(cudaMemcpyAsync(d_a, a.data(), a.size(), cudaMemcpyHostToDevice, stream));
   CHECK_CUDA(cudaMemcpyAsync(d_b, b.data(), b.size(), cudaMemcpyHostToDevice, stream));
-  cuda_kernels::launch_gemm_int8(d_a, d_b, d_c, m, n, k,
-                                 reinterpret_cast<void*>(stream));
+  cuda_kernels::launch_gemm_int8(d_a, d_b, d_c, m, n, k, reinterpret_cast<void*>(stream));
   CHECK_CUDA(cudaMemcpyAsync(got.data(), d_c, got.size() * sizeof(std::int32_t),
                              cudaMemcpyDeviceToHost, stream));
   CHECK_CUDA(cudaStreamSynchronize(stream));
@@ -92,14 +90,13 @@ int main() {
     return 1;
   }
 
-  run_case({-128, 127, -1, 0, 1, 64}, {127, -128, 1, 0, -1, 32}, 1, 1, 6,
-           "signed-range");
+  run_case({-128, 127, -1, 0, 1, 64}, {127, -128, 1, 0, -1, 32}, 1, 1, 6, "signed-range");
   run_case(std::vector<std::int8_t>(17 * 23, static_cast<std::int8_t>(-128)),
-           std::vector<std::int8_t>(23 * 19, static_cast<std::int8_t>(127)),
-           17, 19, 23, "irregular-extremes");
+           std::vector<std::int8_t>(23 * 19, static_cast<std::int8_t>(127)), 17, 19, 23,
+           "irregular-extremes");
   run_case(std::vector<std::int8_t>(1, static_cast<std::int8_t>(-128)),
-           std::vector<std::int8_t>(1, static_cast<std::int8_t>(-128)),
-           1, 1, 1, "single-element");
+           std::vector<std::int8_t>(1, static_cast<std::int8_t>(-128)), 1, 1, 1,
+           "single-element");
   run_stream_case();
   std::printf("OK [%s] all cases passed\n", kTest);
   return 0;

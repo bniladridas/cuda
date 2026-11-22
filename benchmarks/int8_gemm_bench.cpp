@@ -23,20 +23,23 @@ bool run_case(std::size_t m, std::size_t n, std::size_t k, bench::Stats* stats) 
             bench::check_cuda(cudaMalloc(&d_b, b.size()), "allocate B") &&
             bench::check_cuda(cudaMalloc(&d_c, got.size() * sizeof(std::int32_t)),
                               "allocate C");
-  if (ok) ok = bench::check_cuda(cudaMemcpy(d_a, a.data(), a.size(), cudaMemcpyHostToDevice),
-                                 "copy A") &&
-               bench::check_cuda(cudaMemcpy(d_b, b.data(), b.size(), cudaMemcpyHostToDevice),
-                                 "copy B");
+  if (ok)
+    ok = bench::check_cuda(cudaMemcpy(d_a, a.data(), a.size(), cudaMemcpyHostToDevice),
+                           "copy A") &&
+         bench::check_cuda(cudaMemcpy(d_b, b.data(), b.size(), cudaMemcpyHostToDevice),
+                           "copy B");
   if (ok) {
     cuda_kernels::launch_gemm_int8(d_a, d_b, d_c, m, n, k, nullptr);
     ok = bench::check_cuda(cudaDeviceSynchronize(), "correctness sync") &&
          bench::check_cuda(cudaMemcpy(got.data(), d_c, got.size() * sizeof(std::int32_t),
-                                      cudaMemcpyDeviceToHost), "copy C") &&
+                                      cudaMemcpyDeviceToHost),
+                           "copy C") &&
          got == expected;
   }
   if (ok) {
-    ok = bench::measure([&] { cuda_kernels::launch_gemm_int8(d_a, d_b, d_c, m, n, k, nullptr); },
-                        100, 7, 20, stats);
+    ok = bench::measure(
+        [&] { cuda_kernels::launch_gemm_int8(d_a, d_b, d_c, m, n, k, nullptr); }, 100, 7,
+        20, stats);
   }
   if (d_a) ok = bench::check_cuda(cudaFree(d_a), "free A") && ok;
   if (d_b) ok = bench::check_cuda(cudaFree(d_b), "free B") && ok;
@@ -62,7 +65,8 @@ int main() {
   if (!bench::check_cuda(cudaGetDevice(&device), "get device") ||
       !bench::check_cuda(cudaGetDeviceProperties(&prop, device), "device properties") ||
       !bench::check_cuda(cudaRuntimeGetVersion(&runtime), "runtime version") ||
-      !bench::check_cuda(cudaDriverGetVersion(&driver), "driver version")) return 1;
+      !bench::check_cuda(cudaDriverGetVersion(&driver), "driver version"))
+    return 1;
 
   constexpr std::size_t k = 256;
   bench::Stats stats{};
