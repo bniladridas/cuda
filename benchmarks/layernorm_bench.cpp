@@ -64,9 +64,9 @@ bool run_case(const Shape& shape, bench::Stats* stats) {
 
   std::vector<float> got(count);
   if (ok) {
-    ok = bench::check_cuda(cudaMemcpy(got.data(), d_output, count * sizeof(float),
-                                      cudaMemcpyDeviceToHost),
-                           "copy output");
+    ok = bench::check_cuda(
+        cudaMemcpy(got.data(), d_output, count * sizeof(float), cudaMemcpyDeviceToHost),
+        "copy output");
   }
   for (std::size_t i = 0; ok && i < count; ++i) {
     const double scale = 1.0 + std::fabs(static_cast<double>(expected[i]));
