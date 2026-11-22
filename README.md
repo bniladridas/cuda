@@ -158,6 +158,7 @@ cancellation.
 ./build/cuda_benchmarks --help
 bash ./runners/gemm-benchmark.sh
 bash ./runners/layernorm-benchmark.sh
+./build/cuda_attention_benchmarks
 ```
 
 The existing binary benchmarks vector add and reduction. The separate GEMM

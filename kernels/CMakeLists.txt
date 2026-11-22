@@ -8,7 +8,8 @@ if(CUDA_KERNELS_HAVE_CUDA)
     ${PROJECT_SOURCE_DIR}/src/reduce.cu
     ${PROJECT_SOURCE_DIR}/src/softmax.cu
     ${PROJECT_SOURCE_DIR}/src/gemm.cu
-    ${PROJECT_SOURCE_DIR}/src/layernorm.cu)
+    ${PROJECT_SOURCE_DIR}/src/layernorm.cu
+    ${PROJECT_SOURCE_DIR}/src/attention.cu)
   target_include_directories(cudakernels
     PUBLIC ${PROJECT_SOURCE_DIR}/include
     PRIVATE ${PROJECT_SOURCE_DIR}/src)
