@@ -139,8 +139,8 @@ int main() {
     const auto& result = results[i];
     std::printf("    {\"rows\": %zu, \"features\": %zu, "
                 "\"median_ms\": %.6f, \"min_ms\": %.6f, \"p90_ms\": %.6f}%s\n",
-                shape.rows, shape.features, result.median_ms, result.min_ms, result.p90_ms,
-                i == 2 ? "" : ",");
+                shape.rows, shape.features, result.median_ms, result.min_ms,
+                result.p90_ms, i == 2 ? "" : ",");
   }
   std::printf("  ]\n}\n");
   return 0;
