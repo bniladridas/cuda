@@ -110,8 +110,8 @@ void check_layernorm_reference() {
   host::check(constant[0] == 1.0f && constant[1] == -1.0f && constant[2] == 1.0f &&
                   constant[3] == -1.0f,
               kTest, "constant-row layernorm should produce beta");
-  host::check(host::layernorm_reference({}, {}, {}, 0, 3, 1.0e-5f).empty(),
-              kTest, "zero-row layernorm");
+  host::check(host::layernorm_reference({}, {}, {}, 0, 3, 1.0e-5f).empty(), kTest,
+              "zero-row layernorm");
 }
 
 }  // namespace
