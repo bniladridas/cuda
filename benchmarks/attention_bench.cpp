@@ -36,9 +36,12 @@ bool run_case(const Shape& s, bench::Stats* stats) {
   if (!bench::check_cuda(cudaMalloc(&dq, q.size() * sizeof(float)), "alloc Q") ||
       !bench::check_cuda(cudaMalloc(&dk, k.size() * sizeof(float)), "alloc K") ||
       !bench::check_cuda(cudaMalloc(&dvalue, v.size() * sizeof(float)), "alloc V") ||
-      !bench::check_cuda(cudaMalloc(&dout, expected.size() * sizeof(float)), "alloc output") ||
-      !bench::check_cuda(cudaMalloc(&dscores, scratch_count * sizeof(float)), "alloc scores") ||
-      !bench::check_cuda(cudaMalloc(&dprob, scratch_count * sizeof(float)), "alloc probabilities")) {
+      !bench::check_cuda(cudaMalloc(&dout, expected.size() * sizeof(float)),
+                         "alloc output") ||
+      !bench::check_cuda(cudaMalloc(&dscores, scratch_count * sizeof(float)),
+                         "alloc scores") ||
+      !bench::check_cuda(cudaMalloc(&dprob, scratch_count * sizeof(float)),
+                         "alloc probabilities")) {
     cleanup();
     return false;
   }
