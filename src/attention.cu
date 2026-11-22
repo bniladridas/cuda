@@ -53,7 +53,7 @@ void launch_attention_fp32(const float* q, const float* k, const float* v, float
   if (lq == 0 || lk == 0 || d == 0 || dv == 0) return;
 
   CUDA_CHECK(lq <= kMaxGridY && (lk + kBlockSize - 1) / kBlockSize <= kMaxGridX &&
-             (dv + kBlockSize - 1) / kBlockSize <= kMaxGridX
+                     (dv + kBlockSize - 1) / kBlockSize <= kMaxGridX
                  ? cudaSuccess
                  : cudaErrorInvalidValue);
 
