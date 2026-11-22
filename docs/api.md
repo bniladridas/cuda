@@ -2,7 +2,8 @@
 
 The public launchers `launch_vecadd`, `launch_reduce`, `launch_softmax`,
 `launch_gemm_fp32`, `launch_layernorm_fp32`, and
-`launch_attention_fp32` enqueue their kernels on the caller-supplied CUDA
+`launch_attention_fp32, and
+`launch_gemm_int8`` enqueue their kernels on the caller-supplied CUDA
 stream. They do not synchronize that stream before returning.
 
 ## Caller responsibilities
@@ -137,3 +138,22 @@ scratch ranges must not overlap each other or Q, K, or V. The caller must keep
 all allocations alive until the stream completes. This staged baseline is not
 a fused or memory-efficient attention implementation. GPU runtime validation
 remains pending NVIDIA hardware.
+
+
+## Symmetric int8 matrix multiplication
+
+`launch_gemm_int8(a, b, c, m, n, k, stream)` computes row-major signed
+int8 matrix multiplication with exact signed int32 accumulation. Inputs use
+symmetric per-tensor quantization with zero-points fixed at zero. The output is
+the raw int32 accumulator, not a floating-point tensor. If the input scales
+are (s_a) and (s_b), the corresponding real-valued output is
+`float(c[row,n]) * (s_a * s_b)`; callers own scale storage and dequantization.
+
+The implementation uses a portable scalar CUDA arithmetic path and does not
+depend on architecture-specific integer matrix instructions. Each output is
+computed independently. For all possible int8 input values, the absolute sum
+is bounded by `K * 128 * 128`, so the launcher requires
+`K <= 131071` to prevent signed int32 overflow. Zero dimensions are no-ops.
+The input and output ranges must not overlap. The launch is asynchronous and
+uses the caller's stream. GPU execution and performance measurements remain
+pending NVIDIA hardware.

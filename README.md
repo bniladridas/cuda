@@ -19,7 +19,7 @@ point is the kernel, not the call into CUB.
 
 ## Status
 
-Six kernels, all implemented end to end:
+Seven kernels, implemented with CPU references and GPU tests:
 
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
@@ -27,6 +27,7 @@ Six kernels, all implemented end to end:
 | `reduce` | sum over `float` / `double`, warp-shuffle tree, two passes | written | **GPU run pending** |
 | `softmax` | stable row-wise FP32 normalization, one block per row | written | **GPU run pending** |
 | `gemm` | row-major FP32 matrix multiplication, 16×16 shared-memory tiles | written | **GPU run pending** |
+| `int8_gemm` | signed int8 matrix multiplication with int32 accumulation | written | **GPU run pending** |
 | `layernorm` | row-wise FP32 normalization with population variance | written | **GPU run pending** |\n| `attention` | staged non-causal single-head FP32 scaled dot-product attention | written | **GPU run pending** |
 
 The hosted `cuda-compile` job compiles the CUDA sources with `nvcc`, but no
@@ -43,6 +44,10 @@ One CUDA block processes each row. Threads make strided passes to find the row m
 ### How `layernorm` works
 
 One CUDA block processes each row. It computes the row mean, then the population variance in a second pass, and applies `(x - mean) / sqrt(variance + epsilon) * gamma + beta`. The default epsilon is `1e-5`; callers may provide another finite positive value. Invalid epsilon aborts under the library's fail-fast error policy. The output must not overlap input, gamma, or beta. Arbitrary positive feature widths are supported.
+
+### How `int8_gemm` works
+
+A portable scalar CUDA path computes one output per thread and accumulates signed int8 products in int32. The supported reduction length is limited to 131071 so every possible int8 input pair remains within the signed int32 range. For symmetric per-tensor quantization with zero-points fixed at zero, callers dequantize the accumulator with the product of the two input scales. No architecture-specific integer matrix instruction or inference-runtime compatibility is claimed.
 
 ### How `gemm` works
 
