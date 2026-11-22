@@ -69,10 +69,13 @@ bool run_case(const Shape& s, bench::Stats* stats) {
     ok = std::isfinite(got[i]) &&
          std::fabs(static_cast<double>(got[i]) - expected[i]) <= 8.0e-4 * scale;
   }
-  if (ok) ok = bench::measure([&] {
-    cuda_kernels::launch_attention_fp32(dq, dk, dvalue, dout, dscores, dprob,
-                                        s.lq, s.lk, s.d, s.dv, nullptr);
-  }, 100, 7, 20, stats);
+  if (ok)
+    ok = bench::measure(
+        [&] {
+          cuda_kernels::launch_attention_fp32(dq, dk, dvalue, dout, dscores, dprob, s.lq,
+                                              s.lk, s.d, s.dv, nullptr);
+        },
+        100, 7, 20, stats);
   cleanup();
   return ok;
 }
