@@ -134,8 +134,8 @@ int main() {
            host::random_floats(257, 0.5f, 1.5f, 15u),
            host::random_floats(257, -0.5f, 0.5f, 16u), 1.0e-5f, "irregular-257");
   run_case(2, 513, host::random_floats(1026, -1.0e4f, 1.0e4f, 17u),
-           std::vector<float>(513, 1.0f), std::vector<float>(513, 0.0f),
-           1.0e-5f, "large-magnitude-513");
+           std::vector<float>(513, 1.0f), std::vector<float>(513, 0.0f), 1.0e-5f,
+           "large-magnitude-513");
   run_stream_case();
 
   std::printf("OK [%s] all cases passed\n", kTest);
