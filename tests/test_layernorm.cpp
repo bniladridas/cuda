@@ -41,8 +41,10 @@ void run_case(std::size_t rows, std::size_t features, const std::vector<float>& 
         cudaMemcpy(d_input, input.data(), count * sizeof(float), cudaMemcpyHostToDevice));
   }
   if (features != 0) {
-    CHECK_CUDA(cudaMemcpy(d_gamma, gamma.data(), features * sizeof(float), cudaMemcpyHostToDevice));
-    CHECK_CUDA(cudaMemcpy(d_beta, beta.data(), features * sizeof(float), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_gamma, gamma.data(), features * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_beta, beta.data(), features * sizeof(float),
+                          cudaMemcpyHostToDevice));
   }
 
   cuda_kernels::launch_layernorm_fp32(d_input, d_gamma, d_beta, d_output, rows, features,
