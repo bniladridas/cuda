@@ -52,7 +52,8 @@ void run_case(std::size_t rows, std::size_t features, const std::vector<float>& 
   CHECK_CUDA(cudaDeviceSynchronize());
   std::vector<float> got(count);
   if (count != 0) {
-    CHECK_CUDA(cudaMemcpy(got.data(), d_output, count * sizeof(float), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(
+        cudaMemcpy(got.data(), d_output, count * sizeof(float), cudaMemcpyDeviceToHost));
   }
   for (std::size_t i = 0; i < count; ++i) {
     host::check(std::isfinite(got[i]), kTest, std::string(label) + ": non-finite output");
