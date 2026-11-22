@@ -64,8 +64,10 @@ void launch_attention_fp32(const float* q, const float* k, const float* v, float
                  : cudaErrorInvalidValue);
 
   const cudaStream_t cuda_stream = reinterpret_cast<cudaStream_t>(stream);
-  const dim3 score_grid(static_cast<unsigned int>(score_blocks), static_cast<unsigned int>(lq));
-  const dim3 value_grid(static_cast<unsigned int>(value_blocks), static_cast<unsigned int>(lq));
+  const dim3 score_grid(static_cast<unsigned int>(score_blocks),
+                        static_cast<unsigned int>(lq));
+  const dim3 value_grid(static_cast<unsigned int>(value_blocks),
+                        static_cast<unsigned int>(lq));
   attention_scores_kernel<<<score_grid, kBlockSize, 0, cuda_stream>>>(
       q, k, scores, lq, lk, d, rsqrtf(static_cast<float>(d)));
   CUDA_CHECK_LAST_ERROR();
