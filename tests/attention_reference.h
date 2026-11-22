@@ -34,7 +34,8 @@ inline std::vector<float> attention_reference(const std::vector<float>& q,
       weight = std::exp(weight - maximum);
       denominator += weight;
     }
-    for (double& weight : weights) weight /= denominator;
+    for (double& weight : weights)
+      weight /= denominator;
     for (std::size_t col = 0; col < dv; ++col) {
       double acc = 0.0;
       for (std::size_t key = 0; key < lk; ++key) {
