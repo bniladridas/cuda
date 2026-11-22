@@ -17,9 +17,8 @@ constexpr std::size_t kMaxGridY = 65535ULL;
 
 __global__ void attention_scores_kernel(const float* __restrict__ q,
                                         const float* __restrict__ k,
-                                        float* __restrict__ scores,
-                                        std::size_t lq, std::size_t lk,
-                                        std::size_t d, float scale) {
+                                        float* __restrict__ scores, std::size_t lq,
+                                        std::size_t lk, std::size_t d, float scale) {
   const std::size_t row = blockIdx.y;
   const std::size_t col = static_cast<std::size_t>(blockIdx.x) * blockDim.x +
                           threadIdx.x;
