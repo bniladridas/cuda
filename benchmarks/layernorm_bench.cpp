@@ -34,8 +34,10 @@ bool run_case(const Shape& shape, bench::Stats* stats) {
                          "cudaMalloc input") ||
       !bench::check_cuda(cudaMalloc(&d_gamma, gamma.size() * sizeof(float)),
                          "cudaMalloc gamma") ||
-      !bench::check_cuda(cudaMalloc(&d_beta, beta.size() * sizeof(float)), "cudaMalloc beta") ||
-      !bench::check_cuda(cudaMalloc(&d_output, count * sizeof(float)), "cudaMalloc output")) {
+      !bench::check_cuda(cudaMalloc(&d_beta, beta.size() * sizeof(float)),
+                         "cudaMalloc beta") ||
+      !bench::check_cuda(cudaMalloc(&d_output, count * sizeof(float)),
+                         "cudaMalloc output")) {
     if (d_input) cudaFree(d_input);
     if (d_gamma) cudaFree(d_gamma);
     if (d_beta) cudaFree(d_beta);
