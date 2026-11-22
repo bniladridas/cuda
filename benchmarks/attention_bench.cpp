@@ -108,7 +108,8 @@ int main() {
     const auto& r = results[i];
     std::printf("    {\"Lq\": %zu, \"Lk\": %zu, \"D\": %zu, \"Dv\": %zu, "
                 "\"median_ms\": %.6f, \"min_ms\": %.6f, \"p90_ms\": %.6f}%s\n",
-                s.lq, s.lk, s.d, s.dv, r.median_ms, r.min_ms, r.p90_ms, i == 2 ? "" : ",");
+                s.lq, s.lk, s.d, s.dv, r.median_ms, r.min_ms, r.p90_ms,
+                i == 2 ? "" : ",");
   }
   std::printf("  ]\n}\n");
   return 0;
