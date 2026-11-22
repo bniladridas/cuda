@@ -57,8 +57,7 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
                                                    expected[i]) <= kTolerance * scale,
                 kTest, std::string(label) + ": output mismatch at " + std::to_string(i));
   }
-  std::printf("PASS [%s] %s Lq=%zu Lk=%zu D=%zu Dv=%zu\n",
-              kTest, label, lq, lk, d, dv);
+  std::printf("PASS [%s] %s Lq=%zu Lk=%zu D=%zu Dv=%zu\n", kTest, label, lq, lk, d, dv);
   CHECK_CUDA(cudaFree(dq));
   CHECK_CUDA(cudaFree(dk));
   CHECK_CUDA(cudaFree(dv_ptr));
