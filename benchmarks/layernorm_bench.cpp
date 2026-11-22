@@ -121,7 +121,8 @@ int main() {
   bench::Stats results[3];
   for (std::size_t i = 0; i < 3; ++i) {
     if (!run_case(shapes[i], &results[i])) {
-      std::fprintf(stderr, "LayerNorm correctness or timing failed for rows=%zu features=%zu\n",
+      std::fprintf(stderr,
+                   "LayerNorm correctness or timing failed for rows=%zu features=%zu\n",
                    shapes[i].rows, shapes[i].features);
       return 1;
     }
