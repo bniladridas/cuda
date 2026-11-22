@@ -110,4 +110,38 @@ inline std::vector<float> softmax_reference(const std::vector<float>& input,
   }
   return output;
 }
+inline std::vector<float> layernorm_reference(const std::vector<float>& input,
+                                              const std::vector<float>& gamma,
+                                              const std::vector<float>& beta,
+                                              std::size_t rows, std::size_t features,
+                                              float epsilon) {
+  if (rows == 0 || features == 0) return {};
+  if (input.size() != rows * features || gamma.size() != features ||
+      beta.size() != features || !(epsilon > 0.0f) || !std::isfinite(epsilon)) {
+    fail("layernorm_reference", "invalid shape or epsilon");
+  }
+  std::vector<float> output(input.size());
+  for (std::size_t row = 0; row < rows; ++row) {
+    const std::size_t offset = row * features;
+    double sum = 0.0;
+    for (std::size_t col = 0; col < features; ++col)
+      sum += static_cast<double>(input[offset + col]);
+    const double mean = sum / static_cast<double>(features);
+    double squared_deviation = 0.0;
+    for (std::size_t col = 0; col < features; ++col) {
+      const double delta = static_cast<double>(input[offset + col]) - mean;
+      squared_deviation += delta * delta;
+    }
+    const double variance = squared_deviation / static_cast<double>(features);
+    const double inverse_stddev = 1.0 / std::sqrt(variance + static_cast<double>(epsilon));
+    for (std::size_t col = 0; col < features; ++col) {
+      const double normalized =
+          (static_cast<double>(input[offset + col]) - mean) * inverse_stddev;
+      output[offset + col] =
+          static_cast<float>(normalized * static_cast<double>(gamma[col]) + beta[col]);
+    }
+  }
+  return output;
+}
+
 }  // namespace host
