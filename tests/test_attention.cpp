@@ -46,8 +46,8 @@ void run_case(std::size_t lq, std::size_t lk, std::size_t d, std::size_t dv,
   CHECK_CUDA(
       cudaMemcpy(dv_ptr, v.data(), v.size() * sizeof(float), cudaMemcpyHostToDevice));
 
-  cuda_kernels::launch_attention_fp32(dq, dk, dv_ptr, dout, dscores,
-                                      dprobabilities, lq, lk, d, dv, nullptr);
+  cuda_kernels::launch_attention_fp32(dq, dk, dv_ptr, dout, dscores, dprobabilities, lq,
+                                      lk, d, dv, nullptr);
   CHECK_CUDA(cudaDeviceSynchronize());
   std::vector<float> got(expected.size());
   CHECK_CUDA(
