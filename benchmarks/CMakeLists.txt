@@ -16,6 +16,13 @@ if(CUDA_KERNELS_HAVE_CUDA)
   target_link_libraries(cuda_gemm_benchmarks PRIVATE cuda_kernels::cudakernels)
   cuda_kernels_set_host_warnings(cuda_gemm_benchmarks)
 
+  add_executable(cuda_layernorm_benchmarks ${CMAKE_CURRENT_SOURCE_DIR}/layernorm_bench.cpp)
+  target_include_directories(cuda_layernorm_benchmarks
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src
+            ${PROJECT_SOURCE_DIR}/tests)
+  target_link_libraries(cuda_layernorm_benchmarks PRIVATE cuda_kernels::cudakernels)
+  cuda_kernels_set_host_warnings(cuda_layernorm_benchmarks)
+
   # Not a ctest test: timing is not a correctness assertion. Correctness is
   # gated inside each binary before it prints any performance figure.
 endif()

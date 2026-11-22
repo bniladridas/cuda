@@ -103,3 +103,21 @@ bash runners/gemm-benchmark.sh
 
 The recorded measurements are workload-specific. Do not compare them with
 vector-add bandwidth figures or claim a speedup without a controlled baseline.
+
+
+## LayerNorm benchmark
+
+The FP32 row-wise LayerNorm benchmark checks each workload against the
+double-precision CPU reference before timing. It covers a small launch-bound
+shape, a representative hidden width, and a wider row. It records rows,
+features, epsilon, median/min/p90 latency, GPU name, compute capability,
+driver, CUDA runtime, full Git commit, and UTC timestamp.
+
+Run it on an NVIDIA host after building:
+
+```bash
+bash runners/layernorm-benchmark.sh
+```
+
+Do not compare these measurements with GEMM or bandwidth-kernel figures.
+They describe only this kernel, these shapes, and the recorded device.

@@ -1,7 +1,8 @@
 # CUDA launch and error-reporting contract
 
-The public launchers `launch_vecadd`, `launch_reduce`, and `launch_softmax` enqueue their kernels
-on the caller-supplied CUDA stream. They do not synchronize that stream before
+The public launchers `launch_vecadd`, `launch_reduce`, `launch_softmax`,
+`launch_gemm_fp32`, and `launch_layernorm_fp32` enqueue their kernels on
+the caller-supplied CUDA stream. They do not synchronize that stream before
 returning.
 
 ## Caller responsibilities
@@ -44,8 +45,7 @@ immediate launch check.
 
 static void check_cuda(cudaError_t status) {
   if (status != cudaSuccess) {
-    std::fprintf(stderr, "CUDA error: %s
-", cudaGetErrorString(status));
+    std::fprintf(stderr, "CUDA error: %s\\n", cudaGetErrorString(status));
     std::abort();
   }
 }
@@ -76,8 +76,7 @@ int main() {
   // here, so check the synchronization result.
   check_cuda(cudaStreamSynchronize(stream));
 
-  std::printf("c[0] = %.1f
-", host_c[0]);
+  std::printf("c[0] = %.1f\\n", host_c[0]);
 
   check_cuda(cudaFree(a));
   check_cuda(cudaFree(b));
@@ -93,4 +92,29 @@ operation, including copies and synchronization.
 
 ## Row-wise softmax
 
-`launch_softmax(input, output, rows, columns, stream)` accepts contiguous row-major FP32 input and output matrices. Each row is normalized independently using max-subtracted exponentials. The implementation uses one 256-thread CUDA block per row. Positive, non-power-of-two column counts are supported. If either dimension is zero, the call is a no-op and does not access either pointer. Input and output ranges must not overlap. One block is launched per row, so `rows` must fit the device grid-x limit. The launch is asynchronous and follows the same stream and error-reporting contract described above.
+`launch_softmax(input, output, rows, columns, stream)` accepts contiguous
+row-major FP32 input and output matrices. Each row is normalized independently
+using max-subtracted exponentials. The implementation uses one 256-thread CUDA
+block per row. Positive, non-power-of-two column counts are supported. If
+either dimension is zero, the call is a no-op and does not access either
+pointer. Input and output ranges must not overlap. One block is launched per
+row, so `rows` must fit the device grid-x limit. The launch is asynchronous
+and follows the same stream and error-reporting contract described above.
+
+## Row-wise layer normalization
+
+`launch_layernorm_fp32(input, gamma, beta, output, rows, features, epsilon, stream)`
+accepts contiguous row-major FP32 input with shape `[rows, features]`, plus
+per-feature `gamma` and `beta` arrays of length `features`. Each row uses
+population variance and computes
+`(x - mean) / sqrt(variance + epsilon) * gamma + beta`. Epsilon defaults to
+`1e-5f` and must be finite and strictly positive when both dimensions are
+non-zero. An invalid epsilon triggers the library's fail-fast
+`cudaErrorInvalidValue` check. A zero row or feature dimension is a no-op and
+does not access any pointer or validate epsilon.
+
+The output range must not overlap the input, gamma, or beta ranges. The three
+read-only input ranges may overlap. The caller is responsible for providing
+valid device pointers and sufficient storage for the documented shapes.
+One CUDA block is launched per row. The operation is asynchronous and follows
+the stream and synchronization contract above.
