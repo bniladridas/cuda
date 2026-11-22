@@ -47,10 +47,9 @@ __global__ void attention_values_kernel(const float* __restrict__ probabilities,
 
 }  // namespace
 
-void launch_attention_fp32(const float* q, const float* k, const float* v,
-                           float* output, float* scores, float* probabilities,
-                           std::size_t lq, std::size_t lk, std::size_t d,
-                           std::size_t dv, void* stream) {
+void launch_attention_fp32(const float* q, const float* k, const float* v, float* output,
+                           float* scores, float* probabilities, std::size_t lq,
+                           std::size_t lk, std::size_t d, std::size_t dv, void* stream) {
   if (lq == 0 || lk == 0 || d == 0 || dv == 0) return;
 
   CUDA_CHECK(lq <= kMaxGridY && (lk + kBlockSize - 1) / kBlockSize <= kMaxGridX &&
