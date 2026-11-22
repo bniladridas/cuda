@@ -84,7 +84,8 @@ bool run_case(const Shape& s, bench::Stats* stats) {
 int main() {
   int devices = 0;
   const cudaError_t status = cudaGetDeviceCount(&devices);
-  const auto availability = cuda_device::classify_device_count(status, devices, cudaSuccess, cudaErrorNoDevice);
+  const auto availability =
+      cuda_device::classify_device_count(status, devices, cudaSuccess, cudaErrorNoDevice);
   if (availability == cuda_device::Availability::kUnavailable) {
     std::printf("SKIPPED [attention-benchmark]: no CUDA device\n");
     return 2;
