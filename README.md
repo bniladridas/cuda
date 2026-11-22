@@ -19,7 +19,7 @@ point is the kernel, not the call into CUB.
 
 ## Status
 
-Three kernels, all implemented end to end:
+Five kernels, all implemented end to end:
 
 | Kernel | What it does | Correctness tests | Validated |
 | ------ | ------------ | ----------------- | --------- |
@@ -42,7 +42,7 @@ One CUDA block processes each row. Threads make strided passes to find the row m
 
 ### How `layernorm` works
 
-One CUDA block processes each row. It computes the row mean, then the population variance in a second pass, and applies `(x - mean) / sqrt(variance + epsilon) * gamma + beta`. The default epsilon is `1e-5`; callers may provide another finite positive value. Arbitrary positive feature widths are supported.
+One CUDA block processes each row. It computes the row mean, then the population variance in a second pass, and applies `(x - mean) / sqrt(variance + epsilon) * gamma + beta`. The default epsilon is `1e-5`; callers may provide another finite positive value. Invalid epsilon aborts under the library's fail-fast error policy. The output must not overlap input, gamma, or beta. Arbitrary positive feature widths are supported.
 
 ### How `gemm` works
 
@@ -75,7 +75,7 @@ reorders the sums. Tests compare with a relative tolerance, not for equality.
 
 ## Public API contract
 
-The launchers are asynchronous and report immediate launch failures using a fail-fast check. Callers must synchronize the relevant stream before consuming results. See [`docs/api.md`](docs/api.md) for the error-reporting details and a usage example.
+The launchers are asynchronous and report immediate launch failures using a fail-fast check. Callers must synchronize the relevant stream before consuming results. See [`docs/api.md`](docs/api.md) for the error-reporting details and usage examples.
 
 ## Requirements
 
@@ -142,7 +142,8 @@ default list is `70;75;80;86;89;90`; rebuild with the target's value, for
 example `CUDA_KERNELS_ARCH="86" ./runners/build.sh`, then run the tests against
 the same `BUILD_DIR`.
 
-Layer-normalization tests cover constant rows, single-feature rows, large magnitudes, irregular feature widths, and a non-default stream.
+Layer-normalization tests cover zero dimensions, constant rows, single-feature
+rows, large magnitudes, irregular feature widths, and a non-default stream.
 
 Softmax tests cover empty dimensions, one-column rows, uniform rows, large positive and negative logits, mixed magnitudes, irregular widths, multiple rows, and a non-default stream. GEMM tests cover scalar, rectangular, partial 16×16 edge tiles, K-edge cases, and a non-default stream.
 
@@ -157,48 +158,27 @@ cancellation.
 ./runners/benchmark.sh
 ./build/cuda_benchmarks --help
 bash ./runners/gemm-benchmark.sh
+bash ./runners/layernorm-benchmark.sh
 ```
 
 The existing binary benchmarks vector add and reduction. The separate GEMM
 benchmark checks each matrix shape against the CPU reference before timing and
 records M, N, K, tile shape, GPU, driver, CUDA runtime, commit and UTC timestamp
-in JSON. Methodology is in [`docs/methodology.md`](docs/methodology.md).
+in JSON. The LayerNorm benchmark checks three representative row/feature
+shapes against the double-precision CPU reference before timing and records
+shape, epsilon, median/min/p90 latency, GPU, compute capability, driver, CUDA
+runtime, commit and UTC timestamp in JSON. No result is recorded until the
+benchmark runs on a real NVIDIA device. Methodology is in
+[`docs/methodology.md`](docs/methodology.md).
 
 Until a GPU run has been performed, there are no recorded results in this
 repository. [`docs/kaggle-run.md`](docs/kaggle-run.md) is the manual procedure
 for performing one on a free Kaggle GPU session and capturing the evidence.
 
-Correctness runs before any timing. Each size is then warmed up once and
-measured with replicated batches:
-
-```mermaid
-flowchart LR
-    A["Correctness gate<br/>every kernel, every size<br/>versus CPU reference"] -->|"all pass"| B["Warmup: 20 launches<br/>discarded"]
-    A -->|"any failure"| X["exit 1, no timings<br/>printed"]
-    B --> C["7 timed batches<br/>cudaEvent around 200 launches each"]
-    C --> D["Per-launch time<br/>= batch total / 200"]
-    D --> E["Report median, min, p90<br/>of the 7 per-launch times"]
-```
-
-The median is the headline figure; min and p90 show spread. A batch is timed
-launch-to-completion, so the figure includes what a caller actually pays.
-
-Once a result file exists, plot it against the device's spec-sheet peak:
-
-```bash
-PEAK_GBPS=600 ./runners/plot.sh   # writes benchmarks/results/<result>.png
-```
-
-`runners/plot.sh` uses the newest file in `benchmarks/results/` and needs
-matplotlib (`pip install matplotlib`); it is not a build dependency. With no
-result file or no `PEAK_GBPS` it exits 2 and draws nothing. The script has been
-exercised against hand-made fixtures only: **no chart here has been produced
-from a real device yet.**
-
-There is intentionally no bandwidth chart in this README. The first one will
-be added together with the JSON result it was drawn from, so the image can be
-traced to a recorded run. Until then, the Status table says `GPU run pending`
-and that is the accurate description.
+Correctness runs before any timing. Each size is then warmed up and measured
+with replicated batches. The median is the headline figure; min and p90 show
+spread. A batch is timed launch-to-completion, so the figure includes what a
+caller actually pays.
 
 ## Layout
 
@@ -207,14 +187,14 @@ include/cuda_kernels/   public launcher APIs (no CUDA types in signatures)
 src/                    kernel implementations
 kernels/                library target
 tests/                  host reference checks + GPU correctness tests
-benchmarks/             timing harness and benchmark binary
+benchmarks/             timing harness and benchmark binaries
 pr-confidence/          PR Confidence engine and its offline tests
 pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
 docs/                   hardware, methodology, C++ quality, PR confidence, label review and PR Scope Guard
 label-review/           reusable issue label review engine and tests
 format-repair/          approval-gated C/C++/CUDA and Python formatting repair
-issue-landing/          issue landing report engine and offline tests
+issue-landing/          auditable linked-issue reports
 squash-merge/            maintainer-approved squash-merge policy engine and tests
 rebase-agent/            safe PR rebase and bounded repair engines with tests
 ```
@@ -226,76 +206,25 @@ rebase-agent/            safe PR rebase and bounded repair engines with tests
   host-only CMake build and reference tests, verifies GPU binaries are absent,
   checks runner skip handling, formats C++/CUDA sources, and runs host-side
   clang-tidy. It also runs offline tests for label review, issue landing, PR
-  confidence, PR Scope Guard, format repair, squash-merge policy, and the
-  rebase safety, merge integration, tree inspection, and bounded repair engines.
+  confidence, PR Scope Guard, format repair, squash-merge, and rebase-agent.
   CUDA sources are formatted but not compiled or analyzed here.
 - `python`: GitHub-hosted, runs Ruff lint and format checks, coverage, and the
-  selected Python suites: PR confidence, label review, PR Scope Guard, format
-  repair, squash-merge, rebase-agent, and benchmarks. Issue-landing tests run in
-  the CPU job. Dependency versions are pinned in
-  `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
-  toolkit is required.
+  selected Python suites. No CUDA toolkit is required.
 - `cuda-compile`: GitHub-hosted Ubuntu 22.04 container using the pinned
   `nvidia/cuda:12.6.3-devel-ubuntu22.04` image and CMake 3.31.6. It compiles the
-  kernel library, all GPU test executables, and the benchmark for architectures
-  70, 75, 80, 86, 89, and 90. It does not execute tests or require an NVIDIA
-  device. This is compile evidence only, not GPU runtime validation.
-- `pr-confidence`: triggered by pull request activity, waits for the configured
-  checks, and publishes a read-only `PR Confidence` summary in the Checks UI. It
-  uses `pull_request_target`, so the workflow and engine come from the base
-  branch; it never checks out pull request code and uses a read-only token with
-  no secrets. Treat the score as advisory alongside the checks it reads. The
-  check activates for later pull requests after this workflow merges. Rubric and
-  setup in [`docs/pr-confidence.md`](docs/pr-confidence.md).
-- `format-repair`: read-only C/C++/CUDA and Python formatting reports on pull-request activity;
-  formatting commits require the `format-fix:approved` label from an
-  authorized maintainer. Fork PRs remain report-only. It never approves or
-  merges a pull request. Details in `docs/format-repair.md`.
-- `pr-scope-guard`: read-only and advisory. On pull request activity it
-  compares the title's declared scope with the changed files using
-  `.github/pr-scopes.json` and `.github/pr-scope-guard.yml`, then writes a
-  summary and JSON artifact. It never comments, labels, approves, blocks or
-  merges. Findings do not fail the check.
-- `squash-merge`: explicit maintainer approval via `squash-merge:approved` triggers a guarded squash-only merge attempt. It validates the maintainer, same-repository target, exact head SHA, independent reviewer approval, and observed checks. GitHub remains authoritative for branch protection and required checks. Formatting approval never authorizes a merge. Setup in [`docs/squash-merge.md`](docs/squash-merge.md).
-
-- `lock-merged-pr`: runs when a pull request closes and locks the conversation
-  with reason `resolved` only when the pull request was merged. It uses
-  `pull_request_target` so the workflow comes from the base branch, needs only
-  `issues: write`, and checks out no code. Unmerged closed pull requests remain
-  unlocked.
+  kernel library, all GPU test executables, and the benchmark binaries for
+  architectures 70, 75, 80, 86, 89, and 90. It does not execute tests or require
+  an NVIDIA device. This is compile evidence only, not GPU runtime validation.
 - `gpu`: self-hosted NVIDIA Linux runner
   (`self-hosted, linux, x64, nvidia, cuda`), compiles the kernels, runs the
-  GPU correctness tests and a benchmark. The test step sets `GPU_REQUIRED=1`, so
-  a runner without a working device fails instead of skipping. Gated on the
-  repository variable `CUDA_CI_ENABLED=true` so it is skipped, not queued, until
-  that hardware is registered; it has never run. Setup in
-  [`docs/hardware.md`](docs/hardware.md).
-- `codeql`: C/C++ static analysis on the hosted runner, using CodeQL's
-  `build-mode: none` so no CUDA toolkit is needed. Two known limitations: it does
-  not extract `.cu` files, so `src/vecadd.cu` and `src/reduce.cu` are never
-  scanned; and it reported zero results on deliberately planted bounds bugs,
-  including one in a scanned `.cpp` file. It covers no kernel code and is not
-  relied on as a safety net; the CPU job's host-side clang-tidy is complementary
-  and covers `tests/test_host.cpp` and the CUDA-free public headers only. CodeQL
-  is kept as a scheduled check for when query coverage improves.
+  GPU correctness tests and benchmarks. The test step sets `GPU_REQUIRED=1`,
+  so a runner without a working device fails instead of skipping. Gated on
+  `CUDA_CI_ENABLED=true` so it is skipped until that hardware is registered.
 
 ## Review automation
 
-- `codex-review`: apply `codex:review` to request a Codex PR review. The workflow posts `@codex review` and consumes the label after posting. Codex must be connected and enabled; confirm that it responds to a bot-authored command comment during the first smoke test. Setup in [`docs/codex-review.md`](docs/codex-review.md).
-- `rebase-approved`: an authorized maintainer can apply `rebase:approved` to update an open, non-draft, same-repository PR targeting `main`. The workflow verifies the exact PR head and base state, then asks GitHub to update the branch. It uses a write-scoped rebase token and GitHub's signed update commit; it does not merge the PR.
-- `issue-landing`: after a PR is merged, generates an auditable report for linked issues and posts it as an issue comment. A manual dispatch can generate a report for one issue. Closing is a separate, optional path requiring the repository variable, an approved report digest, and the protected `issue-landing-close` environment. See [`issue-landing/`](issue-landing/).
-
-## Roadmap
-
-The language and architecture audit is in [`docs/language-roadmap.md`](docs/language-roadmap.md).
-CUDA C++ remains the implementation core. C interoperability and Fortran are
-separate, evidence-gated follow-up tracks, not additional implementations in
-the current build.
-
-Next GEMM work: profile the initial tiled kernel, study tile sizes and
-occupancy, then add profiling-driven optimization and separately measured
-vendor-library comparison benchmarks. GPU-dependent work remains pending a
-recorded NVIDIA device run.
+Repository review and merge workflows are documented in their respective
+files under `docs/`.
 
 ## License
 

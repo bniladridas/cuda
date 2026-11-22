@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,7 @@ void check_sum_reference() {
 }
 
 void check_softmax_reference() {
-  const std::vector<float> input = {1000.0f,  1001.0f, 999.0f,
+  const std::vector<float> input = {1000.0f, 1001.0f, 999.0f,
                                     -1000.0f, -999.0f, -1001.0f};
   const auto output = host::softmax_reference(input, 2, 3);
   host::check(output.size() == input.size(), kTest, "softmax output size");
@@ -112,6 +113,19 @@ void check_layernorm_reference() {
               kTest, "constant-row layernorm should produce beta");
   host::check(host::layernorm_reference({}, {}, {}, 0, 3, 1.0e-5f).empty(), kTest,
               "zero-row layernorm");
+
+  host::check(cuda_kernels::detail::is_valid_layernorm_epsilon(1.0e-5f), kTest,
+              "positive finite epsilon rejected");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(0.0f), kTest,
+              "zero epsilon accepted");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(-1.0f), kTest,
+              "negative epsilon accepted");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(
+                  std::numeric_limits<float>::infinity()),
+              kTest, "infinite epsilon accepted");
+  host::check(!cuda_kernels::detail::is_valid_layernorm_epsilon(
+                  std::numeric_limits<float>::quiet_NaN()),
+              kTest, "NaN epsilon accepted");
 }
 
 }  // namespace

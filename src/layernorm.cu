@@ -86,6 +86,8 @@ void launch_layernorm_fp32(const float* input, const float* gamma, const float* 
   if (rows == 0 || features == 0) {
     return;
   }
+  CUDA_CHECK(detail::is_valid_layernorm_epsilon(epsilon) ? cudaSuccess
+                                                         : cudaErrorInvalidValue);
   layernorm_rows_kernel<<<static_cast<unsigned int>(rows), kBlockSize, 0,
                           reinterpret_cast<cudaStream_t>(stream)>>>(
       input, gamma, beta, output, features, epsilon);
