@@ -30,7 +30,8 @@ bool run_case(const Shape& shape, bench::Stats* stats) {
       host::layernorm_reference(input, gamma, beta, shape.rows, shape.features, kEpsilon);
 
   float *d_input = nullptr, *d_gamma = nullptr, *d_beta = nullptr, *d_output = nullptr;
-  if (!bench::check_cuda(cudaMalloc(&d_input, count * sizeof(float)), "cudaMalloc input") ||
+  if (!bench::check_cuda(cudaMalloc(&d_input, count * sizeof(float)),
+                         "cudaMalloc input") ||
       !bench::check_cuda(cudaMalloc(&d_gamma, gamma.size() * sizeof(float)),
                          "cudaMalloc gamma") ||
       !bench::check_cuda(cudaMalloc(&d_beta, beta.size() * sizeof(float)), "cudaMalloc beta") ||
