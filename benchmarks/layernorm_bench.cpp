@@ -77,8 +77,9 @@ bool run_case(const Shape& shape, bench::Stats* stats) {
   if (ok) {
     ok = bench::measure(
         [&] {
-          cuda_kernels::launch_layernorm_fp32(d_input, d_gamma, d_beta, d_output, shape.rows,
-                                              shape.features, kEpsilon, nullptr);
+          cuda_kernels::launch_layernorm_fp32(d_input, d_gamma, d_beta, d_output,
+                                              shape.rows, shape.features, kEpsilon,
+                                              nullptr);
         },
         100, 7, 20, stats);
   }
