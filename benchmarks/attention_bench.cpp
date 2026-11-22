@@ -13,7 +13,9 @@
 #include "host_utils.h"
 
 namespace {
-struct Shape { std::size_t lq, lk, d, dv; };
+struct Shape {
+  std::size_t lq, lk, d, dv;
+};
 
 bool run_case(const Shape& s, bench::Stats* stats) {
   const auto q = host::random_floats(s.lq * s.d, -1.0f, 1.0f, 701u);
