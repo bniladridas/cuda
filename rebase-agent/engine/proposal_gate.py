@@ -78,8 +78,7 @@ def main():
             (base_branch, expected_base, "PR base"),
         ):
             info = api(
-                "/repos/%s/branches/%s"
-                % (repository, urllib.parse.quote(branch, safe=""))
+                "/repos/%s/branches/%s" % (repository, urllib.parse.quote(branch, safe=""))
             )
             if not info or info.get("commit", {}).get("sha", "").lower() != expected:
                 raise GateError(label + " branch moved or could not be verified")
