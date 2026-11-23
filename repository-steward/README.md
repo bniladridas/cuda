@@ -20,7 +20,10 @@ python3 -m unittest discover -s repository-steward/tests
 
 The report engine can also consume an existing JSON snapshot without network
 access. The snapshot collector uses read-only GitHub API operations and does
-not execute code from pull requests.
+not execute code from pull requests. Label Review and Issue Landing workflow
+evidence is accepted only for the exact default-branch SHA observed during
+snapshot collection. Pull-request review decisions come from GitHub's
+`reviewDecision` field; unavailable GraphQL evidence is reported as `unknown`.
 
 Repository Health checks relative Markdown links, JSON and GitHub Actions YAML
 syntax, duplicate mapping keys, and local action references. It is read-only.
@@ -29,7 +32,7 @@ for these checks.
 
 ## Snapshot contract
 
-- `repository`, `head_sha`
+- `repository`, timezone-aware `generated_at`, `head_sha`
 - `issues[]`: number, title, body, state, labels, assignees, updated_at,
   optional linked_pr_numbers, dependency_numbers, acceptance_criteria and
   acceptance_criteria_status. Explicit checkboxes are preserved as complete or
@@ -50,7 +53,7 @@ for these checks.
   `release_version`. Missing version evidence is reported as unavailable,
   never inferred from a tag or a project file alone.
 - optional `integration_evidence` entries for `label_review` and
-  `issue_landing`, each carrying state, head SHA, optional expected SHA,
+  `issue_landing`, each carrying state, observed head SHA, exact expected SHA,
   source, URL and details
 - optional `pull_request_integrations[pr_number]` entries for
   `pr_confidence` and `pr_scope_guard`. Each entry carries workflow state,
@@ -125,8 +128,14 @@ Issue tracking reports owner presence and activity age when the snapshot include
 a timezone-aware `generated_at` timestamp. Open issues without assignees are
 flagged as unowned. Open issues with no recorded activity for at least 30 days
 are flagged as stale by default. The threshold is configurable through
-`analyze_tracking(..., stale_after_days=N)`. Missing or invalid timestamps remain
-unknown rather than being treated as stale.
+`analyze_tracking(..., stale_after_days=N)`. Activity age is calculated only
+when both `generated_at` and `updated_at` are timezone-aware timestamps. Missing
+or invalid timestamps remain unknown rather than being treated as stale.
+
+Closure readiness is a human-review candidate, not a close command. It requires
+all criteria to be explicitly checked, dependencies to be closed, and every
+linked pull request to be verified merged. Ordinary bullets remain unverified.
+Missing evidence blocks the candidate. No issue state is changed.
 
 ## Documentation drift checks
 
