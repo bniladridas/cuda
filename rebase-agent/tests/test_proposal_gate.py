@@ -72,7 +72,7 @@ class ProposalGateTests(unittest.TestCase):
 
     def test_rejects_fork_pr(self):
         self.responses["/repos/owner/repo/pulls/12"]["head"]["repo"] = {
-            "full_name": "contributor/fork"
+            "full_name": "contributor/fork",
         }
         with self.assertRaises(SystemExit):
             self.run_gate()
