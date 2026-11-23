@@ -42,3 +42,23 @@ Existing Label Review, Issue Landing, PR Confidence, PR Scope Guard,
 Squash Merge and Rebase Agent remain separate engines. This coordinator records
 their integration boundaries; it does not replace their policy or workflow
 execution.
+
+## Benchmark integrity
+
+The coordinator validates provenance fields added by `benchmarks/provenance.py`
+and the device and measurement metadata emitted by the benchmark binary. A
+valid record is not, by itself, permission to publish a performance claim.
+Methodology remains documented in `docs/methodology.md`.
+
+## Optional model summary
+
+Model summaries are disabled unless `--model-summary` is explicitly passed and
+all three environment variables are configured:
+
+- `STEWARD_MODEL_ENDPOINT`: HTTPS OpenAI-compatible chat-completions endpoint.
+- `STEWARD_MODEL_NAME`: exact configured model identifier.
+- `STEWARD_MODEL_API_KEY`: provider credential.
+
+The model receives the generated report and returns advisory prose only. Its
+output is not evidence and cannot change readiness, checks, permissions, labels,
+branches, issues, PRs or releases.

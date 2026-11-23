@@ -1,4 +1,5 @@
 """Deterministic local repository-health checks for Markdown links and JSON config."""
+
 import json
 import re
 from pathlib import PurePosixPath
@@ -19,7 +20,7 @@ def check_markdown_links(files: dict[str, str]) -> list[dict]:
                     continue
                 if target.startswith("<") and target.endswith(">"):
                     target = target[1:-1]
-                resolved = (PurePosixPath(name).parent / target)
+                resolved = PurePosixPath(name).parent / target
                 normalized = str(resolved)
                 parts = []
                 for part in PurePosixPath(normalized).parts:
@@ -30,11 +31,16 @@ def check_markdown_links(files: dict[str, str]) -> list[dict]:
                         parts.append(part)
                 normalized = "/".join(parts)
                 if normalized not in paths:
-                    findings.append({
-                        "code": "docs.link_missing", "severity": "warning",
-                        "path": name, "line": line_number, "target": target,
-                        "summary": f"Local Markdown link does not resolve: {target}",
-                    })
+                    findings.append(
+                        {
+                            "code": "docs.link_missing",
+                            "severity": "warning",
+                            "path": name,
+                            "line": line_number,
+                            "target": target,
+                            "summary": f"Local Markdown link does not resolve: {target}",
+                        }
+                    )
     return findings
 
 
@@ -46,10 +52,14 @@ def check_json_configs(files: dict[str, str]) -> list[dict]:
         try:
             json.loads(content)
         except (json.JSONDecodeError, TypeError) as exc:
-            findings.append({
-                "code": "config.json_invalid", "severity": "error",
-                "path": name, "summary": f"Invalid JSON configuration: {exc}",
-            })
+            findings.append(
+                {
+                    "code": "config.json_invalid",
+                    "severity": "error",
+                    "path": name,
+                    "summary": f"Invalid JSON configuration: {exc}",
+                }
+            )
     return findings
 
 
