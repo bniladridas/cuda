@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 ISSUE_REF = re.compile(r"(?<![\w/])#(\d+)\b")
@@ -59,6 +60,50 @@ def criteria_from_body(body: str) -> list[str]:
 
 def issue_dependencies(body: str, current: int) -> list[int]:
     return sorted({int(value) for value in DEPENDENCY_REF.findall(body or "") if int(value) != current})
+
+
+def acceptance_criteria_status_from_body(body: str) -> list[bool | None]:
+    """Preserve explicit checkbox state; ordinary bullets remain unverified."""
+    statuses = []
+    active = False
+    for line in (body or "").splitlines():
+        if re.match(r"^\\s*#{1,6}\\s+", line):
+            if active:
+                break
+            active = bool(re.search(r"acceptance criteria", line, re.I))
+            continue
+        if active:
+            match = re.match(r"^\\s*(?:[-*+]\\s+|\\d+[.)]\\s+)(?:\\[([ xX])\\]\\s*)?(.+?)\\s*$", line)
+            if match:
+                marker = match.group(1)
+                statuses.append(None if marker is None else marker.lower() == "x")
+    return statuses
+
+
+def pull_request_review_decision(repository: str, pr_number: int, *, runner=subprocess.run) -> str:
+    """Read GitHub's authoritative GraphQL reviewDecision; fail closed when unavailable."""
+    owner, name = repository.split("/", 1)
+    query = (
+        "query($owner:String!, $name:String!, $number:Int!) { "
+        "repository(owner:$owner, name:$name) { "
+        "pullRequest(number:$number) { reviewDecision } } }"
+    )
+    command = [
+        "gh", "api", "graphql", "-f", f"query={query}",
+        "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"number={pr_number}",
+    ]
+    try:
+        response = runner(command, capture_output=True, text=True, check=False)
+    except OSError:
+        return "unknown"
+    if response.returncode:
+        return "unknown"
+    try:
+        payload = json.loads(response.stdout)
+        decision = payload["data"]["repository"]["pullRequest"]["reviewDecision"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return "unknown"
+    return decision.lower() if decision in {"APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"} else "unknown"
 
 
 def load_repository_files(root: Path) -> dict[str, str]:
@@ -167,15 +212,24 @@ def validation_run_metadata(repository: str, head_sha: str, *, runner=subprocess
     return result
 
 
-def workflow_evidence(repository: str, workflow_file: str, *, runner=subprocess.run) -> dict:
-    """Read the latest workflow run; this is execution evidence, not approval evidence."""
+def workflow_evidence(repository: str, workflow_file: str, expected_sha: str = "", *, runner=subprocess.run) -> dict:
+    """Read workflow evidence only when it matches the requested repository head."""
+    suffix = f"?head_sha={expected_sha}&per_page=10" if expected_sha else "?per_page=10"
     response = run_gh(
-        f"repos/{repository}/actions/workflows/{workflow_file}/runs?per_page=1",
+        f"repos/{repository}/actions/workflows/{workflow_file}/runs{suffix}",
         runner=runner,
     )
     runs = response.get("workflow_runs", [])
+    if expected_sha:
+        runs = [item for item in runs if item.get("head_sha") == expected_sha]
     if not runs:
-        return {"state": "unavailable", "details": "No workflow run was found."}
+        return {
+            "state": "unavailable",
+            "head_sha": "",
+            "expected_sha": expected_sha,
+            "details": "No workflow run for the expected repository head was found.",
+        }
+    runs.sort(key=lambda item: (item.get("run_number") or 0, item.get("run_attempt") or 0), reverse=True)
     run = runs[0]
     status = run.get("status") or "unknown"
     conclusion = run.get("conclusion")
@@ -192,6 +246,7 @@ def workflow_evidence(repository: str, workflow_file: str, *, runner=subprocess.
     return {
         "state": state,
         "head_sha": run.get("head_sha") or "",
+        "expected_sha": expected_sha,
         "source": run.get("name") or workflow_file,
         "url": run.get("html_url") or "",
         "details": f"Workflow run status={status}, conclusion={conclusion or 'none'}. Approval is not inferred.",
@@ -313,6 +368,7 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
                 "updated_at": item.get("updated_at") or "",
                 "dependency_numbers": issue_dependencies(body, number),
                 "acceptance_criteria": criteria_from_body(body),
+                "acceptance_criteria_status": acceptance_criteria_status_from_body(body),
             }
         )
 
@@ -344,12 +400,15 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
                 "title": item.get("title") or "",
                 "body": body,
                 "state": item.get("state") or "unknown",
+                "merged": bool(item.get("merged_at")),
+                "merge_state": "merged" if item.get("merged_at") else "open" if item.get("state") == "open" else "closed_unmerged" if item.get("state") == "closed" else "unknown",
+                "merged_at": item.get("merged_at") or "",
                 "draft": bool(item.get("draft")),
                 "url": item.get("html_url") or "",
                 "head_sha": head_sha,
                 "linked_issue_numbers": linked,
                 "checks": checks,
-                "review_decision": "unknown",
+                "review_decision": pull_request_review_decision(repository, number, runner=runner),
                 "updated_at": item.get("updated_at") or "",
             }
         )
@@ -401,8 +460,8 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
         item["metadata"] = run_metadata.get(item["kind"], {})
 
     integration_evidence = {
-        "label_review": workflow_evidence(repository, "label-review.yml", runner=runner),
-        "issue_landing": workflow_evidence(repository, "issue-landing.yml", runner=runner),
+        "label_review": workflow_evidence(repository, "label-review.yml", observed_sha, runner=runner),
+        "issue_landing": workflow_evidence(repository, "issue-landing.yml", observed_sha, runner=runner),
     }
     pull_request_integrations = {}
     for pr in pull_requests:
@@ -418,6 +477,7 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
         }
     return {
         "repository": repository,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "head_sha": observed_sha,
         "integration_evidence": integration_evidence,
         "pull_request_integrations": pull_request_integrations,
