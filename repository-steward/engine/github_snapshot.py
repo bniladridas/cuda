@@ -110,6 +110,37 @@ def _labels(items):
     return sorted(item.get("name", "") for item in items or [] if item.get("name"))
 
 
+def workflow_evidence(repository: str, workflow_file: str, *, runner=subprocess.run) -> dict:
+    """Read the latest workflow run; this is execution evidence, not approval evidence."""
+    response = run_gh(
+        f"repos/{repository}/actions/workflows/{workflow_file}/runs?per_page=1",
+        runner=runner,
+    )
+    runs = response.get("workflow_runs", [])
+    if not runs:
+        return {"state": "unavailable", "details": "No workflow run was found."}
+    run = runs[0]
+    status = run.get("status") or "unknown"
+    conclusion = run.get("conclusion")
+    if status != "completed":
+        state = "pending"
+    elif conclusion == "success":
+        state = "success"
+    elif conclusion == "skipped":
+        state = "skipped"
+    elif conclusion in {"failure", "cancelled", "timed_out", "action_required"}:
+        state = "failure"
+    else:
+        state = "unknown"
+    return {
+        "state": state,
+        "head_sha": run.get("head_sha") or "",
+        "source": run.get("name") or workflow_file,
+        "url": run.get("html_url") or "",
+        "details": f"Workflow run status={status}, conclusion={conclusion or 'none'}. Approval is not inferred.",
+    }
+
+
 def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dict:
     if not re.fullmatch(r"[^/]+/[^/]+", repository):
         raise SnapshotError("repository must use owner/name form")
@@ -226,9 +257,14 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
                     }
                 )
 
+    integration_evidence = {
+        "label_review": workflow_evidence(repository, "label-review.yml", runner=runner),
+        "issue_landing": workflow_evidence(repository, "issue-landing.yml", runner=runner),
+    }
     return {
         "repository": repository,
         "head_sha": observed_sha,
+        "integration_evidence": integration_evidence,
         "issues": issues,
         "pull_requests": pull_requests,
         "validations": validations,
