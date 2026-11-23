@@ -1,0 +1,58 @@
+name: Repository Steward Report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 * * *"
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: repository-steward-report
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build read-only GitHub snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          PYTHONPATH=repository-steward python3 -m engine.github_snapshot \
+            --repository "$GITHUB_REPOSITORY" \
+            --root "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/steward-snapshot.json"
+
+      - name: Generate Steward report
+        env:
+          PYTHONPATH: repository-steward
+        run: |
+          python3 -m engine.steward \
+            "$RUNNER_TEMP/steward-snapshot.json" \
+            --output "$RUNNER_TEMP/steward-report.json"
+
+      - name: Publish report artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: repository-steward-report
+          path: |
+            ${{ runner.temp }}/steward-snapshot.json
+            ${{ runner.temp }}/steward-report.json
+          if-no-files-found: error
+          retention-days: 14

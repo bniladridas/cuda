@@ -62,3 +62,10 @@ all three environment variables are configured:
 The model receives the generated report and returns advisory prose only. Its
 output is not evidence and cannot change readiness, checks, permissions, labels,
 branches, issues, PRs or releases.
+## Scheduled report
+
+After the workflow is merged, run **Repository Steward Report** manually from
+Actions or let its daily schedule run. It uses a read-only GitHub token and
+uploads the source snapshot and JSON report as a 14-day artifact. It does not
+post comments, apply labels, close issues, modify branches, merge pull
+requests, or publish releases.
