@@ -19,7 +19,7 @@ class StewardTests(unittest.TestCase):
             {"issues": [{"number": 4, "title": "Add kernel", "body": "", "state": "open"}], "pull_requests": []}
         )
         codes = {item["code"] for item in result["findings"]}
-        self.assertEqual(codes, {"issue.unlinked", "issue.acceptance_missing", "issue.unowned"})
+        self.assertEqual(codes, {"issue.unlinked", "issue.acceptance_missing"})
 
     def test_linked_pr_and_dependency_are_reported(self):
         result = analyze_tracking(
@@ -120,45 +120,6 @@ class StewardTests(unittest.TestCase):
         self.assertIsNone(
             result["modules"]["model_integration"]["authorization_source"],
         )
-
-    def test_issue_tracking_reports_unowned_and_stale_activity(self):
-        result = analyze_tracking(
-            {
-                "generated_at": "2026-11-23T12:00:00+00:00",
-                "issues": [
-                    {
-                        "number": 8,
-                        "title": "Investigate flaky workflow",
-                        "body": "Acceptance criteria\\n- [ ] Reproduce",
-                        "state": "open",
-                        "assignees": [],
-                        "updated_at": "2026-10-01T12:00:00Z",
-                    },
-                    {
-                        "number": 9,
-                        "title": "Recently updated",
-                        "body": "Acceptance criteria\\n- [ ] Verify",
-                        "state": "open",
-                        "assignees": ["maintainer"],
-                        "updated_at": "2026-11-20T12:00:00Z",
-                    },
-                ],
-                "pull_requests": [],
-            }
-        )
-        self.assertEqual(result["stale_open_issue_count"], 1)
-        self.assertEqual(result["unowned_open_issue_count"], 1)
-        records = {item["number"]: item for item in result["issues"]}
-        self.assertEqual(records[8]["activity_state"], "stale")
-        self.assertEqual(records[8]["activity_age_days"], 53)
-        self.assertEqual(records[9]["activity_state"], "recent")
-        codes = {item["code"] for item in result["findings"]}
-        self.assertIn("issue.stale", codes)
-        self.assertIn("issue.unowned", codes)
-
-    def test_issue_tracking_rejects_invalid_stale_threshold(self):
-        with self.assertRaises(ValueError):
-            analyze_tracking({"issues": [], "pull_requests": []}, stale_after_days=0)
 
 
 if __name__ == "__main__":

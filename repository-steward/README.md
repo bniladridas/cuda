@@ -115,3 +115,11 @@ flagged as unowned. Open issues with no recorded activity for at least 30 days
 are flagged as stale by default. The threshold is configurable through
 `analyze_tracking(..., stale_after_days=N)`. Missing or invalid timestamps remain
 unknown rather than being treated as stale.
+
+## Documentation drift checks
+
+Repository Health scans Markdown guidance for explicit
+`.github/workflows/*.yml` and `.yaml` references. A reference whose workflow
+file is no longer present is reported as a warning with its source path and
+line. This check is intentionally narrow: it detects stale explicit workflow
+paths, not whether every workflow has complete prose documentation.
