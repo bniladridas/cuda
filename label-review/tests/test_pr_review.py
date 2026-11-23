@@ -143,7 +143,6 @@ class PRReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(pr_review.ReviewError, "not grounded"):
                 pr_review.ask_model(data)
 
-
     def test_workflow_keeps_proposal_read_only_and_apply_approval_gated(self):
         workflow = (ROOT / ".github" / "workflows" / "pr-label-review.yml").read_text(encoding="utf-8")
         self.assertIn("pull_request_target:", workflow)
