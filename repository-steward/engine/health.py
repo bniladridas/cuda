@@ -174,10 +174,34 @@ def check_github_workflows(files: dict[str, str]) -> list[dict]:
     return findings
 
 
+
+def check_workflow_documentation_references(files: dict[str, str]) -> list[dict]:
+    """Find Markdown guidance that still points at workflow files no longer present."""
+    findings = []
+    for name, content in files.items():
+        if not name.lower().endswith(".md"):
+            continue
+        for line_number, line in enumerate(content.splitlines(), 1):
+            for match in WORKFLOW_REFERENCE.finditer(line):
+                target = match.group(0)
+                if target not in files:
+                    findings.append(
+                        {
+                            "code": "docs.workflow_reference_missing",
+                            "severity": "warning",
+                            "path": name,
+                            "line": line_number,
+                            "target": target,
+                            "summary": f"Documentation references a workflow that is not present: {target}",
+                        }
+                    )
+    return findings
+
+
 def analyze_health(files: dict[str, str]) -> dict:
     if not isinstance(files, dict):
         raise TypeError("files must be a mapping of repository paths to text")
-    findings = check_markdown_links(files) + check_json_configs(files) + check_github_workflows(files)
+    findings = (check_markdown_links(files) + check_json_configs(files) + check_github_workflows(files)\n                 + check_workflow_documentation_references(files))
     return {
         "findings": findings,
         "finding_count": len(findings),
