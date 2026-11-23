@@ -18,17 +18,18 @@ class IntegrationAdapterTests(unittest.TestCase):
         result = integration_status(
             {
                 "head_sha": "abc",
-            "integration_evidence": {
-                "label_review": {
-                    "state": "success",
-                    "head_sha": "abc",
-                    "source": "workflow run 12",
-                    "url": "https://example.invalid/run/12",
-                },
-                "issue_landing": {
-                    "state": "pending",
-                    "head_sha": "abc",
-                    "source": "workflow run 13",
+                "integration_evidence": {
+                    "label_review": {
+                        "state": "success",
+                        "head_sha": "abc",
+                        "source": "workflow run 12",
+                        "url": "https://example.invalid/run/12",
+                    },
+                    "issue_landing": {
+                        "state": "pending",
+                        "head_sha": "abc",
+                        "source": "workflow run 13",
+                    },
                 },
             }
         )
@@ -47,8 +48,13 @@ class IntegrationAdapterTests(unittest.TestCase):
         result = integration_status(
             {
                 "head_sha": "new",
-            "integration_evidence": {
-                "label_review": {"state": "success", "head_sha": "old", "expected_sha": "new"},
+                "integration_evidence": {
+                    "label_review": {
+                        "state": "success",
+                        "head_sha": "old",
+                        "expected_sha": "new",
+                    },
+                },
             }
         )
         item = result["integrations"]["label_review"]
@@ -59,8 +65,9 @@ class IntegrationAdapterTests(unittest.TestCase):
         result = integration_status(
             {
                 "head_sha": "abc",
-            "integration_evidence": {
-                "issue_landing": {"state": "something-new", "head_sha": "abc"},
+                "integration_evidence": {
+                    "issue_landing": {"state": "something-new", "head_sha": "abc"},
+                },
             }
         )
         self.assertEqual(result["integrations"]["issue_landing"]["state"], "unknown")
