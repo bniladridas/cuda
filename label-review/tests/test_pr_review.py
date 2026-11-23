@@ -154,8 +154,6 @@ class PRReviewTests(unittest.TestCase):
         self.assertNotIn("pull-requests: write", workflow)
         self.assertNotIn("contents: write", workflow)
 
-
-
     def test_snapshot_rejects_malformed_diff(self):
         pull_request = {
             "state": "open",
@@ -184,6 +182,7 @@ class PRReviewTests(unittest.TestCase):
             with patch.object(pr_review, "gh", side_effect=[pull_request, [[]], oversized]):
                 with self.assertRaisesRegex(pr_review.ReviewError, "exceeds the review limit"):
                     pr_review.snapshot(12)
+
 
 if __name__ == "__main__":
     unittest.main()
