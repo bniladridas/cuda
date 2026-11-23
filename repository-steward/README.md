@@ -29,6 +29,7 @@ Snapshot fields:
 - `validations[]`: kind, state, head_sha, source, url and details
 - `files{}`: repository-relative paths mapped to text content
 - optional `readiness_policy.required_kinds`
+- optional `integration_evidence` entries for `label_review` and `issue_landing`, each carrying state, head SHA, optional expected SHA, source, URL and details
 
 ## Trust boundaries
 

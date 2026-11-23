@@ -10,6 +10,7 @@ permissions:
   issues: read
   pull-requests: read
   checks: read
+  actions: read
 
 concurrency:
   group: repository-steward-report
