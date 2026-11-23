@@ -89,8 +89,17 @@ def pull_request_review_decision(repository: str, pr_number: int, *, runner=subp
         "pullRequest(number:$number) { reviewDecision } } }"
     )
     command = [
-        "gh", "api", "graphql", "-f", f"query={query}",
-        "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"number={pr_number}",
+        "gh",
+        "api",
+        "graphql",
+        "-f",
+        f"query={query}",
+        "-F",
+        f"owner={owner}",
+        "-F",
+        f"name={name}",
+        "-F",
+        f"number={pr_number}",
     ]
     try:
         response = runner(command, capture_output=True, text=True, check=False)
@@ -401,7 +410,13 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
                 "body": body,
                 "state": item.get("state") or "unknown",
                 "merged": bool(item.get("merged_at")),
-                "merge_state": "merged" if item.get("merged_at") else "open" if item.get("state") == "open" else "closed_unmerged" if item.get("state") == "closed" else "unknown",
+                "merge_state": "merged"
+                if item.get("merged_at")
+                else "open"
+                if item.get("state") == "open"
+                else "closed_unmerged"
+                if item.get("state") == "closed"
+                else "unknown",
                 "merged_at": item.get("merged_at") or "",
                 "draft": bool(item.get("draft")),
                 "url": item.get("html_url") or "",
