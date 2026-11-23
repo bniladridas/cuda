@@ -227,7 +227,7 @@ jobs:
           coverage erase
           ran=0
           for suite in pr-confidence label-review pr-scope-guard pr-title \
-            format-repair squash-merge rebase-agent benchmarks; do
+            format-repair squash-merge rebase-agent benchmarks repository-steward; do
             if [ ! -d "$suite/tests" ]; then
               echo "Skipping $suite: tests directory not present"
               continue
