@@ -33,7 +33,10 @@ for these checks.
 - `issues[]`: number, title, body, state, labels, assignees, updated_at,
   optional linked_pr_numbers, dependency_numbers and acceptance_criteria
 - `pull_requests[]`: number, title, body, state, head_sha, draft, checks,
-  review_decision, url, optional linked_issue_numbers
+  review_decision, url, optional linked_issue_numbers, base_ref, base_sha,
+  merged_at and merge_commit_sha. Issue tracking reports `open`, `merged`,
+  `closed_unmerged` or `unknown` merge state without treating a closed PR as
+  merged.
 - `validations[]`: kind, state, head_sha, source, url, details and optional
   workflow-run/runner metadata. Device identity remains `not_reported` unless
   independently established.
