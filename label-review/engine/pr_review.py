@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Diff-aware, approval-gated PR label and milestone review."""
+
 import argparse
 import hashlib
 import json
