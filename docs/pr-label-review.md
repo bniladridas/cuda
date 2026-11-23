@@ -30,9 +30,12 @@ missing or the provider fails, the proposal job fails closed.
   and milestones returned by the live open-milestones API.
 - Evidence must name a changed file and quote text present in the actual diff.
   Empty, oversized, unavailable or malformed diffs fail closed.
-- The artifact binds the proposal to the PR title, body, base/head SHAs, file
-  list, full diff, current labels and current milestone. The apply job fetches
-  all of these again and aborts if any have changed.
+- No workflow artifact crosses job boundaries. The proposal job exports only
+  a SHA-256 digest as a job output. The comment and protected apply jobs each
+  rebuild the proposal from the live PR and require an exact digest match.
+  A mismatch aborts. The apply command then fetches the PR again and verifies
+  its title, body, base/head SHAs, file list, full diff, labels and milestone
+  before writing.
 - Applying only adds labels and optionally sets a milestone. Existing labels
   are preserved. The reviewer never removes labels, closes or merges a PR,
   assigns people, changes branches or publishes releases.
