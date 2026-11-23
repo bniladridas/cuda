@@ -270,8 +270,7 @@ class ConfigTests(unittest.TestCase):
 
     def test_repository_config_is_valid(self):
         config = c.load_config(REPO_ROOT / ".github" / "pr-confidence.yml")
-        self.assertIn("cpu", config["critical_checks"])
-        self.assertIn("CodeQL", config["critical_checks"])
+        self.assertEqual(config["critical_checks"], ["cpu", "python", "cuda-compile"])
 
 
 class PathTests(unittest.TestCase):

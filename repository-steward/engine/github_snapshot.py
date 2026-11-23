@@ -1,0 +1,243 @@
+"""Read-only GitHub CLI adapter that builds the Steward snapshot format."""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ISSUE_REF = re.compile(r"(?<![\w/])#(\d+)\b")
+DEPENDENCY_REF = re.compile(r"\b(?:depends on|blocked by|requires|dependency on)\s+#?(\d+)\b", re.I)
+CRITERIA = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)(?:\[[ xX]\]\s*)?(.+?)\s*$")
+
+
+class SnapshotError(RuntimeError):
+    pass
+
+
+def run_gh(path: str, *, paginate: bool = False, runner=subprocess.run):
+    command = ["gh", "api", "-H", "Accept: application/vnd.github+json"]
+    if paginate:
+        command += ["--paginate", "--slurp"]
+    command.append(path)
+    try:
+        result = runner(command, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        raise SnapshotError(f"cannot execute gh: {exc}") from exc
+    if result.returncode:
+        detail = (result.stderr or result.stdout or "unknown error").strip()[:500]
+        raise SnapshotError(f"GitHub API request failed for {path}: {detail}")
+    try:
+        value = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise SnapshotError(f"GitHub API returned invalid JSON for {path}") from exc
+    if paginate:
+        if not isinstance(value, list):
+            raise SnapshotError("paginated GitHub response was not a list")
+        return [item for page in value if isinstance(page, list) for item in page]
+    return value
+
+
+def criteria_from_body(body: str) -> list[str]:
+    criteria = []
+    active = False
+    for line in (body or "").splitlines():
+        if re.match(r"^\s*#{1,6}\s+", line):
+            if active:
+                break
+            active = bool(re.search(r"acceptance criteria", line, re.I))
+            continue
+        if active:
+            match = CRITERIA.match(line)
+            if match:
+                criteria.append(match.group(1))
+    return criteria
+
+
+def issue_dependencies(body: str, current: int) -> list[int]:
+    return sorted({int(value) for value in DEPENDENCY_REF.findall(body or "") if int(value) != current})
+
+
+def load_repository_files(root: Path) -> dict[str, str]:
+    try:
+        tracked = (
+            subprocess.run(
+                ["git", "-C", str(root), "ls-files", "-z"],
+                capture_output=True,
+                text=False,
+                check=True,
+            )
+            .stdout.decode("utf-8")
+            .split("\0")
+        )
+    except (OSError, subprocess.CalledProcessError, UnicodeError) as exc:
+        raise SnapshotError(f"cannot list tracked repository files: {exc}") from exc
+    result = {}
+    for relative in tracked:
+        if not relative or not (
+            relative.endswith(".md") or (relative.startswith(".github/") and relative.endswith(".json"))
+        ):
+            continue
+        path = root / relative
+        try:
+            if path.is_file() and path.stat().st_size <= 1_000_000:
+                result[relative] = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+    return result
+
+
+def _labels(items):
+    return sorted(item.get("name", "") for item in items or [] if item.get("name"))
+
+
+def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dict:
+    if not re.fullmatch(r"[^/]+/[^/]+", repository):
+        raise SnapshotError("repository must use owner/name form")
+    repo = run_gh(f"repos/{repository}", runner=runner)
+    issue_rows = run_gh(
+        f"repos/{repository}/issues?state=all&per_page=100",
+        paginate=True,
+        runner=runner,
+    )
+    pr_rows = run_gh(
+        f"repos/{repository}/pulls?state=all&per_page=100",
+        paginate=True,
+        runner=runner,
+    )
+
+    issues = []
+    for item in issue_rows:
+        if item.get("pull_request"):
+            continue
+        number = int(item["number"])
+        body = item.get("body") or ""
+        issues.append(
+            {
+                "number": number,
+                "title": item.get("title") or "",
+                "body": body,
+                "state": item.get("state") or "unknown",
+                "url": item.get("html_url") or "",
+                "labels": _labels(item.get("labels")),
+                "assignees": sorted(user.get("login", "") for user in item.get("assignees") or []),
+                "updated_at": item.get("updated_at") or "",
+                "dependency_numbers": issue_dependencies(body, number),
+                "acceptance_criteria": criteria_from_body(body),
+            }
+        )
+
+    pull_requests = []
+    for item in pr_rows:
+        number = int(item["number"])
+        head_sha = (item.get("head") or {}).get("sha") or ""
+        body = item.get("body") or ""
+        linked = sorted({int(value) for value in ISSUE_REF.findall((item.get("title") or "") + "\n" + body)})
+        checks = []
+        if head_sha:
+            response = run_gh(
+                f"repos/{repository}/commits/{head_sha}/check-runs?per_page=100",
+                runner=runner,
+            )
+            for check in response.get("check_runs", []):
+                checks.append(
+                    {
+                        "name": check.get("name") or "",
+                        "status": check.get("status") or "unknown",
+                        "conclusion": check.get("conclusion"),
+                        "head_sha": head_sha,
+                        "url": check.get("html_url") or "",
+                    }
+                )
+        pull_requests.append(
+            {
+                "number": number,
+                "title": item.get("title") or "",
+                "body": body,
+                "state": item.get("state") or "unknown",
+                "draft": bool(item.get("draft")),
+                "url": item.get("html_url") or "",
+                "head_sha": head_sha,
+                "linked_issue_numbers": linked,
+                "checks": checks,
+                "review_decision": "unknown",
+                "updated_at": item.get("updated_at") or "",
+            }
+        )
+
+    default_branch = repo.get("default_branch") or ""
+    branch = run_gh(f"repos/{repository}/branches/{default_branch}", runner=runner) if default_branch else {}
+    observed_sha = (branch.get("commit") or {}).get("sha") or ""
+    validations = []
+    if observed_sha:
+        response = run_gh(
+            f"repos/{repository}/commits/{observed_sha}/check-runs?per_page=100",
+            runner=runner,
+        )
+        for check in response.get("check_runs", []):
+            name = (check.get("name") or "").lower()
+            kind = None
+            if name in {"cpu", "host tests", "host-tests"}:
+                kind = "host_tests"
+            elif name in {"cuda-compile", "cuda compile"}:
+                kind = "cuda_compile"
+            elif name == "gpu":
+                kind = "gpu_runtime"
+            if kind:
+                conclusion = check.get("conclusion")
+                state = (
+                    "pending"
+                    if check.get("status") != "completed"
+                    else "success"
+                    if conclusion == "success"
+                    else "skipped"
+                    if conclusion == "skipped"
+                    else "failure"
+                    if conclusion in {"failure", "timed_out", "action_required"}
+                    else "unknown"
+                )
+                validations.append(
+                    {
+                        "kind": kind,
+                        "state": state,
+                        "head_sha": observed_sha,
+                        "source": f"default branch {check.get('name')}",
+                        "url": check.get("html_url") or "",
+                        "details": conclusion or check.get("status") or "",
+                    }
+                )
+
+    return {
+        "repository": repository,
+        "head_sha": observed_sha,
+        "issues": issues,
+        "pull_requests": pull_requests,
+        "validations": validations,
+        "files": load_repository_files(root),
+    }
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY"))
+    parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument("--output", type=Path, default=Path("steward-snapshot.json"))
+    args = parser.parse_args(argv)
+    if not args.repository:
+        parser.error("--repository or GITHUB_REPOSITORY is required")
+    try:
+        snapshot = build_snapshot(args.repository, args.root)
+        args.output.write_text(
+            json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    except (OSError, SnapshotError, ValueError) as exc:
+        print(f"steward snapshot: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
