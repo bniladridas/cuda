@@ -1,11 +1,14 @@
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from label_review import pr_review
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "label-review" / "engine"))
+import pr_review
 
 
 class PRReviewTests(unittest.TestCase):
