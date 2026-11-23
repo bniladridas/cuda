@@ -72,7 +72,6 @@ class IntegrationAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result["integrations"]["issue_landing"]["state"], "unknown")
 
-
     def test_pr_artifacts_are_bound_to_exact_pr_head_and_preserved(self):
         confidence = {
             "rubric_version": 1,
@@ -176,6 +175,7 @@ class IntegrationAdapterTests(unittest.TestCase):
         )["integrations"]
         self.assertEqual(result["pr_confidence"]["pull_requests"]["10"]["state"], "missing")
         self.assertEqual(result["pr_scope_guard"]["pull_requests"]["10"]["state"], "missing")
+
 
 if __name__ == "__main__":
     unittest.main()
