@@ -54,18 +54,28 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
         for pr_number in sorted(references):
             pr = pr_by_number.get(pr_number)
             if pr is None:
-                linked.append({"number": pr_number, "state": "unavailable", "reason": "PR not present in snapshot"})
+                linked.append(
+                    {
+                        "number": pr_number,
+                        "state": "unavailable",
+                        "reason": "PR not present in snapshot",
+                    }
+                )
                 continue
-            linked.append({
-                "number": pr_number,
-                "state": pr.get("state", "unknown"),
-                "draft": bool(pr.get("draft", False)),
-                "head_sha": pr.get("head_sha") or "",
-                "checks": pr.get("checks", []),
-                "review_decision": pr.get("review_decision") or "unknown",
-                "url": pr.get("url") or "",
-            })
-        dependencies = sorted((_numbers(body) | set(int(v) for v in issue.get("dependency_numbers", []))) - {number})
+            linked.append(
+                {
+                    "number": pr_number,
+                    "state": pr.get("state", "unknown"),
+                    "draft": bool(pr.get("draft", False)),
+                    "head_sha": pr.get("head_sha") or "",
+                    "checks": pr.get("checks", []),
+                    "review_decision": pr.get("review_decision") or "unknown",
+                    "url": pr.get("url") or "",
+                }
+            )
+        dependencies = sorted(
+            (_numbers(body) | set(int(v) for v in issue.get("dependency_numbers", []))) - {number}
+        )
         unknown_dependencies = [value for value in dependencies if value not in issue_by_number]
         acceptance = issue.get("acceptance_criteria") or []
         blockers = []
@@ -86,61 +96,77 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
         assignees = issue.get("assignees", [])
         has_owner = bool(assignees)
         if state == "open" and not has_owner:
-            findings.append(Finding(
-                code="issue.unowned",
-                severity=Severity.WARNING,
-                summary=f"Open issue #{number} has no assigned owner.",
-                evidence=(str(number),),
-                blocking=False,
-            ))
+            findings.append(
+                Finding(
+                    code="issue.unowned",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has no assigned owner.",
+                    evidence=(str(number),),
+                    blocking=False,
+                )
+            )
         if state == "open" and activity_state == "stale":
-            findings.append(Finding(
-                code="issue.stale",
-                severity=Severity.WARNING,
-                summary=f"Open issue #{number} has had no recorded activity for {age_days} days.",
-                evidence=(str(number), updated_at),
-                blocking=False,
-            ))
+            findings.append(
+                Finding(
+                    code="issue.stale",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has had no recorded activity for {age_days} days.",
+                    evidence=(str(number), updated_at),
+                    blocking=False,
+                )
+            )
         if not linked and state == "open":
-            findings.append(Finding(
-                code="issue.unlinked",
-                severity=Severity.WARNING,
-                summary=f"Open issue #{number} has no linked pull request in the snapshot.",
-                evidence=(str(number),),
-                blocking=False,
-            ))
+            findings.append(
+                Finding(
+                    code="issue.unlinked",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has no linked pull request in the snapshot.",
+                    evidence=(str(number),),
+                    blocking=False,
+                )
+            )
         if state == "open" and not acceptance:
-            findings.append(Finding(
-                code="issue.acceptance_missing",
-                severity=Severity.WARNING,
-                summary=f"Open issue #{number} has no structured acceptance criteria.",
-                evidence=(str(number),),
-                blocking=False,
-            ))
-        records.append({
-            "number": number,
-            "title": title,
-            "state": issue.get("state", "unknown"),
-            "url": issue.get("url") or "",
-            "labels": issue.get("labels", []),
-            "assignees": assignees,
-            "has_owner": has_owner,
-            "dependencies": dependencies,
-            "unknown_dependencies": unknown_dependencies,
-            "linked_prs": linked,
-            "acceptance_criteria": acceptance,
-            "activity_at": updated_at,
-            "activity_age_days": age_days,
-            "activity_state": activity_state,
-            "metadata_blockers": blockers,
-        })
+            findings.append(
+                Finding(
+                    code="issue.acceptance_missing",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has no structured acceptance criteria.",
+                    evidence=(str(number),),
+                    blocking=False,
+                )
+            )
+        records.append(
+            {
+                "number": number,
+                "title": title,
+                "state": issue.get("state", "unknown"),
+                "url": issue.get("url") or "",
+                "labels": issue.get("labels", []),
+                "assignees": assignees,
+                "has_owner": has_owner,
+                "dependencies": dependencies,
+                "unknown_dependencies": unknown_dependencies,
+                "linked_prs": linked,
+                "acceptance_criteria": acceptance,
+                "activity_at": updated_at,
+                "activity_age_days": age_days,
+                "activity_state": activity_state,
+                "metadata_blockers": blockers,
+            }
+        )
 
     return {
         "issues": records,
         "stale_after_days": stale_after_days,
         "open_issue_count": sum(str(item.get("state", "open")).lower() == "open" for item in issues),
-        "unowned_open_issue_count": sum(record["state"] == "open" and not record["has_owner"] for record in records),
-        "stale_open_issue_count": sum(record["state"] == "open" and record["activity_state"] == "stale" for record in records),
-        "unlinked_open_issue_count": sum(record["state"] == "open" and not record["linked_prs"] for record in records),
+        "unowned_open_issue_count": sum(
+            record["state"] == "open" and not record["has_owner"] for record in records
+        ),
+        "stale_open_issue_count": sum(
+            record["state"] == "open" and record["activity_state"] == "stale" for record in records
+        ),
+        "unlinked_open_issue_count": sum(
+            record["state"] == "open" and not record["linked_prs"] for record in records
+        ),
         "findings": [item.to_dict() for item in findings],
     }
