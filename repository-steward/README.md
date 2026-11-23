@@ -5,8 +5,10 @@ repository health, validation evidence, and release-readiness reporting.
 
 ## Run
 
-The initial interface consumes a JSON snapshot. This keeps the engine
-offline-testable and avoids requiring GitHub credentials for local reports.
+The coordinator consumes a JSON snapshot. The GitHub CLI adapter builds that
+snapshot from repository metadata, issues, pull requests, checks, workflow
+runs, and retained PR evidence artifacts. The report engine can also be run
+directly against a saved snapshot, keeping policy evaluation offline-testable.
 
 Repository Health checks relative Markdown links, JSON and GitHub Actions YAML
 syntax, duplicate mapping keys, and local action references. It is read-only.
@@ -74,8 +76,12 @@ output is not evidence and cannot change readiness, checks, permissions, labels,
 branches, issues, PRs or releases.
 ## Scheduled report
 
-After the workflow is merged, run **Repository Steward Report** manually from
-Actions or let its daily schedule run. It uses a read-only GitHub token and
-uploads the source snapshot and JSON report as a 14-day artifact. It does not
-post comments, apply labels, close issues, modify branches, merge pull
-requests, or publish releases.
+The **Repository Steward Report** workflow runs daily or manually from
+Actions. It uses the workflow's read-only GitHub token and uploads both the
+source snapshot and JSON report as a 14-day artifact. Download the artifact to
+inspect the exact inputs and generated output for a run.
+
+The workflow does not post comments, apply labels, close issues, modify
+branches, merge pull requests, or publish releases. GPU evidence remains
+pending, skipped, or unknown unless a matching current-head validation result
+establishes otherwise.
