@@ -152,6 +152,13 @@ class PRReviewTests(unittest.TestCase):
         self.assertIn("environment: pr-label-review", workflow)
         self.assertIn("PR_LABEL_REVIEW_APPLY == 'true'", workflow)
         self.assertIn("issues: write", workflow)
+        self.assertIn("proposal_hash:", workflow)
+        self.assertIn("sha256sum pr-proposal.json", workflow)
+        self.assertIn("EXPECTED_PROPOSAL_HASH", workflow)
+        self.assertIn("environment: pr-label-review", workflow)
+        self.assertNotIn("upload-artifact", workflow)
+        self.assertNotIn("download-artifact", workflow)
+        self.assertNotIn("pr-metadata-proposal", workflow)
         self.assertNotIn("pull-requests: write", workflow)
         self.assertNotIn("contents: write", workflow)
 
