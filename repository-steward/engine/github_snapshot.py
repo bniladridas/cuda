@@ -67,13 +67,13 @@ def acceptance_criteria_status_from_body(body: str) -> list[bool | None]:
     statuses = []
     active = False
     for line in (body or "").splitlines():
-        if re.match(r"^\\s*#{1,6}\\s+", line):
+        if re.match(r"^\s*#{1,6}\s+", line):
             if active:
                 break
             active = bool(re.search(r"acceptance criteria", line, re.I))
             continue
         if active:
-            match = re.match(r"^\\s*(?:[-*+]\\s+|\\d+[.)]\\s+)(?:\\[([ xX])\\]\\s*)?(.+?)\\s*$", line)
+            match = re.match(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)(?:\[([ xX])\]\s*)?(.+?)\s*$", line)
             if match:
                 marker = match.group(1)
                 statuses.append(None if marker is None else marker.lower() == "x")
