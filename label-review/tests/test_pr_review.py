@@ -185,5 +185,50 @@ class PRReviewTests(unittest.TestCase):
                     pr_review.snapshot(12)
 
 
+    def test_unknown_taxonomy_is_rejected_and_low_confidence_abstains(self):
+        data = {
+            "known_labels": ["bug"],
+            "milestones": [{"number": 2, "title": "Current"}],
+            "title": "t",
+            "body": "b",
+            "files": [{"filename": "src/a.py"}],
+            "diff": "+return True",
+        }
+
+        def run_answer(answer):
+            response = {"choices": [{"message": {"content": json.dumps(answer)}}]}
+
+            class FakeResponse:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    return False
+
+                def read(self):
+                    return json.dumps(response).encode()
+
+            with (
+                patch.dict(os.environ, {"OPENROUTER_API_KEY": "test"}),
+                patch.object(pr_review.urllib.request, "urlopen", return_value=FakeResponse()),
+            ):
+                return pr_review.ask_model(data)
+
+        base = {
+            "labels": ["bug"],
+            "milestone": 2,
+            "confidence": "high",
+            "rationale": "Supported",
+            "evidence": [{"file": "src/a.py", "quote": "return True"}],
+        }
+        with self.assertRaisesRegex(pr_review.ReviewError, "outside the live repository taxonomy"):
+            run_answer({**base, "labels": ["unknown"]})
+        with self.assertRaisesRegex(pr_review.ReviewError, "outside the live open milestones"):
+            run_answer({**base, "milestone": 99})
+        abstained = run_answer({**base, "confidence": "low"})
+        self.assertEqual(abstained["labels"], [])
+        self.assertIsNone(abstained["milestone"])
+
+
 if __name__ == "__main__":
     unittest.main()
