@@ -45,18 +45,23 @@ def integration_status(snapshot: dict) -> dict:
             source = str(evidence.get("source") or "")
             url = str(evidence.get("url") or "")
             observed_sha = str(evidence.get("head_sha") or "")
+            evidence_expected_sha = str(evidence.get("expected_sha") or "")
             details = str(evidence.get("details") or "")
-            if not observed_sha or not expected_sha or observed_sha != expected_sha:
+            if evidence_expected_sha and observed_sha != evidence_expected_sha:
                 state = State.UNKNOWN
-                details = details or "Workflow evidence is not tied to the observed repository head."
+                details = details or "Workflow evidence does not match its declared expected SHA."
 
         results[name] = {
             "state": state.value,
             "source": source,
             "url": url,
             "observed_sha": observed_sha,
-            "expected_sha": expected_sha,
-            "current": bool(observed_sha and expected_sha and observed_sha == expected_sha),
+            "expected_sha": evidence_expected_sha if isinstance(evidence, dict) else "",
+            "revision_match": (
+                observed_sha == evidence_expected_sha
+                if isinstance(evidence, dict) and evidence.get("expected_sha")
+                else None
+            ),
             "details": details,
             "entrypoint": contract["entrypoint"],
             "engine": contract["engine"],
