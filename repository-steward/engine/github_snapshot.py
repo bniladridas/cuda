@@ -226,8 +226,11 @@ def pull_request_workflow_evidence(
     if run.get("status") != "completed":
         return {**result_base, "state": "pending", "details": "The matching workflow run is still in progress."}
     if run.get("conclusion") != "success":
-        return {**result_base, "state": "failed",
-                "details": f"Matching workflow run concluded {run.get('conclusion') or 'without a conclusion'}."}
+        return {
+            **result_base,
+            "state": "failed",
+            "details": f"Matching workflow run concluded {run.get('conclusion') or 'without a conclusion'}.",
+        }
 
     run_id = run.get("id")
     if not isinstance(run_id, int):
