@@ -20,7 +20,7 @@ class ProposalGateTests(unittest.TestCase):
             "GITHUB_REPOSITORY": "owner/repo",
             "GITHUB_TOKEN": "token",
             "GITHUB_ACTOR": "maintainer",
-            "GITHUB_REF": "refs/heads/main",
+            "WORKFLOW_REF": "refs/heads/main",
             "PR_NUMBER": "12",
             "EXPECTED_HEAD_SHA": "a" * 40,
             "EXPECTED_BASE_SHA": "b" * 40,
@@ -78,7 +78,7 @@ class ProposalGateTests(unittest.TestCase):
             self.run_gate()
 
     def test_rejects_dispatch_from_non_default_branch(self):
-        self.env["GITHUB_REF"] = "refs/heads/feature"
+        self.env["WORKFLOW_REF"] = "refs/heads/feature"
         with self.assertRaises(SystemExit):
             self.run_gate()
 
