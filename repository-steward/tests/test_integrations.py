@@ -15,8 +15,9 @@ class IntegrationAdapterTests(unittest.TestCase):
         self.assertFalse(result["mutations_performed"])
 
     def test_current_workflow_evidence_does_not_imply_approval(self):
-        result = integration_status({
-            "head_sha": "abc",
+        result = integration_status(
+            {
+                "head_sha": "abc",
             "integration_evidence": {
                 "label_review": {
                     "state": "success",
@@ -29,8 +30,8 @@ class IntegrationAdapterTests(unittest.TestCase):
                     "head_sha": "abc",
                     "source": "workflow run 13",
                 },
-            },
-        })
+            }
+        )
         label = result["integrations"]["label_review"]
         landing = result["integrations"]["issue_landing"]
         self.assertEqual(label["state"], "success")
@@ -43,23 +44,25 @@ class IntegrationAdapterTests(unittest.TestCase):
         self.assertFalse(result["mutations_performed"])
 
     def test_stale_evidence_is_unknown_not_success(self):
-        result = integration_status({
-            "head_sha": "new",
+        result = integration_status(
+            {
+                "head_sha": "new",
             "integration_evidence": {
                 "label_review": {"state": "success", "head_sha": "old", "expected_sha": "new"},
-            },
-        })
+            }
+        )
         item = result["integrations"]["label_review"]
         self.assertEqual(item["state"], "unknown")
         self.assertFalse(item["revision_match"])
 
     def test_unknown_states_remain_unknown(self):
-        result = integration_status({
-            "head_sha": "abc",
+        result = integration_status(
+            {
+                "head_sha": "abc",
             "integration_evidence": {
                 "issue_landing": {"state": "something-new", "head_sha": "abc"},
-            },
-        })
+            }
+        )
         self.assertEqual(result["integrations"]["issue_landing"]["state"], "unknown")
 
 
