@@ -31,8 +31,7 @@ source of truth for their own behavior:
 
 The existing engines are not yet one application. Their workflows have
 independent triggers, configuration, tests, permissions, and audit artifacts.
-The first integration step is to document stable boundaries, not to centralize
-their execution prematurely.
+The coordinator now exposes read-only status adapters for Label Review and Issue Landing. The snapshot adapter reads each workflow's latest run and records its conclusion, source, URL and head SHA. A successful workflow run is not treated as proof of a human approval. Missing or stale run evidence remains unavailable or unknown, and both write operations remain behind their original protected environments. The coordinator does not dispatch either workflow or perform writes.
 
 ## Logical architecture
 
