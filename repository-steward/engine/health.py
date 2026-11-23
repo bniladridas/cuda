@@ -1,4 +1,4 @@
-""""Deterministic, read-only repository-health checks."""
+"""Deterministic, read-only repository-health checks."""
 
 import json
 import re
@@ -7,7 +7,7 @@ from urllib.parse import unquote, urlsplit
 
 import yaml
 
-MARKDOWN_LINK = re.compile(r"!?(?:\\[[^\\]]*\\])\\(\\s*(<[^>]+>|[^\\s)]+)")
+MARKDOWN_LINK = re.compile(r"!?(?:\[[^\]]*\])\(\s*(<[^>]+>|[^\s)]+)")
 WORKFLOW_PATH = PurePosixPath(".github/workflows")
 
 
@@ -63,9 +63,7 @@ def _markdown_target(source: str, raw_target: str) -> str | None:
     if target.startswith("<") and target.endswith(">"):
         target = target[1:-1]
     parsed = urlsplit(target)
-    if parsed.scheme or parsed.netloc:
-        return None
-    if not parsed.path:
+    if parsed.scheme or parsed.netloc or not parsed.path:
         return None
     path = unquote(parsed.path)
     if path.startswith("/"):
