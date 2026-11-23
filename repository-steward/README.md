@@ -95,3 +95,12 @@ The workflow does not post comments, apply labels, close issues, modify
 branches, merge pull requests, or publish releases. GPU evidence remains
 pending, skipped, or unknown unless a matching current-head validation result
 establishes otherwise.
+
+
+## Documentation drift checks
+
+Repository Health scans Markdown guidance for explicit
+`.github/workflows/*.yml` and `.yaml` references. A reference whose workflow
+file is no longer present is reported as a warning with its source path and
+line. This check is intentionally narrow: it detects stale explicit workflow
+paths, not whether every workflow has complete prose documentation.
