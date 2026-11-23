@@ -103,14 +103,8 @@ jobs: [",
     def test_stale_workflow_paths_in_markdown_are_reported(self):
         result = check_workflow_documentation_references(
             {
-                "README.md": (
-                    "Current: .github/workflows/ci.yml
-"
-                    "Removed: .github/workflows/old-ci.yml
-"
-                ),
-                ".github/workflows/ci.yml": "name: CI\
-",
+                "README.md": "Current: .github/workflows/ci.yml\nRemoved: .github/workflows/old-ci.yml\n",
+                ".github/workflows/ci.yml": "name: CI\n",
             }
         )
         self.assertEqual(len(result), 1)
