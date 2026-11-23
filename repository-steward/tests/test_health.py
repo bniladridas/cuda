@@ -43,7 +43,9 @@ class RepositoryHealthTests(unittest.TestCase):
     def test_missing_local_action_reference_is_reported(self):
         result = check_github_workflows(
             {
-                ".github/workflows/ci.yml": ("name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/not-present\n")
+                ".github/workflows/ci.yml": (
+                    "name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/not-present\n"
+                )
             }
         )
         self.assertEqual(len(result), 1)
@@ -52,7 +54,9 @@ class RepositoryHealthTests(unittest.TestCase):
     def test_existing_local_action_metadata_is_accepted(self):
         result = check_github_workflows(
             {
-                ".github/workflows/ci.yml": ("name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/example\n"),
+                ".github/workflows/ci.yml": (
+                    "name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/example\n"
+                ),
                 "actions/example/action.yml": "name: Example\nruns:\n  using: composite\n",
             }
         )
