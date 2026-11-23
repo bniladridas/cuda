@@ -31,9 +31,14 @@ for these checks.
 
 - `repository`, `head_sha`
 - `issues[]`: number, title, body, state, labels, assignees, updated_at,
-  optional linked_pr_numbers, dependency_numbers and acceptance_criteria
+  optional linked_pr_numbers, dependency_numbers, acceptance_criteria and
+  acceptance_criteria_status. Explicit checkboxes are preserved as complete or
+  incomplete; plain bullets remain unverified.
 - `pull_requests[]`: number, title, body, state, head_sha, draft, checks,
-  review_decision, url, optional linked_issue_numbers
+  review_decision, url, optional linked_issue_numbers, base_ref, base_sha,
+  merged_at and merge_commit_sha. Issue tracking reports `open`, `merged`,
+  `closed_unmerged` or `unknown` merge state without treating a closed PR as
+  merged.
 - `validations[]`: kind, state, head_sha, source, url, details and optional
   workflow-run/runner metadata. Device identity remains `not_reported` unless
   independently established.
@@ -47,6 +52,12 @@ for these checks.
   source, URL, details and the parsed JSON artifact under `evidence`. The
   collector downloads artifacts only from successful `pull_request_target`
   runs associated with that exact PR number and head SHA.
+
+Issue Tracking reports closure readiness as a human-review candidate only
+when every acceptance criterion is explicitly checked, all linked PRs are
+verified merged, and dependencies are closed. Unchecked criteria and open PRs
+block the candidate; missing merge evidence remains unknown. It never closes
+an issue.
 
 ## Trust boundaries
 
@@ -95,7 +106,6 @@ The workflow does not post comments, apply labels, close issues, modify
 branches, merge pull requests, or publish releases. GPU evidence remains
 pending, skipped, or unknown unless a matching current-head validation result
 establishes otherwise.
-
 
 ## Issue activity and ownership
 
