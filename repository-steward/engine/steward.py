@@ -78,7 +78,8 @@ def build_report(snapshot: dict, *, include_model_summary: bool = False) -> dict
 
     report.modules["release_readiness"] = evaluate_readiness(evidence, snapshot.get("readiness_policy"))
     report.modules["integrations"] = integration_status(snapshot)
-    report.modules["integrations"]["integrations"].update({
+    report.modules["integrations"]["integrations"].update(
+        {
         "pr_confidence": {
             "state": "unavailable",
             "entrypoint": ".github/workflows/pr-confidence.yml",
@@ -106,8 +107,9 @@ def build_report(snapshot: dict, *, include_model_summary: bool = False) -> dict
             "approval_required": True,
             "approval_status": "not_asserted",
             "coordinator_write_performed": False,
-        },
-    })
+            },
+        }
+    )
     result = report.to_dict()
     if include_model_summary:
         from .model_summary import summarize_report
