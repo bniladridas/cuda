@@ -192,9 +192,9 @@ def workflow_evidence(repository: str, workflow_file: str, *, runner=subprocess.
     }
 
 
-
-def pull_request_workflow_evidence(repository: str, pr_number: int, head_sha: str, workflow_file: str,
-                                   artifact_name: str, *, runner=subprocess.run) -> dict:
+def pull_request_workflow_evidence(
+    repository: str, pr_number: int, head_sha: str, workflow_file: str, artifact_name: str, *, runner=subprocess.run
+) -> dict:
     """Read an artifact only from a workflow run associated with this PR and exact head."""
     missing = {
         "state": "missing",
@@ -203,17 +203,16 @@ def pull_request_workflow_evidence(repository: str, pr_number: int, head_sha: st
     if not head_sha:
         return missing
     response = run_gh(
-        f"repos/{repository}/actions/workflows/{workflow_file}/runs"
-        "?event=pull_request_target&per_page=100",
+        f"repos/{repository}/actions/workflows/{workflow_file}/runs?event=pull_request_target&per_page=100",
         runner=runner,
     )
     # pull_request_target runs execute against the base branch, so the run's
     # top-level head_sha is not the PR head. Bind through the associated PR.
     runs = [
-        item for item in response.get("workflow_runs", [])
+        item
+        for item in response.get("workflow_runs", [])
         if any(
-            int(link.get("number") or 0) == pr_number
-            and ((link.get("head") or {}).get("sha") == head_sha)
+            int(link.get("number") or 0) == pr_number and ((link.get("head") or {}).get("sha") == head_sha)
             for link in item.get("pull_requests") or []
         )
     ]
@@ -235,11 +234,14 @@ def pull_request_workflow_evidence(repository: str, pr_number: int, head_sha: st
         return {**result_base, "state": "malformed", "details": "Matching workflow run has no numeric ID."}
     artifacts = run_gh(f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100", runner=runner)
     matches = [
-        item for item in artifacts.get("artifacts", [])
-        if item.get("name") == artifact_name and not item.get("expired")
+        item for item in artifacts.get("artifacts", []) if item.get("name") == artifact_name and not item.get("expired")
     ]
     if not matches:
-        return {**result_base, "state": "missing", "details": "The matching workflow run has no retained evidence artifact."}
+        return {
+            **result_base,
+            "state": "missing",
+            "details": "The matching workflow run has no retained evidence artifact.",
+        }
     artifact_id = matches[0].get("id")
     if not isinstance(artifact_id, int):
         return {**result_base, "state": "malformed", "details": "Evidence artifact has no numeric ID."}
@@ -257,14 +259,16 @@ def pull_request_workflow_evidence(repository: str, pr_number: int, head_sha: st
             return {**result_base, "state": "missing", "details": f"Artifact download failed: {detail}"}
         candidates = sorted(Path(temporary).glob("*.json"))
         if len(candidates) != 1:
-            return {**result_base, "state": "malformed",
-                    "details": "Expected exactly one JSON evidence file in the artifact."}
+            return {
+                **result_base,
+                "state": "malformed",
+                "details": "Expected exactly one JSON evidence file in the artifact.",
+            }
         try:
             evidence = json.loads(candidates[0].read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             return {**result_base, "state": "malformed", "details": f"Evidence JSON could not be read: {exc}"}
     return {**result_base, "state": "success", "evidence": evidence}
-
 
 
 def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dict:
