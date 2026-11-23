@@ -2,7 +2,7 @@ name: PR label and milestone review
 # Uses pull_request_target and never checks out or executes PR code.
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   workflow_dispatch:
     inputs:
       pr:
