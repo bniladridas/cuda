@@ -180,6 +180,7 @@ text
 
         def runner(*args, **kwargs):
             return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
         result = workflow_evidence("example/repo", "issue-landing.yml", "new", runner=runner)
         self.assertEqual(result["state"], "unavailable")
         self.assertEqual(result["expected_sha"], "new")
@@ -198,6 +199,8 @@ text
             return SimpleNamespace(returncode=1, stdout="", stderr="denied")
 
         self.assertEqual(pull_request_review_decision("example/repo", 12, runner=denied), "unknown")
+
+
 
 if __name__ == "__main__":
     unittest.main()
