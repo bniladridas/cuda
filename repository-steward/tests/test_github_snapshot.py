@@ -201,6 +201,5 @@ text
         self.assertEqual(pull_request_review_decision("example/repo", 12, runner=denied), "unknown")
 
 
-
 if __name__ == "__main__":
     unittest.main()
