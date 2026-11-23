@@ -73,9 +73,7 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
                     "url": pr.get("url") or "",
                 }
             )
-        dependencies = sorted(
-            (_numbers(body) | set(int(v) for v in issue.get("dependency_numbers", []))) - {number}
-        )
+        dependencies = sorted((_numbers(body) | set(int(v) for v in issue.get("dependency_numbers", []))) - {number})
         unknown_dependencies = [value for value in dependencies if value not in issue_by_number]
         acceptance = issue.get("acceptance_criteria") or []
         blockers = []
@@ -159,14 +157,10 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
         "issues": records,
         "stale_after_days": stale_after_days,
         "open_issue_count": sum(str(item.get("state", "open")).lower() == "open" for item in issues),
-        "unowned_open_issue_count": sum(
-            record["state"] == "open" and not record["has_owner"] for record in records
-        ),
+        "unowned_open_issue_count": sum(record["state"] == "open" and not record["has_owner"] for record in records),
         "stale_open_issue_count": sum(
             record["state"] == "open" and record["activity_state"] == "stale" for record in records
         ),
-        "unlinked_open_issue_count": sum(
-            record["state"] == "open" and not record["linked_prs"] for record in records
-        ),
+        "unlinked_open_issue_count": sum(record["state"] == "open" and not record["linked_prs"] for record in records),
         "findings": [item.to_dict() for item in findings],
     }
