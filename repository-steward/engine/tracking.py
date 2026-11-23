@@ -45,10 +45,25 @@ def analyze_tracking(snapshot: dict) -> dict:
                     }
                 )
                 continue
+            state = str(pr.get("state") or "unknown").lower()
+            merged_at = pr.get("merged_at") or ""
+            if merged_at or pr.get("merged") is True:
+                merge_status = "merged"
+            elif state == "closed":
+                merge_status = "closed_unmerged"
+            elif state == "open":
+                merge_status = "open"
+            else:
+                merge_status = "unknown"
             linked.append(
                 {
                     "number": pr_number,
-                    "state": pr.get("state", "unknown"),
+                    "state": state,
+                    "merge_status": merge_status,
+                    "merged_at": merged_at,
+                    "merge_commit_sha": pr.get("merge_commit_sha") or "",
+                    "base_ref": pr.get("base_ref") or "",
+                    "base_sha": pr.get("base_sha") or "",
                     "draft": bool(pr.get("draft", False)),
                     "head_sha": pr.get("head_sha") or "",
                     "checks": pr.get("checks", []),
