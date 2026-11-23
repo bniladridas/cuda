@@ -204,13 +204,18 @@ def pull_request_workflow_evidence(repository: str, pr_number: int, head_sha: st
         return missing
     response = run_gh(
         f"repos/{repository}/actions/workflows/{workflow_file}/runs"
-        f"?event=pull_request_target&head_sha={head_sha}&per_page=100",
+        "?event=pull_request_target&per_page=100",
         runner=runner,
     )
+    # pull_request_target runs execute against the base branch, so the run's
+    # top-level head_sha is not the PR head. Bind through the associated PR.
     runs = [
         item for item in response.get("workflow_runs", [])
-        if item.get("head_sha") == head_sha
-        and any(int(link.get("number") or 0) == pr_number for link in item.get("pull_requests") or [])
+        if any(
+            int(link.get("number") or 0) == pr_number
+            and ((link.get("head") or {}).get("sha") == head_sha)
+            for link in item.get("pull_requests") or []
+        )
     ]
     if not runs:
         return missing
