@@ -28,6 +28,24 @@ text
 - not included"""
         self.assertEqual(criteria_from_body(body), ["CPU tests", "GPU evidence"])
 
+    def test_acceptance_checklist_status_preserves_checked_unchecked_and_unverified(self):
+        body = """## Acceptance Criteria
+- [x] CPU tests pass
+- [ ] GPU runtime evidence
+- Documentation updated
+## Notes
+- not included"""
+        from engine.github_snapshot import acceptance_criteria_status_from_body
+
+        self.assertEqual(
+            acceptance_criteria_status_from_body(body),
+            [
+                {"text": "CPU tests pass", "state": "complete"},
+                {"text": "GPU runtime evidence", "state": "incomplete"},
+                {"text": "Documentation updated", "state": "unverified"},
+            ],
+        )
+
     def test_dependency_extraction_is_sorted_and_excludes_self(self):
         self.assertEqual(issue_dependencies("Depends on #8 and #3, also #8", 3), [8])
 
