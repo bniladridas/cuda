@@ -175,7 +175,6 @@ def check_github_workflows(files: dict[str, str]) -> list[dict]:
     return findings
 
 
-
 def check_workflow_documentation_references(files: dict[str, str]) -> list[dict]:
     """Find Markdown guidance that still points at workflow files no longer present."""
     findings = []
