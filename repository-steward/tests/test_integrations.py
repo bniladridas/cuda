@@ -45,12 +45,12 @@ class IntegrationAdapterTests(unittest.TestCase):
         result = integration_status({
             "head_sha": "new",
             "integration_evidence": {
-                "label_review": {"state": "success", "head_sha": "old"},
+                "label_review": {"state": "success", "head_sha": "old", "expected_sha": "new"},
             },
         })
         item = result["integrations"]["label_review"]
         self.assertEqual(item["state"], "unknown")
-        self.assertFalse(item["current"])
+        self.assertFalse(item["revision_match"])
 
     def test_unknown_states_remain_unknown(self):
         result = integration_status({
