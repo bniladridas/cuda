@@ -1,0 +1,185 @@
+name: PR repair proposal only
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Same-repository PR number, draft PRs are allowed
+        required: true
+        type: number
+      expected_head_sha:
+        description: Exact current PR head commit SHA
+        required: true
+        type: string
+      expected_base_sha:
+        description: Exact current PR base commit SHA
+        required: true
+        type: string
+      review_feedback:
+        description: Optional reviewer feedback, treated as untrusted context
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-repair-proposal-${{ inputs.pull_request }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+      base_sha: ${{ steps.gate.outputs.base_sha }}
+      base_branch: ${{ steps.gate.outputs.base_branch }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - id: gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WORKFLOW_REF: ${{ github.ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          EXPECTED_BASE_SHA: ${{ inputs.expected_base_sha }}
+          REPAIR_MAINTAINERS: ${{ vars.REPAIR_MAINTAINERS }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/proposal_gate.py > gate.env
+          cat gate.env >> "$GITHUB_OUTPUT"
+
+  proposal:
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Export exact PR source snapshot and complete diff
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+          BASE_BRANCH: ${{ needs.authorize.outputs.base_branch }}
+          REVIEW_FEEDBACK: ${{ inputs.review_feedback }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            "refs/pull/$PR_NUMBER/head:refs/remotes/origin/proposal-head" \
+            "refs/heads/$BASE_BRANCH:refs/remotes/origin/proposal-base"
+          test "$(git rev-parse refs/remotes/origin/proposal-head)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse refs/remotes/origin/proposal-base)" = "$EXPECTED_BASE"
+          git archive --format=tar "$EXPECTED_HEAD" > source.tar
+          git diff --binary --full-index "$EXPECTED_BASE...$EXPECTED_HEAD" > pr.diff
+          git diff --name-only --no-renames -z "$EXPECTED_BASE...$EXPECTED_HEAD" > pr-files.txt
+          test -s pr.diff
+          test -s pr-files.txt
+          python3 rebase-agent/engine/write_feedback.py feedback.txt
+      - name: Prepare inert source snapshot
+        run: |
+          set -euo pipefail
+          mkdir source
+          python3 rebase-agent/engine/extract_safe_archive.py source.tar source
+          git -C source init -q
+          git -C source config user.name "repair-agent"
+          git -C source config user.email "repair-agent@users.noreply.github.com"
+          git -C source add -A
+          git -C source commit -qm "PR source snapshot"
+      - name: Inspect live GitHub trees using read-only API access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/tree_inspector.py \
+            --repository "$REPOSITORY" --pull-request "$PR_NUMBER" \
+            --output tree-inspection.json
+          python3 rebase-agent/engine/verify_tree_inspection.py \
+            tree-inspection.json "$EXPECTED_HEAD" "$EXPECTED_BASE"
+      - name: Generate bounded repair proposal
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 rebase-agent/engine/repair_agent.py \
+            --source source --diff pr.diff --files pr-files.txt \
+            --feedback feedback.txt --report agent-report.json
+          git -C source diff --cached --binary --full-index > proposed.patch
+          git -C source diff --cached --name-only -z > proposed-files.txt
+          test -s proposed.patch
+          test -s proposed-files.txt
+          python3 rebase-agent/engine/verify_agent_report.py agent-report.json
+      - name: Prepare isolated proposed tree for independent review
+        run: |
+          set -euo pipefail
+          git -C source commit -qm "Apply isolated repair proposal"
+          git -C source archive --format=tar HEAD > proposed-source.tar
+      - name: Review the complete proposed patch without allowing edits
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir final-source
+          python3 rebase-agent/engine/extract_safe_archive.py proposed-source.tar final-source
+          python3 rebase-agent/engine/repair_agent.py \
+            --source final-source --diff proposed.patch \
+            --files proposed-files.txt --report final-review.json --review-only
+          python3 rebase-agent/engine/verify_agent_report.py final-review.json --final
+      - name: Recheck PR refs before publishing proposal artifacts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pull_request }}
+          EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
+          EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          repo = os.environ["REPOSITORY"]
+          number = os.environ["PR_NUMBER"]
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/pulls/{number}",
+              headers={"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+                       "Accept": "application/vnd.github+json"})
+          with urllib.request.urlopen(request, timeout=20) as response:
+              pr = json.loads(response.read())
+          if pr["state"] != "open" or pr.get("merged"):
+              raise SystemExit("PR is no longer open and unmerged")
+          if pr["head"]["sha"] != os.environ["EXPECTED_HEAD"]:
+              raise SystemExit("PR head moved during proposal run")
+          if pr["base"]["sha"] != os.environ["EXPECTED_BASE"]:
+              raise SystemExit("PR base moved during proposal run")
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pr-repair-proposal-${{ inputs.pull_request }}
+          path: |
+            proposed.patch
+            proposed-files.txt
+            agent-report.json
+            final-review.json
+            tree-inspection.json
+          if-no-files-found: error
+          retention-days: 14
