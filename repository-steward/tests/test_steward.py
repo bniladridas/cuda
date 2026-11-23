@@ -167,7 +167,6 @@ class StewardTests(unittest.TestCase):
             result["modules"]["model_integration"]["authorization_source"],
         )
 
-
     def test_issue_ownership_activity_and_closure_candidate_are_evidence_based(self):
         result = analyze_tracking(
             {
