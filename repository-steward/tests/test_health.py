@@ -38,8 +38,11 @@ class RepositoryHealthTests(unittest.TestCase):
     def test_workflow_yaml_syntax_and_duplicate_keys_are_checked(self):
         result = check_github_workflows(
             {
-                ".github/workflows/broken.yml": "name: test\njobs: [",
-                ".github/workflows/duplicate.yaml": "name: test\nname: other\n",
+                ".github/workflows/broken.yml": "name: test
+jobs: [",
+                ".github/workflows/duplicate.yaml": "name: test
+name: other
+",
             }
         )
         self.assertEqual(len(result), 2)
@@ -49,7 +52,12 @@ class RepositoryHealthTests(unittest.TestCase):
         result = check_github_workflows(
             {
                 ".github/workflows/ci.yml": (
-                    "name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/not-present\n"
+                    "name: test
+jobs:
+  test:
+    steps:
+      - uses: ./actions/not-present
+"
                 )
             }
         )
@@ -60,9 +68,17 @@ class RepositoryHealthTests(unittest.TestCase):
         result = check_github_workflows(
             {
                 ".github/workflows/ci.yml": (
-                    "name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/example\n"
+                    "name: test
+jobs:
+  test:
+    steps:
+      - uses: ./actions/example
+"
                 ),
-                "actions/example/action.yml": "name: Example\nruns:\n  using: composite\n",
+                "actions/example/action.yml": "name: Example
+runs:
+  using: composite
+",
             }
         )
         self.assertEqual(result, [])
@@ -72,7 +88,8 @@ class RepositoryHealthTests(unittest.TestCase):
             {
                 "README.md": "[missing](docs/nope.md)",
                 ".github/config.json": "{broken",
-                ".github/workflows/ci.yml": "name: test\njobs: [",
+                ".github/workflows/ci.yml": "name: test
+jobs: [",
             }
         )
         codes = {item["code"] for item in result["findings"]}
@@ -87,10 +104,13 @@ class RepositoryHealthTests(unittest.TestCase):
         result = check_workflow_documentation_references(
             {
                 "README.md": (
-                    "Current: .github/workflows/ci.yml\n"
-                    "Removed: .github/workflows/old-ci.yml\n"
+                    "Current: .github/workflows/ci.yml
+"
+                    "Removed: .github/workflows/old-ci.yml
+"
                 ),
-                ".github/workflows/ci.yml": "name: CI\\n",
+                ".github/workflows/ci.yml": "name: CI\
+",
             }
         )
         self.assertEqual(len(result), 1)
