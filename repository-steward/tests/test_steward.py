@@ -168,5 +168,58 @@ class StewardTests(unittest.TestCase):
         )
 
 
+    def test_issue_ownership_activity_and_closure_candidate_are_evidence_based(self):
+        result = analyze_tracking({
+            "generated_at": "2026-11-23T12:00:00+00:00",
+            "issues": [
+                {"number": 4, "title": "Ship feature", "body": "Done", "state": "open",
+                 "assignees": ["maintainer"], "updated_at": "2026-11-20T12:00:00Z",
+                 "acceptance_criteria": ["CPU tests", "review"],
+                 "acceptance_criteria_status": [True, True], "dependency_numbers": [5],
+                 "linked_pr_numbers": [12]},
+                {"number": 5, "title": "Dependency", "body": "Done", "state": "closed"},
+                {"number": 6, "title": "Unowned stale issue", "body": "Investigate",
+                 "state": "open", "assignees": [], "updated_at": "2026-10-01T12:00:00Z",
+                 "acceptance_criteria": ["Investigate"], "acceptance_criteria_status": [False]},
+            ],
+            "pull_requests": [{"number": 12, "title": "Implement #4", "state": "closed",
+                               "merged": True, "merge_state": "merged"}],
+        })
+        by_number = {item["number"]: item for item in result["issues"]}
+        self.assertTrue(by_number[4]["closure_readiness"]["candidate"])
+        self.assertTrue(by_number[4]["closure_readiness"]["human_review_required"])
+        self.assertFalse(by_number[4]["closure_readiness"]["issue_mutation_performed"])
+        self.assertEqual(by_number[4]["activity_state"], "recent")
+        self.assertEqual(by_number[6]["activity_state"], "stale")
+        self.assertFalse(by_number[6]["owner_present"])
+        self.assertEqual(result["unowned_open_issue_count"], 1)
+        self.assertEqual(result["stale_open_issue_count"], 1)
+        self.assertEqual(result["closure_candidate_count"], 1)
+        codes = {item["code"] for item in result["findings"]}
+        self.assertIn("issue.unowned", codes)
+        self.assertIn("issue.stale_activity", codes)
+
+    def test_closure_readiness_rejects_unverified_criteria_and_unmerged_prs(self):
+        result = analyze_tracking({
+            "generated_at": "2026-11-23T12:00:00Z",
+            "issues": [{"number": 7, "title": "Work", "body": "Done", "state": "open",
+                        "updated_at": "2026-11-22T12:00:00Z",
+                        "acceptance_criteria": ["tests", "review"],
+                        "acceptance_criteria_status": [True, None], "linked_pr_numbers": [8]}],
+            "pull_requests": [{"number": 8, "title": "PR", "state": "closed", "merged": False}],
+        })
+        readiness = result["issues"][0]["closure_readiness"]
+        self.assertFalse(readiness["candidate"])
+        self.assertIn("acceptance criteria are not all explicitly checked", readiness["blockers"])
+        self.assertIn("one or more linked pull requests are not verified merged", readiness["blockers"])
+
+    def test_activity_age_is_unknown_without_timezone_aware_snapshot_time(self):
+        result = analyze_tracking({
+            "issues": [{"number": 1, "title": "Issue", "body": "Body", "state": "open",
+                        "updated_at": "2026-01-01T00:00:00Z"}],
+            "pull_requests": [],
+        })
+        self.assertEqual(result["issues"][0]["activity_state"], "unknown")
+
 if __name__ == "__main__":
     unittest.main()
