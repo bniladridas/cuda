@@ -125,6 +125,7 @@ class PRReviewTests(unittest.TestCase):
                 }
             ]
         }
+
         class FakeResponse:
             def __enter__(self):
                 return self
