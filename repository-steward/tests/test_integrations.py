@@ -62,5 +62,5 @@ class IntegrationAdapterTests(unittest.TestCase):
         self.assertEqual(result["integrations"]["issue_landing"]["state"], "unknown")
 
 
-if __ __name__ == "__main__":
+if __name__ == "__main__":
     unittest.main()
