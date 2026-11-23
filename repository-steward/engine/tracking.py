@@ -70,23 +70,44 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
         for pr_number in sorted(references):
             pr = pr_by_number.get(pr_number)
             if pr is None:
-                linked.append({"number": pr_number, "state": "unknown", "merge_state": "unknown",
-                               "reason": "PR not present in snapshot"})
+                linked.append(
+                    {
+                        "number": pr_number,
+                        "state": "unknown",
+                        "merge_state": "unknown",
+                        "reason": "PR not present in snapshot",
+                    }
+                )
                 continue
             merged = pr.get("merged") is True or pr.get("merge_state") == "merged"
             pr_state = str(pr.get("state", "unknown")).lower()
-            merge_state = "merged" if merged else "open" if pr_state == "open" else "closed_unmerged" if pr_state == "closed" else "unknown"
-            linked.append({
-                "number": pr_number, "state": pr_state, "merge_state": merge_state,
-                "draft": bool(pr.get("draft", False)), "head_sha": pr.get("head_sha") or "",
-                "checks": pr.get("checks", []), "review_decision": pr.get("review_decision") or "unknown",
-                "url": pr.get("url") or "",
-            })
+            merge_state = (
+                "merged"
+                if merged
+                else "open"
+                if pr_state == "open"
+                else "closed_unmerged"
+                if pr_state == "closed"
+                else "unknown"
+            )
+            linked.append(
+                {
+                    "number": pr_number,
+                    "state": pr_state,
+                    "merge_state": merge_state,
+                    "draft": bool(pr.get("draft", False)),
+                    "head_sha": pr.get("head_sha") or "",
+                    "checks": pr.get("checks", []),
+                    "review_decision": pr.get("review_decision") or "unknown",
+                    "url": pr.get("url") or "",
+                }
+            )
 
         dependencies = sorted((_numbers(body) | set(int(v) for v in issue.get("dependency_numbers", []))) - {number})
         unknown_dependencies = [value for value in dependencies if value not in issue_by_number]
         open_dependencies = [
-            value for value in dependencies
+            value
+            for value in dependencies
             if value in issue_by_number and str(issue_by_number[value].get("state", "unknown")).lower() != "closed"
         ]
         acceptance = issue.get("acceptance_criteria") or []
@@ -107,20 +128,45 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
 
         owner_present = bool(issue.get("assignees"))
         if state == "open" and not owner_present:
-            findings.append(Finding(code="issue.unowned", severity=Severity.WARNING,
-                summary=f"Open issue #{number} has no assignee.", evidence=(str(number),), blocking=False))
+            findings.append(
+                Finding(
+                    code="issue.unowned",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has no assignee.",
+                    evidence=(str(number),),
+                    blocking=False,
+                )
+            )
         if state == "open" and activity_state == "stale":
-            findings.append(Finding(code="issue.stale_activity", severity=Severity.WARNING,
-                summary=f"Open issue #{number} has had no recorded activity for {activity_age_days} days.",
-                evidence=(str(number), activity_at), blocking=False))
+            findings.append(
+                Finding(
+                    code="issue.stale_activity",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has had no recorded activity for {activity_age_days} days.",
+                    evidence=(str(number), activity_at),
+                    blocking=False,
+                )
+            )
         if state == "open" and not linked:
-            findings.append(Finding(code="issue.unlinked", severity=Severity.WARNING,
-                summary=f"Open issue #{number} has no linked pull request in the snapshot.",
-                evidence=(str(number),), blocking=False))
+            findings.append(
+                Finding(
+                    code="issue.unlinked",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has no linked pull request in the snapshot.",
+                    evidence=(str(number),),
+                    blocking=False,
+                )
+            )
         if state == "open" and not acceptance:
-            findings.append(Finding(code="issue.acceptance_missing", severity=Severity.WARNING,
-                summary=f"Open issue #{number} has no structured acceptance criteria.",
-                evidence=(str(number),), blocking=False))
+            findings.append(
+                Finding(
+                    code="issue.acceptance_missing",
+                    severity=Severity.WARNING,
+                    summary=f"Open issue #{number} has no structured acceptance criteria.",
+                    evidence=(str(number),),
+                    blocking=False,
+                )
+            )
 
         closure_blockers = list(metadata_blockers)
         if not acceptance:
@@ -134,29 +180,47 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
         if any(item["merge_state"] != "merged" for item in linked):
             closure_blockers.append("one or more linked pull requests are not verified merged")
         closure_ready = state == "open" and not closure_blockers
-        records.append({
-            "number": number, "title": title, "state": state, "url": issue.get("url") or "",
-            "labels": issue.get("labels", []), "assignees": issue.get("assignees", []),
-            "owner_present": owner_present, "dependencies": dependencies,
-            "unknown_dependencies": unknown_dependencies, "open_dependencies": open_dependencies,
-            "linked_prs": linked, "acceptance_criteria": acceptance,
-            "acceptance_criteria_status": criteria_states, "activity_at": activity_at,
-            "activity_age_days": activity_age_days, "activity_state": activity_state,
-            "metadata_blockers": metadata_blockers,
-            "closure_readiness": {
-                "status": "candidate" if closure_ready else "not_ready",
-                "candidate": closure_ready, "human_review_required": True,
-                "blockers": closure_blockers, "issue_mutation_performed": False,
-            },
-        })
+        records.append(
+            {
+                "number": number,
+                "title": title,
+                "state": state,
+                "url": issue.get("url") or "",
+                "labels": issue.get("labels", []),
+                "assignees": issue.get("assignees", []),
+                "owner_present": owner_present,
+                "dependencies": dependencies,
+                "unknown_dependencies": unknown_dependencies,
+                "open_dependencies": open_dependencies,
+                "linked_prs": linked,
+                "acceptance_criteria": acceptance,
+                "acceptance_criteria_status": criteria_states,
+                "activity_at": activity_at,
+                "activity_age_days": activity_age_days,
+                "activity_state": activity_state,
+                "metadata_blockers": metadata_blockers,
+                "closure_readiness": {
+                    "status": "candidate" if closure_ready else "not_ready",
+                    "candidate": closure_ready,
+                    "human_review_required": True,
+                    "blockers": closure_blockers,
+                    "issue_mutation_performed": False,
+                },
+            }
+        )
 
     return {
         "issues": records,
         "open_issue_count": sum(str(item.get("state", "open")).lower() == "open" for item in issues),
         "unlinked_open_issue_count": sum(record["state"] == "open" and not record["linked_prs"] for record in records),
-        "unowned_open_issue_count": sum(record["state"] == "open" and not record["owner_present"] for record in records),
-        "stale_open_issue_count": sum(record["state"] == "open" and record["activity_state"] == "stale" for record in records),
+        "unowned_open_issue_count": sum(
+            record["state"] == "open" and not record["owner_present"] for record in records
+        ),
+        "stale_open_issue_count": sum(
+            record["state"] == "open" and record["activity_state"] == "stale" for record in records
+        ),
         "closure_candidate_count": sum(record["closure_readiness"]["candidate"] for record in records),
-        "stale_after_days": stale_after_days, "findings": [item.to_dict() for item in findings],
+        "stale_after_days": stale_after_days,
+        "findings": [item.to_dict() for item in findings],
         "mutations_performed": False,
     }
