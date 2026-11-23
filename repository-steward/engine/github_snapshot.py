@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 ISSUE_REF = re.compile(r"(?<![\w/])#(\d+)\b")
@@ -417,6 +418,7 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
             ),
         }
     return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "repository": repository,
         "head_sha": observed_sha,
         "integration_evidence": integration_evidence,
