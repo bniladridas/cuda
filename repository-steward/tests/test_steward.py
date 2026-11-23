@@ -34,6 +34,37 @@ class StewardTests(unittest.TestCase):
         self.assertEqual(result["issues"][0]["dependencies"], [5])
         self.assertEqual(result["issues"][0]["linked_prs"][0]["number"], 12)
 
+    def test_linked_pr_merge_state_distinguishes_merged_and_closed_unmerged(self):
+        result = analyze_tracking(
+            {
+                "issues": [{"number": 4, "title": "Track landing", "body": "Acceptance criteria", "state": "open"}],
+                "pull_requests": [
+                    {
+                        "number": 12,
+                        "title": "Fixes #4",
+                        "state": "closed",
+                        "merged_at": "2026-11-23T10:00:00Z",
+                        "merge_commit_sha": "merge123",
+                        "base_ref": "main",
+                        "base_sha": "base123",
+                    },
+                    {
+                        "number": 13,
+                        "title": "Also fixes #4",
+                        "state": "closed",
+                        "merged_at": None,
+                        "merge_commit_sha": None,
+                    },
+                ],
+            }
+        )
+        linked = result["issues"][0]["linked_prs"]
+        self.assertEqual([item["merge_status"] for item in linked], ["merged", "closed_unmerged"])
+        self.assertEqual(linked[0]["merge_commit_sha"], "merge123")
+        self.assertEqual(linked[0]["base_ref"], "main")
+        self.assertEqual(linked[0]["base_sha"], "base123")
+        self.assertEqual(linked[1]["merge_commit_sha"], "")
+
     def test_readiness_requires_current_head_evidence(self):
         evidence = [
             Evidence("host_tests", State.SUCCESS, "ci", "old", "new"),
