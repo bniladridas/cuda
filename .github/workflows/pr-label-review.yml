@@ -19,6 +19,8 @@ jobs:
       contents: read
       pull-requests: read
       issues: read
+    outputs:
+      proposal_hash: ${{ steps.hash.outputs.proposal_hash }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -33,39 +35,16 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: pr-metadata-proposal
-          path: |
-            pr-proposal.json
-            pr-proposal.md
-          retention-days: 7
+      - name: Export proposal digest
+        id: hash
+        run: echo "proposal_hash=$(sha256sum pr-proposal.json | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
   comment:
     needs: propose
     if: vars.PR_LABEL_REVIEW_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: pr-metadata-proposal
-          path: ${{ runner.temp }}/pr-metadata-proposal
-      - name: Post proposal
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-        run: |
-          gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body-file "$RUNNER_TEMP/pr-metadata-proposal/pr-proposal.md"
-  apply:
-    needs: comment
-    if: vars.PR_LABEL_REVIEW_ENABLED == 'true' && vars.PR_LABEL_REVIEW_APPLY == 'true'
-    runs-on: ubuntu-latest
-    environment: pr-label-review
-    permissions:
-      contents: read
+      pull-requests: read
       issues: write
     steps:
       - uses: actions/checkout@v7
@@ -74,15 +53,52 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v8
+      - name: Rebuild and verify proposal before commenting
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          EXPECTED_PROPOSAL_HASH: ${{ needs.propose.outputs.proposal_hash }}
+        run: |
+          python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
+          actual="$(sha256sum pr-proposal.json | cut -d ' ' -f1)"
+          test "$actual" = "$EXPECTED_PROPOSAL_HASH"
+      - name: Post verified proposal
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+        run: gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file pr-proposal.md
+  apply:
+    needs: [propose, comment]
+    if: vars.PR_LABEL_REVIEW_ENABLED == 'true' && vars.PR_LABEL_REVIEW_APPLY == 'true'
+    runs-on: ubuntu-latest
+    environment: pr-label-review
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
         with:
-          name: pr-metadata-proposal
-          path: ${{ runner.temp }}/pr-metadata-proposal
+          ref: ${{ github.workflow_sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Rebuild and verify approved proposal
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          EXPECTED_PROPOSAL_HASH: ${{ needs.propose.outputs.proposal_hash }}
+        run: |
+          python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
+          actual="$(sha256sum pr-proposal.json | cut -d ' ' -f1)"
+          test "$actual" = "$EXPECTED_PROPOSAL_HASH"
       - name: Re-fetch and verify PR diff and metadata, then apply
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-        run: |
-          python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" \
-            --artifact "$RUNNER_TEMP/pr-metadata-proposal/pr-proposal.json"
+        run: python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" --artifact pr-proposal.json
