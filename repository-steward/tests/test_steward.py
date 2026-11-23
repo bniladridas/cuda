@@ -46,6 +46,52 @@ class StewardTests(unittest.TestCase):
         self.assertEqual(result["required_evidence"]["gpu_runtime"]["state"], "skipped")
         self.assertFalse(result["publication_performed"])
 
+    def test_release_readiness_checks_docs_health_benchmarks_and_versions(self):
+        evidence = [
+            Evidence("host_tests", State.SUCCESS, "ci", "head", "head"),
+            Evidence("cuda_compile", State.SUCCESS, "ci", "head", "head"),
+            Evidence("gpu_runtime", State.SUCCESS, "gpu-ci", "head", "head"),
+        ]
+        complete = evaluate_readiness(
+            evidence,
+            health={"findings": []},
+            benchmark={"reports": [{"state": "valid"}], "valid_count": 1},
+            files={"README.md": "", "LICENSE": "", "docs/methodology.md": ""},
+            version_evidence={"declared_version": "0.1.0", "release_version": "v0.1.0"},
+        )
+        self.assertTrue(complete["ready"])
+        self.assertEqual(complete["required_evidence"]["version_consistency"]["state"], "success")
+        self.assertFalse(complete["publication_performed"])
+
+        incomplete = evaluate_readiness(
+            evidence,
+            health={"findings": [{"severity": "error", "code": "config.invalid"}]},
+            benchmark={"reports": [], "valid_count": 0},
+            files={"README.md": ""},
+            version_evidence={"declared_version": "0.1.0", "release_version": "v0.2.0"},
+        )
+        self.assertFalse(incomplete["ready"])
+        states = {item["kind"]: item["state"] for item in incomplete["blockers"]}
+        self.assertEqual(states["documentation"], "failure")
+        self.assertEqual(states["repository_health"], "failure")
+        self.assertEqual(states["benchmark_integrity"], "unavailable")
+        self.assertEqual(states["version_consistency"], "failure")
+
+    def test_repository_health_warnings_are_reported_without_blocking_by_default(self):
+        evidence = [
+            Evidence("host_tests", State.SUCCESS, "ci", "head", "head"),
+            Evidence("cuda_compile", State.SUCCESS, "ci", "head", "head"),
+            Evidence("gpu_runtime", State.SUCCESS, "gpu-ci", "head", "head"),
+        ]
+        result = evaluate_readiness(
+            evidence,
+            {"require_benchmark_evidence": False, "require_version_consistency": False},
+            health={"findings": [{"severity": "warning", "code": "docs.link_missing"}]},
+            files={"README.md": "", "LICENSE": "", "docs/methodology.md": ""},
+        )
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["required_evidence"]["repository_health"]["warning_count"], 1)
+
     def test_health_reports_broken_relative_links_and_invalid_json(self):
         result = analyze_health(
             {
