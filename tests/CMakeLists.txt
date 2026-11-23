@@ -9,6 +9,11 @@ target_include_directories(test_host PRIVATE
 cuda_kernels_set_host_warnings(test_host)
 add_test(NAME host_reference COMMAND test_host)
 
+add_executable(test_int8_gemm_reference test_int8_gemm_reference.cpp)
+target_include_directories(test_int8_gemm_reference PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+cuda_kernels_set_host_warnings(test_int8_gemm_reference)
+add_test(NAME int8_gemm_reference COMMAND test_int8_gemm_reference)
+
 add_executable(test_attention_reference test_attention_reference.cpp)
 target_include_directories(test_attention_reference PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/include)
@@ -56,7 +61,7 @@ cuda_kernels_set_host_warnings(test_benchmark_device_buffer)
 add_test(NAME benchmark_device_buffer COMMAND test_benchmark_device_buffer)
 
 if(CUDA_KERNELS_HAVE_CUDA)
-  foreach(name IN ITEMS vecadd reduce softmax gemm layernorm attention)
+  foreach(name IN ITEMS vecadd reduce softmax gemm layernorm attention int8_gemm)
     add_executable(test_${name} test_${name}.cpp)
     target_include_directories(test_${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(test_${name} PRIVATE cuda_kernels::cudakernels)
