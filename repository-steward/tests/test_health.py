@@ -88,7 +88,7 @@ class RepositoryHealthTests(unittest.TestCase):
             {
                 "README.md": (
                     "Current: .github/workflows/ci.yml\n"
-                    "Removed: .github/workflows/old-ci.yml\\n"
+                    "Removed: .github/workflows/old-ci.yml\n"
                 ),
                 ".github/workflows/ci.yml": "name: CI\\n",
             }
