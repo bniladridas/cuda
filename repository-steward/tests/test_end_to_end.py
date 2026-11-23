@@ -73,6 +73,7 @@ class StewardEndToEndTests(unittest.TestCase):
 
         report = build_report(snapshot)
         self.assertEqual(snapshot["head_sha"], head_sha)
+        self.assertTrue(snapshot["generated_at"].endswith("+00:00"))
         self.assertEqual(snapshot["issues"][0]["number"], 12)
         self.assertEqual(report["modules"]["validation"]["evidence"][0]["state"], "success")
         gpu = next(item for item in report["modules"]["validation"]["evidence"] if item["kind"] == "gpu_runtime")

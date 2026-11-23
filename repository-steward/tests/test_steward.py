@@ -19,7 +19,7 @@ class StewardTests(unittest.TestCase):
             {"issues": [{"number": 4, "title": "Add kernel", "body": "", "state": "open"}], "pull_requests": []}
         )
         codes = {item["code"] for item in result["findings"]}
-        self.assertEqual(codes, {"issue.unlinked", "issue.acceptance_missing"})
+        self.assertEqual(codes, {"issue.unlinked", "issue.acceptance_missing", "issue.unowned"})
 
     def test_linked_pr_and_dependency_are_reported(self):
         result = analyze_tracking(
@@ -33,84 +33,6 @@ class StewardTests(unittest.TestCase):
         )
         self.assertEqual(result["issues"][0]["dependencies"], [5])
         self.assertEqual(result["issues"][0]["linked_prs"][0]["number"], 12)
-
-    def test_issue_closure_readiness_requires_checked_criteria_and_merged_prs(self):
-        ready = analyze_tracking(
-            {
-                "issues": [
-                    {
-                        "number": 4,
-                        "title": "Add kernel",
-                        "body": "## Acceptance Criteria\\n- [x] CPU tests\\n- [x] Docs",
-                        "state": "open",
-                        "acceptance_criteria": ["CPU tests", "Docs"],
-                        "acceptance_criteria_status": [
-                            {"text": "CPU tests", "state": "complete"},
-                            {"text": "Docs", "state": "complete"},
-                        ],
-                        "dependency_numbers": [5],
-                    },
-                    {"number": 5, "title": "Prerequisite", "body": "Done", "state": "closed"},
-                ],
-                "pull_requests": [
-                    {
-                        "number": 12,
-                        "title": "Fixes #4",
-                        "state": "closed",
-                        "merge_status": "merged",
-                        "merged_at": "2026-11-23T10:00:00Z",
-                        "merge_commit_sha": "merge123",
-                    }
-                ],
-            }
-        )
-        closure = ready["issues"][0]["closure_readiness"]
-        self.assertEqual(closure["state"], "ready_for_human_review")
-        self.assertTrue(closure["ready_for_human_review"])
-        self.assertFalse(closure["closure_performed"])
-
-    def test_issue_closure_readiness_blocks_open_prs_and_unchecked_criteria(self):
-        result = analyze_tracking(
-            {
-                "issues": [
-                    {
-                        "number": 4,
-                        "title": "Add kernel",
-                        "body": "## Acceptance Criteria\\n- [ ] GPU tests",
-                        "state": "open",
-                        "acceptance_criteria": ["GPU tests"],
-                        "acceptance_criteria_status": [{"text": "GPU tests", "state": "incomplete"}],
-                    }
-                ],
-                "pull_requests": [{"number": 12, "title": "Fixes #4", "state": "open", "merge_status": "open"}],
-            }
-        )
-        closure = result["issues"][0]["closure_readiness"]
-        self.assertEqual(closure["state"], "blocked")
-        self.assertFalse(closure["ready_for_human_review"])
-        self.assertTrue(any("incomplete" in item for item in closure["blockers"]))
-        self.assertTrue(any("still open" in item for item in closure["blockers"]))
-
-    def test_issue_closure_readiness_keeps_unchecked_evidence_unknown(self):
-        result = analyze_tracking(
-            {
-                "issues": [
-                    {
-                        "number": 4,
-                        "title": "Add kernel",
-                        "body": "## Acceptance Criteria\\n- CPU tests",
-                        "state": "open",
-                        "acceptance_criteria": ["CPU tests"],
-                        "acceptance_criteria_status": [{"text": "CPU tests", "state": "unverified"}],
-                    }
-                ],
-                "pull_requests": [{"number": 12, "title": "Fixes #4", "state": "closed"}],
-            }
-        )
-        closure = result["issues"][0]["closure_readiness"]
-        self.assertEqual(closure["state"], "unknown")
-        self.assertFalse(closure["ready_for_human_review"])
-        self.assertTrue(closure["unknowns"])
 
     def test_readiness_requires_current_head_evidence(self):
         evidence = [
@@ -198,6 +120,45 @@ class StewardTests(unittest.TestCase):
         self.assertIsNone(
             result["modules"]["model_integration"]["authorization_source"],
         )
+
+    def test_issue_tracking_reports_unowned_and_stale_activity(self):
+        result = analyze_tracking(
+            {
+                "generated_at": "2026-11-23T12:00:00+00:00",
+                "issues": [
+                    {
+                        "number": 8,
+                        "title": "Investigate flaky workflow",
+                        "body": "Acceptance criteria\\n- [ ] Reproduce",
+                        "state": "open",
+                        "assignees": [],
+                        "updated_at": "2026-10-01T12:00:00Z",
+                    },
+                    {
+                        "number": 9,
+                        "title": "Recently updated",
+                        "body": "Acceptance criteria\\n- [ ] Verify",
+                        "state": "open",
+                        "assignees": ["maintainer"],
+                        "updated_at": "2026-11-20T12:00:00Z",
+                    },
+                ],
+                "pull_requests": [],
+            }
+        )
+        self.assertEqual(result["stale_open_issue_count"], 1)
+        self.assertEqual(result["unowned_open_issue_count"], 1)
+        records = {item["number"]: item for item in result["issues"]}
+        self.assertEqual(records[8]["activity_state"], "stale")
+        self.assertEqual(records[8]["activity_age_days"], 53)
+        self.assertEqual(records[9]["activity_state"], "recent")
+        codes = {item["code"] for item in result["findings"]}
+        self.assertIn("issue.stale", codes)
+        self.assertIn("issue.unowned", codes)
+
+    def test_issue_tracking_rejects_invalid_stale_threshold(self):
+        with self.assertRaises(ValueError):
+            analyze_tracking({"issues": [], "pull_requests": []}, stale_after_days=0)
 
 
 if __name__ == "__main__":

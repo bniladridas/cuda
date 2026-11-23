@@ -7,12 +7,12 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 ISSUE_REF = re.compile(r"(?<![\w/])#(\d+)\b")
 DEPENDENCY_REF = re.compile(r"\b(?:depends on|blocked by|requires|dependency on)\s+#?(\d+)\b", re.I)
 CRITERIA = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)(?:\[[ xX]\]\s*)?(.+?)\s*$")
-CRITERIA_STATUS = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)(?:\[([ xX])\]\s*)?(.+?)\s*$")
 
 
 class SnapshotError(RuntimeError):
@@ -55,25 +55,6 @@ def criteria_from_body(body: str) -> list[str]:
             match = CRITERIA.match(line)
             if match:
                 criteria.append(match.group(1))
-    return criteria
-
-
-def acceptance_criteria_status_from_body(body: str) -> list[dict]:
-    """Preserve explicit checklist completion without treating plain bullets as complete."""
-    criteria = []
-    active = False
-    for line in (body or "").splitlines():
-        if re.match(r"^\s*#{1,6}\s+", line):
-            if active:
-                break
-            active = bool(re.search(r"acceptance criteria", line, re.I))
-            continue
-        if active:
-            match = CRITERIA_STATUS.match(line)
-            if match:
-                checkbox, description = match.groups()
-                state = "unverified" if checkbox is None else ("complete" if checkbox.lower() == "x" else "incomplete")
-                criteria.append({"text": description, "state": state})
     return criteria
 
 
@@ -333,7 +314,6 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
                 "updated_at": item.get("updated_at") or "",
                 "dependency_numbers": issue_dependencies(body, number),
                 "acceptance_criteria": criteria_from_body(body),
-                "acceptance_criteria_status": acceptance_criteria_status_from_body(body),
             }
         )
 
@@ -438,6 +418,7 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
             ),
         }
     return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "repository": repository,
         "head_sha": observed_sha,
         "integration_evidence": integration_evidence,
