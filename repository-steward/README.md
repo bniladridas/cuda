@@ -43,7 +43,12 @@ for these checks.
   workflow-run/runner metadata. Device identity remains `not_reported` unless
   independently established.
 - `files{}`: repository-relative paths mapped to text content
-- optional `readiness_policy.required_kinds`
+- optional `readiness_policy.required_kinds`, `required_docs`,
+  `require_benchmark_evidence`, `require_version_consistency`, and
+  `block_on_health_warnings`
+- optional `version_evidence` with `declared_version` and
+  `release_version`. Missing version evidence is reported as unavailable,
+  never inferred from a tag or a project file alone.
 - optional `integration_evidence` entries for `label_review` and
   `issue_landing`, each carrying state, head SHA, optional expected SHA,
   source, URL and details
@@ -81,6 +86,13 @@ The coordinator validates provenance fields added by `benchmarks/provenance.py`
 and the device and measurement metadata emitted by the benchmark binary. A
 valid record is not, by itself, permission to publish a performance claim.
 Methodology remains documented in `docs/methodology.md`.
+
+Release Readiness now combines current-head validation evidence with required
+documentation presence, repository-health errors, benchmark provenance, and
+explicit declared-versus-release version evidence. Health warnings are
+reported but do not block by default. Missing benchmark or version evidence
+remains unavailable and blocks readiness under the default policy. This module
+only reports readiness; it never publishes a release.
 
 ## Optional model summary
 
