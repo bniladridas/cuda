@@ -263,5 +263,6 @@ class StewardTests(unittest.TestCase):
         )
         self.assertEqual(result["issues"][0]["activity_state"], "unknown")
 
+
 if __name__ == "__main__":
     unittest.main()
