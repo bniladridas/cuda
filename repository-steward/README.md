@@ -8,6 +8,11 @@ repository health, validation evidence, and release-readiness reporting.
 The initial interface consumes a JSON snapshot. This keeps the engine
 offline-testable and avoids requiring GitHub credentials for local reports.
 
+Repository Health checks relative Markdown links, JSON and GitHub Actions YAML
+syntax, duplicate mapping keys, and local action references. It is read-only.
+The snapshot collector includes workflow files and local action metadata needed
+for these checks.
+
 ```sh
 python3 -m repository-steward.engine.steward snapshot.json --output steward-report.json
 ```
