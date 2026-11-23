@@ -245,11 +245,21 @@ class PRReviewTests(unittest.TestCase):
             "head_sha": "a" * 40,
             "base_sha": "b" * 40,
             "diff": "diff",
-            "files": [{"filename": "src/a.py", "status": "modified", "additions": 1, "deletions": 0}],
+            "files": [
+                {
+                    "filename": "src/a.py",
+                    "status": "modified",
+                    "additions": 1,
+                    "deletions": 0,
+                }
+            ],
             "labels": ["bug"],
             "milestone": 2,
             "known_labels": ["bug", "enhancement"],
-            "milestones": [{"number": 2, "title": "Current"}, {"number": 3, "title": "Next"}],
+            "milestones": [
+                {"number": 2, "title": "Current"},
+                {"number": 3, "title": "Next"},
+            ],
         }
         identity = pr_review.digest(
             {
@@ -286,9 +296,12 @@ class PRReviewTests(unittest.TestCase):
                         patch.object(pr_review, "snapshot", return_value=changed_data),
                         patch.object(pr_review, "gh") as write,
                     ):
-                        with self.assertRaisesRegex(pr_review.ReviewError, "changed after proposal"):
+                        with self.assertRaisesRegex(
+                            pr_review.ReviewError, "changed after proposal"
+                        ):
                             pr_review.verify_and_apply(12, str(path))
                         write.assert_not_called()
+
 
 
 if __name__ == "__main__":
