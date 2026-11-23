@@ -17,7 +17,7 @@ jobs:
         with:
           ref: main
           persist-credentials: false
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ vars.CUDA_REVIEW_MODEL }}
