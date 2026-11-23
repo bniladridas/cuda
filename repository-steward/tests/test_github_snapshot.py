@@ -48,12 +48,18 @@ text
             with self.assertRaises(SnapshotError):
                 load_benchmark_results(root)
 
-
     def test_workflow_run_success_is_not_approval_evidence(self):
-        payload = {"workflow_runs": [{
-            "status": "completed", "conclusion": "success", "head_sha": "abc",
-            "name": "Label Review", "html_url": "https://example.invalid/run/1",
-        }]}
+        payload = {
+            "workflow_runs": [
+                {
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_sha": "abc",
+                    "name": "Label Review",
+                    "html_url": "https://example.invalid/run/1",
+                }
+            ]
+        }
 
         def runner(*args, **kwargs):
             return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
