@@ -76,7 +76,14 @@ def build_report(snapshot: dict, *, include_model_summary: bool = False) -> dict
             )
         )
 
-    report.modules["release_readiness"] = evaluate_readiness(evidence, snapshot.get("readiness_policy"))
+    report.modules["release_readiness"] = evaluate_readiness(
+        evidence,
+        snapshot.get("readiness_policy"),
+        health=health,
+        benchmark=benchmark,
+        files=snapshot.get("files", {}),
+        version_evidence=snapshot.get("version_evidence"),
+    )
     report.modules["integrations"] = integration_status(snapshot)
     report.modules["integrations"]["integrations"].update(
         {
