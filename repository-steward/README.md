@@ -95,3 +95,13 @@ The workflow does not post comments, apply labels, close issues, modify
 branches, merge pull requests, or publish releases. GPU evidence remains
 pending, skipped, or unknown unless a matching current-head validation result
 establishes otherwise.
+
+
+## Issue activity and ownership
+
+Issue tracking reports owner presence and activity age when the snapshot includes
+a timezone-aware `generated_at` timestamp. Open issues without assignees are
+flagged as unowned. Open issues with no recorded activity for at least 30 days
+are flagged as stale by default. The threshold is configurable through
+`analyze_tracking(..., stale_after_days=N)`. Missing or invalid timestamps remain
+unknown rather than being treated as stale.
