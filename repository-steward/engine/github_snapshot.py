@@ -77,9 +77,13 @@ def load_repository_files(root: Path) -> dict[str, str]:
         raise SnapshotError(f"cannot list tracked repository files: {exc}") from exc
     result = {}
     for relative in tracked:
-        if not relative or not (
-            relative.endswith(".md") or (relative.startswith(".github/") and relative.endswith(".json"))
-        ):
+        basename = Path(relative).name.lower()
+        is_guidance = relative.lower().endswith(".md")
+        is_github_config = relative.startswith(".github/") and Path(relative).suffix.lower() in {
+            ".json", ".yml", ".yaml"
+        }
+        is_local_action_metadata = basename in {"action.yml", "action.yaml", "dockerfile"}
+        if not relative or not (is_guidance or is_github_config or is_local_action_metadata):
             continue
         path = root / relative
         try:
