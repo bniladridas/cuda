@@ -146,6 +146,5 @@ text
             run_gh("repos/example/repo", runner=runner)
 
 
-
 if __name__ == "__main__":
     unittest.main()
