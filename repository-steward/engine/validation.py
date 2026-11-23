@@ -20,6 +20,7 @@ def normalize_validation(snapshot: dict) -> list[Evidence]:
                 expected_sha=expected_sha,
                 url=str(item.get("url") or ""),
                 details=str(item.get("details") or ""),
+                metadata=dict(item.get("metadata") or {}),
             )
         )
     return result

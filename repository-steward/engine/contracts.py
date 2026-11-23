@@ -30,6 +30,7 @@ class Evidence:
     expected_sha: str = ""
     url: str = ""
     details: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def current(self) -> bool:
