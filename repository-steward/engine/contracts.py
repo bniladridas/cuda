@@ -1,4 +1,5 @@
 """Shared, dependency-free evidence contracts for CUDA Repository Steward."""
+
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum

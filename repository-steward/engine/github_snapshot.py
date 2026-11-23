@@ -89,6 +89,23 @@ def load_repository_files(root: Path) -> dict[str, str]:
     return result
 
 
+def load_benchmark_results(root: Path) -> list[dict]:
+    """Load recorded benchmark JSON without treating missing GPU data as success."""
+    directory = root / "benchmarks" / "results"
+    if not directory.exists():
+        return []
+    results = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise SnapshotError(f"cannot read benchmark result {path}: {exc}") from exc
+        if not isinstance(value, dict):
+            raise SnapshotError(f"benchmark result {path} must contain a JSON object")
+        results.append(value)
+    return results
+
+
 def _labels(items):
     return sorted(item.get("name", "") for item in items or [] if item.get("name"))
 
@@ -215,6 +232,7 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
         "issues": issues,
         "pull_requests": pull_requests,
         "validations": validations,
+        "benchmark_results": load_benchmark_results(root),
         "files": load_repository_files(root),
     }
 
