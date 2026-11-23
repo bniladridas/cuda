@@ -158,7 +158,7 @@ jobs:
           python3 rebase-agent/engine/extract_safe_archive.py input/source.tar source
           git -C source init -q
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -203,7 +203,7 @@ jobs:
           name: cuda-review-result
           path: result
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
