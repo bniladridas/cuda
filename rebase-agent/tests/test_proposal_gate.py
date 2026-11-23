@@ -5,8 +5,8 @@ import importlib.util
 import io
 import os
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 ENGINE = Path(__file__).resolve().parents[1] / "engine"
 SPEC = importlib.util.spec_from_file_location("proposal_gate", ENGINE / "proposal_gate.py")
