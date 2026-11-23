@@ -113,10 +113,6 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
             findings.append(Finding(code="issue.stale_activity", severity=Severity.WARNING,
                 summary=f"Open issue #{number} has had no recorded activity for {activity_age_days} days.",
                 evidence=(str(number), activity_at), blocking=False))
-        if state == "open" and activity_state == "unknown":
-            findings.append(Finding(code="issue.activity_unknown", severity=Severity.INFO,
-                summary=f"Activity age for open issue #{number} cannot be established from the snapshot.",
-                evidence=(str(number),), blocking=False))
         if state == "open" and not linked:
             findings.append(Finding(code="issue.unlinked", severity=Severity.WARNING,
                 summary=f"Open issue #{number} has no linked pull request in the snapshot.",
@@ -126,7 +122,7 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
                 summary=f"Open issue #{number} has no structured acceptance criteria.",
                 evidence=(str(number),), blocking=False))
 
-        closure_blockers = []
+        closure_blockers = list(metadata_blockers)
         if not acceptance:
             closure_blockers.append("acceptance criteria are missing")
         elif not criteria_states or any(value is not True for value in criteria_states):
