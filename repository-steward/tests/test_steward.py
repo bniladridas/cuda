@@ -19,7 +19,7 @@ class StewardTests(unittest.TestCase):
             {"issues": [{"number": 4, "title": "Add kernel", "body": "", "state": "open"}], "pull_requests": []}
         )
         codes = {item["code"] for item in result["findings"]}
-        self.assertEqual(codes, {"issue.unlinked", "issue.acceptance_missing"})
+        self.assertEqual(codes, {"issue.unlinked", "issue.acceptance_missing", "issue.unowned"})
 
     def test_linked_pr_and_dependency_are_reported(self):
         result = analyze_tracking(
