@@ -7,9 +7,9 @@ existing automation. It should make repository state, validation evidence,
 policy decisions, and release readiness easier to inspect without replacing
 GitHub Issues, GitHub Actions, or the tools that already perform those jobs.
 
-This document defines boundaries and an incremental integration direction. It
-does not create a new runtime, move existing engines, or authorize new write
-permissions.
+This document records the implemented read-only coordinator, its boundaries,
+and the remaining evolution path. It does not create a new runtime, move
+existing engines, or authorize new write permissions.
 
 ## Current state
 
@@ -35,7 +35,7 @@ The coordinator exposes read-only status adapters for Label Review and Issue Lan
 
 ## Logical architecture
 
-The intended design has four layers:
+The implementation has four layers:
 
 1. **Adapters** collect trusted GitHub and workflow metadata. GitHub Actions is
    the initial adapter and remains the default deployment model.
@@ -114,26 +114,27 @@ Additional invariants:
 - Use least-privilege GitHub token permissions and avoid paid services or
   runners in the default path.
 
-## Integration sequence
+## Implementation status
 
-1. **Architecture and boundaries:** this document records the current
-   inventory, shared evidence concepts, and permission model.
-2. **Contract tests:** add tests for evidence states, SHA freshness, and
-   permission boundaries before introducing a coordinator.
-3. **Read-only tracking:** aggregate existing issue, PR, and check evidence
-   without changing current workflow behavior.
-4. **Existing module adapters:** integrate Label Review, Issue Landing, PR
-   Confidence, and PR Scope Guard through read-only interfaces first.
-5. **Repository health:** add deterministic link and configuration checks.
-6. **Validation and integrity:** normalize GPU and benchmark evidence without
-   treating unavailable hardware as a failure or a success.
-7. **Readiness reporting:** derive release readiness from explicit policy and
-   evidence freshness. Reporting must not publish releases.
-8. **Optional model assistance:** add only where deterministic reports leave a
-   useful explanatory task. Keep provider access optional and bounded.
+The current implementation is an offline-testable Python coordinator with a
+GitHub CLI snapshot adapter and a scheduled/manual GitHub Actions report
+workflow.
 
-Every step should be independently reviewable and retain compatibility with the
-existing workflows. Do not migrate or rewrite a module solely to make its
+- **Implemented:** issue tracking, repository health, validation evidence,
+  benchmark provenance checks, release-readiness evaluation, and optional
+  model summaries.
+- **Read-only adapters:** Label Review and Issue Landing workflow status, plus
+  per-PR PR Confidence and PR Scope Guard artifacts. Source findings and
+  confidence data are preserved as evidence, not authorization.
+- **Operational report:** the workflow uploads the input snapshot and JSON
+  report as a 14-day artifact. It runs with read-only repository permissions.
+- **Not performed by the coordinator:** label application, issue closure,
+  approval, branch updates, merges, and release publication.
+
+The remaining integration work is stronger end-to-end coverage across snapshot
+collection and report generation, plus keeping operational documentation
+aligned with the actual workflow. Every change must retain compatibility with
+the existing workflows. Do not migrate or rewrite a module solely to make its
 folder structure match a proposed architecture.
 
 ## Deployment decision
