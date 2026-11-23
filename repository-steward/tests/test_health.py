@@ -4,7 +4,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from engine.health import (\n    analyze_health,\n    check_github_workflows,\n    check_markdown_links,\n    check_workflow_documentation_references,\n)
+from engine.health import (
+    analyze_health,
+    check_github_workflows,
+    check_markdown_links,
+    check_workflow_documentation_references,
+)
 
 
 class RepositoryHealthTests(unittest.TestCase):
@@ -82,7 +87,7 @@ class RepositoryHealthTests(unittest.TestCase):
         result = check_workflow_documentation_references(
             {
                 "README.md": (
-                    "Current: .github/workflows/ci.yml\\n"
+                    "Current: .github/workflows/ci.yml\n"
                     "Removed: .github/workflows/old-ci.yml\\n"
                 ),
                 ".github/workflows/ci.yml": "name: CI\\n",
