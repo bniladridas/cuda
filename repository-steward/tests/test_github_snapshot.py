@@ -147,7 +147,6 @@ text
         with self.assertRaises(SnapshotError):
             run_gh("repos/example/repo", runner=runner)
 
-
     def test_acceptance_criteria_status_preserves_unchecked_and_unmarked_items(self):
         body = """## Acceptance Criteria
 - [x] CPU tests
@@ -165,9 +164,11 @@ text
             ]
         }
         calls = []
+
         def runner(command, **kwargs):
             calls.append(command[-1])
             return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
         result = workflow_evidence("example/repo", "label-review.yml", "new", runner=runner)
         self.assertEqual(result["head_sha"], "new")
         self.assertEqual(result["expected_sha"], "new")
@@ -175,9 +176,7 @@ text
         self.assertIn("head_sha=new", calls[0])
 
     def test_workflow_evidence_does_not_fall_back_to_an_old_success(self):
-        payload = {"workflow_runs": [
-            {"status": "completed", "conclusion": "success", "head_sha": "old"}
-        ]}
+        payload = {"workflow_runs": [{"status": "completed", "conclusion": "success", "head_sha": "old"}]}
         def runner(*args, **kwargs):
             return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
         result = workflow_evidence("example/repo", "issue-landing.yml", "new", runner=runner)
@@ -186,14 +185,17 @@ text
 
     def test_review_decision_uses_github_graphql_and_fails_closed(self):
         payload = {"data": {"repository": {"pullRequest": {"reviewDecision": "CHANGES_REQUESTED"}}}}
+
         def runner(command, **kwargs):
             self.assertEqual(command[2], "graphql")
             self.assertIn("reviewDecision", command[4])
             return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
         self.assertEqual(pull_request_review_decision("example/repo", 12, runner=runner), "changes_requested")
 
         def denied(*args, **kwargs):
             return SimpleNamespace(returncode=1, stdout="", stderr="denied")
+
         self.assertEqual(pull_request_review_decision("example/repo", 12, runner=denied), "unknown")
 
 if __name__ == "__main__":
