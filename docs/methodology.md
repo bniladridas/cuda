@@ -83,6 +83,17 @@ is not a result.
 - A GPU with background load or thermal throttling; check clocks before a run
   if the numbers look low.
 
+## GPU correctness coverage
+
+The vector-add correctness suite includes a capped-grid case with
+`65,535 * 256 + 1` elements (16,776,961 floats). With 256 threads per block,
+the requested block count exceeds the launcher's 65,535-block cap by one
+logical block, so the test exercises the grid-stride loop after the capped
+launch. The case checks every output against the CPU reference. It is registered
+with the GPU test suite and runs under `GPU_REQUIRED=1` on an NVIDIA runner.
+The test is compiled in CUDA CI, but runtime execution remains pending an
+available NVIDIA device.
+
 ## Sizes
 
 `2^16`, `2^20`, `2^24` elements. The smallest fits in cache on most devices and
