@@ -219,7 +219,7 @@ benchmarks/             timing harness and benchmark binaries
 pr-confidence/          PR Confidence engine and its offline tests
 pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
-docs/                   hardware, methodology, C++ quality, PR confidence, label review and PR Scope Guard
+docs/                   hardware, methodology, C++ quality, PR confidence, label review, PR Scope Guard and Repository Steward architecture
 label-review/           reusable issue label review engine and tests
 format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
