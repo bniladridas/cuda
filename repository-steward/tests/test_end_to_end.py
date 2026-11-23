@@ -45,12 +45,12 @@ class StewardEndToEndTests(unittest.TestCase):
                     {"id": 71, "name": "GPU", "runner_name": None, "labels": ["ubuntu-latest"]},
                 ]
             },
-            "repos/example/cuda/actions/workflows/label-review.yml/runs?per_page=1": {
+            f"repos/example/cuda/actions/workflows/label-review.yml/runs?head_sha={head_sha}&per_page=10": {
                 "workflow_runs": [
                     {"status": "completed", "conclusion": "success", "head_sha": head_sha, "name": "Label Review"}
                 ]
             },
-            "repos/example/cuda/actions/workflows/issue-landing.yml/runs?per_page=1": {
+            f"repos/example/cuda/actions/workflows/issue-landing.yml/runs?head_sha={head_sha}&per_page=10": {
                 "workflow_runs": [
                     {"status": "completed", "conclusion": "success", "head_sha": head_sha, "name": "Issue Landing"}
                 ]

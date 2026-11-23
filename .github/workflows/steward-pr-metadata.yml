@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       issues: write
-      pull-requests: read
+      pull-requests: write
     steps:
       - name: Apply metadata to Steward pull requests
         uses: actions/github-script@v9
@@ -60,13 +60,20 @@ jobs:
               return;
             }
 
-            // Add labels without replacing labels already applied by maintainers.
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              labels: ['documentation', 'enhancement'],
-            });
+            // Add only missing labels, preserving labels already applied by maintainers.
+            const requiredLabels = ['documentation', 'enhancement'];
+            const existingLabels = new Set((pr.labels || []).map(label => label.name));
+            const missingLabels = requiredLabels.filter(label => !existingLabels.has(label));
+            if (missingLabels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: missingLabels,
+              });
+            } else {
+              core.notice(`PR #${prNumber} already has the required labels.`);
+            }
 
             // Only fill an empty milestone. Preserve an intentional assignment.
             const targetMilestone = 4;
