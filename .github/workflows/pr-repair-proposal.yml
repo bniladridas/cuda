@@ -44,7 +44,7 @@ jobs:
       - id: gate
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REF: ${{ github.ref }}
+          WORKFLOW_REF: ${{ github.ref }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pull_request }}
