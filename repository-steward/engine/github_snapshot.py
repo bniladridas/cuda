@@ -160,8 +160,6 @@ def validation_run_metadata(repository: str, head_sha: str, *, runner=subprocess
     return result
 
 
-
-
 def workflow_evidence(repository: str, workflow_file: str, *, runner=subprocess.run) -> dict:
     """Read the latest workflow run; this is execution evidence, not approval evidence."""
     response = run_gh(
