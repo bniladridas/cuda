@@ -9,7 +9,7 @@ import yaml
 
 MARKDOWN_LINK = re.compile(r"!?(?:\[[^\]]*\])\(\s*(<[^>]+>|[^\s)]+)")
 WORKFLOW_PATH = PurePosixPath(".github/workflows")
-WORKFLOW_REFERENCE = re.compile(r"\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml")
+WORKFLOW_REFERENCE = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
 
 
 class DuplicateKeyError(ValueError):
