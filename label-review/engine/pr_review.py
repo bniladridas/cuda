@@ -53,8 +53,8 @@ def snapshot(number):
     if len(files) > MAX_FILES:
         raise ReviewError("changed-file count exceeds the review limit")
     diff = gh([f"repos/{repo}/pulls/{number}", "-H", "Accept: application/vnd.github.diff"], text=True)
-    if not diff.strip() or len(diff) > MAX_DIFF:
-        raise ReviewError("diff is empty or exceeds the review limit")
+    if not diff.startswith("diff --git ") or len(diff) > MAX_DIFF:
+        raise ReviewError("diff is malformed, empty or exceeds the review limit")
     labels = gh(["repos/" + repo + "/labels?per_page=100", "--paginate", "--slurp"])
     labels = [item for page in labels for item in page]
     milestones = gh(["repos/" + repo + "/milestones?state=open&per_page=100", "--paginate", "--slurp"])
