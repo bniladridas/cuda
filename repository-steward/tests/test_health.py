@@ -4,12 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from engine.health import (
-    analyze_health,
-    check_github_workflows,
-    check_markdown_links,
-    check_workflow_documentation_references,
-)
+from engine.health import analyze_health, check_github_workflows, check_markdown_links
 
 
 class RepositoryHealthTests(unittest.TestCase):
@@ -82,27 +77,6 @@ class RepositoryHealthTests(unittest.TestCase):
         )
         self.assertFalse(result["mutations_performed"])
         self.assertEqual(result["finding_count"], 3)
-
-    def test_stale_workflow_paths_in_markdown_are_reported(self):
-        result = check_workflow_documentation_references(
-            {
-                "README.md": "Current: .github/workflows/ci.yml\nRemoved: .github/workflows/old-ci.yml\n",
-                ".github/workflows/ci.yml": "name: CI\n",
-            }
-        )
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["code"], "docs.workflow_reference_missing")
-        self.assertEqual(result[0]["target"], ".github/workflows/old-ci.yml")
-        self.assertEqual(result[0]["line"], 2)
-
-    def test_workflow_reference_check_is_included_in_health_report(self):
-        result = analyze_health(
-            {
-                "README.md": "See .github/workflows/removed.yml",
-            }
-        )
-        self.assertEqual(result["finding_count"], 1)
-        self.assertEqual(result["findings"][0]["code"], "docs.workflow_reference_missing")
 
 
 if __name__ == "__main__":

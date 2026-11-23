@@ -47,12 +47,23 @@ class ModelSummaryTests(unittest.TestCase):
         def opener(request, timeout):
             body = json.loads(request.data)
             self.assertEqual(body["model"], "configured-model")
-            return FakeResponse({"choices": [{"message": {"content": "Evidence is incomplete."}}]})
+            return FakeResponse(
+                {"id": "req_test_123", "choices": [{"message": {"content": "Evidence is incomplete."}}]}
+            )
 
         result = summarize_report({"gpu": "skipped"}, environ=env, opener=opener)
         self.assertEqual(result["status"], "advisory")
         self.assertIsNone(result["authorization_source"])
         self.assertEqual(result["summary"], "Evidence is incomplete.")
+        evidence = result["evidence"]
+        self.assertEqual(evidence["kind"], "model_recommendation")
+        self.assertEqual(evidence["model"], "configured-model")
+        self.assertEqual(evidence["endpoint_host"], "example.invalid")
+        self.assertEqual(evidence["request_id"], "req_test_123")
+        self.assertEqual(len(evidence["input_report_sha256"]), 64)
+        self.assertEqual(len(evidence["output_sha256"]), 64)
+        self.assertTrue(evidence["advisory_only"])
+        self.assertIsNone(evidence["authorization_source"])
 
 
 if __name__ == "__main__":

@@ -123,3 +123,9 @@ Repository Health scans Markdown guidance for explicit
 file is no longer present is reported as a warning with its source path and
 line. This check is intentionally narrow: it detects stale explicit workflow
 paths, not whether every workflow has complete prose documentation.
+
+Model summaries record the configured model identifier, endpoint host, provider
+request ID when available, SHA-256 digests of the input report and output
+summary, and generation time. Credentials and the full endpoint URL are not
+recorded. This provenance documents the recommendation but does not make model
+output verification evidence or grant it authority over repository actions.

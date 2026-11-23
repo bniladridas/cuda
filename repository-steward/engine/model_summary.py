@@ -1,7 +1,10 @@
 """Optional OpenAI-compatible model summaries. Model output is advisory only."""
 
+import hashlib
 import json
 import os
+from datetime import datetime, timezone
+from urllib.parse import urlsplit
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -22,10 +25,16 @@ def configured_provider(environ=None):
     return {"endpoint": endpoint, "model": model, "api_key": key}
 
 
+def _sha256(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
 def summarize_report(report: dict, *, environ=None, opener=urlopen) -> dict:
     provider = configured_provider(environ)
     if provider is None:
         return {"enabled": False, "status": "not_configured", "provider": None, "summary": None}
+    serialized_report = json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    report_digest = _sha256(serialized_report)
     payload = {
         "model": provider["model"],
         "temperature": 0,
@@ -39,7 +48,7 @@ def summarize_report(report: dict, *, environ=None, opener=urlopen) -> dict:
                     "permissions, or recommend automatic mutations. Return plain text only."
                 ),
             },
-            {"role": "user", "content": json.dumps(report, sort_keys=True)},
+            {"role": "user", "content": serialized_report},
         ],
     }
     request = Request(
@@ -57,16 +66,32 @@ def summarize_report(report: dict, *, environ=None, opener=urlopen) -> dict:
     except (OSError, ValueError, URLError) as exc:
         raise ModelSummaryError(f"model summary request failed: {exc}") from exc
     try:
-        summary = data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        summary = choice["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise ModelSummaryError("model provider returned an unsupported response") from exc
     if not isinstance(summary, str) or not summary.strip():
         raise ModelSummaryError("model provider returned an empty summary")
+    summary = summary.strip()[:4000]
+    endpoint_host = urlsplit(provider["endpoint"]).hostname or ""
+    evidence = {
+        "kind": "model_recommendation",
+        "provider": "openai-compatible",
+        "model": provider["model"],
+        "endpoint_host": endpoint_host,
+        "request_id": data.get("id") if isinstance(data.get("id"), str) else None,
+        "input_report_sha256": report_digest,
+        "output_sha256": _sha256(summary),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "advisory_only": True,
+        "authorization_source": None,
+    }
     return {
         "enabled": True,
         "status": "advisory",
         "provider": "openai-compatible",
         "model": provider["model"],
-        "summary": summary.strip()[:4000],
+        "summary": summary,
         "authorization_source": None,
+        "evidence": evidence,
     }
