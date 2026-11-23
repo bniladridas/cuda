@@ -35,7 +35,10 @@ for these checks.
   acceptance_criteria_status. Explicit checkboxes are preserved as complete or
   incomplete; plain bullets remain unverified.
 - `pull_requests[]`: number, title, body, state, head_sha, draft, checks,
-  review_decision, url, optional linked_issue_numbers
+  review_decision, url, optional linked_issue_numbers, base_ref, base_sha,
+  merged_at and merge_commit_sha. Issue tracking reports `open`, `merged`,
+  `closed_unmerged` or `unknown` merge state without treating a closed PR as
+  merged.
 - `validations[]`: kind, state, head_sha, source, url, details and optional
   workflow-run/runner metadata. Device identity remains `not_reported` unless
   independently established.
@@ -50,6 +53,12 @@ for these checks.
   collector downloads artifacts only from successful `pull_request_target`
   runs associated with that exact PR number and head SHA.
 
+Issue Tracking reports closure readiness as a human-review candidate only
+when every acceptance criterion is explicitly checked, all linked PRs are
+verified merged, and dependencies are closed. Unchecked criteria and open PRs
+block the candidate; missing merge evidence remains unknown. It never closes
+an issue.
+
 ## Trust boundaries
 
 The engine is read-only. It never applies labels, closes issues, approves or
@@ -57,12 +66,6 @@ merges PRs, changes branches, or publishes releases. It treats absent, skipped,
 stale and unknown evidence as distinct states. GPU runtime success requires
 explicit current-head evidence. Model integration is disabled by default and
 cannot authorize actions.
-
-Issue Tracking reports closure readiness as a human-review candidate only
-when every acceptance criterion is explicitly checked, all linked PRs are
-verified merged, and dependencies are closed. Unchecked criteria and open PRs
-block the candidate; missing merge evidence remains unknown. It never closes
-an issue.
 
 Existing Label Review, Issue Landing, PR Confidence, PR Scope Guard,
 Squash Merge and Rebase Agent remain separate engines. The report preserves
