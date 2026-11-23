@@ -155,5 +155,35 @@ class PRReviewTests(unittest.TestCase):
         self.assertNotIn("contents: write", workflow)
 
 
+
+    def test_snapshot_rejects_malformed_diff(self):
+        pull_request = {
+            "state": "open",
+            "draft": False,
+            "head": {"sha": "a" * 40},
+            "base": {"sha": "b" * 40},
+            "labels": [],
+            "milestone": None,
+        }
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}):
+            with patch.object(pr_review, "gh", side_effect=[pull_request, [[]], "not a unified diff"]):
+                with self.assertRaisesRegex(pr_review.ReviewError, "malformed"):
+                    pr_review.snapshot(12)
+
+    def test_snapshot_rejects_oversized_diff(self):
+        pull_request = {
+            "state": "open",
+            "draft": False,
+            "head": {"sha": "a" * 40},
+            "base": {"sha": "b" * 40},
+            "labels": [],
+            "milestone": None,
+        }
+        oversized = "diff --git a/a b/a\n" + ("x" * (pr_review.MAX_DIFF + 1))
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}):
+            with patch.object(pr_review, "gh", side_effect=[pull_request, [[]], oversized]):
+                with self.assertRaisesRegex(pr_review.ReviewError, "exceeds the review limit"):
+                    pr_review.snapshot(12)
+
 if __name__ == "__main__":
     unittest.main()
