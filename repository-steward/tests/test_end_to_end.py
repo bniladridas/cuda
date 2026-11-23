@@ -18,7 +18,7 @@ class StewardEndToEndTests(unittest.TestCase):
         issue = {
             "number": 12,
             "title": "Add a deterministic integration test",
-            "body": "## Acceptance Criteria\\n- CPU tests pass",
+            "body": "## Acceptance Criteria\n- CPU tests pass",
             "state": "open",
             "html_url": "https://example.invalid/issues/12",
             "labels": [{"name": "enhancement"}],
@@ -67,7 +67,7 @@ class StewardEndToEndTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=json.dumps(value), stderr="")
 
         with tempfile.TemporaryDirectory() as temporary:
-            with patch("engine.github_snapshot.load_repository_files", return_value={"README.md": "# Example\\n"}), patch(
+            with patch("engine.github_snapshot.load_repository_files", return_value={"README.md": "# Example\n"}), patch(
                 "engine.github_snapshot.load_benchmark_results", return_value=[]
             ):
                 snapshot = build_snapshot("example/cuda", Path(temporary), runner=runner)
