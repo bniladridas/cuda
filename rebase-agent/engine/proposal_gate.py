@@ -55,7 +55,7 @@ def main():
         if not repo:
             raise GateError("repository not found")
         default_branch = repo["default_branch"]
-        if os.environ.get("GITHUB_REF") != "refs/heads/" + default_branch:
+        if os.environ.get("WORKFLOW_REF") != "refs/heads/" + default_branch:
             raise GateError("workflow_dispatch must run from the trusted default branch")
         pr = api("/repos/" + repository + "/pulls/%d" % number, token)
         if not pr:
