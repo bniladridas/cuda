@@ -26,7 +26,7 @@ Snapshot fields:
   optional linked_pr_numbers, dependency_numbers and acceptance_criteria
 - `pull_requests[]`: number, title, body, state, head_sha, draft, checks,
   review_decision, url, optional linked_issue_numbers
-- `validations[]`: kind, state, head_sha, source, url and details
+- `validations[]`: kind, state, head_sha, source, url, details and optional workflow-run/runner metadata. Device identity remains `not_reported` unless independently established.
 - `files{}`: repository-relative paths mapped to text content
 - optional `readiness_policy.required_kinds`
 - optional `integration_evidence` entries for `label_review` and `issue_landing`, each carrying state, head SHA, optional expected SHA, source, URL and details

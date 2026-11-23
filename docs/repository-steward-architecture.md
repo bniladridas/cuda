@@ -31,7 +31,7 @@ source of truth for their own behavior:
 
 The existing engines are not yet one application. Their workflows have
 independent triggers, configuration, tests, permissions, and audit artifacts.
-The coordinator now exposes read-only status adapters for Label Review and Issue Landing. The snapshot adapter reads each workflow's latest run and records its conclusion, source, URL and head SHA. A successful workflow run is not treated as proof of a human approval. Missing run evidence remains unavailable. Evidence with an explicitly declared, mismatched expected SHA becomes unknown; PR-triggered run SHAs are not incorrectly compared with the repository's default-branch head. Both write operations remain behind their original protected environments. The coordinator does not dispatch either workflow or perform writes.
+The coordinator exposes read-only status adapters for Label Review and Issue Landing. A successful workflow run is not treated as proof of human approval. Validation evidence is additionally tied to the exact observed default-branch commit and retains workflow run ID and attempt, job identity, runner name/ID/group/labels, and run URL when GitHub exposes them. Runner labels are not proof of a GPU model; device identity remains `not_reported` unless a trusted validation artifact supplies it. The coordinator does not dispatch workflows or perform writes.
 
 ## Logical architecture
 

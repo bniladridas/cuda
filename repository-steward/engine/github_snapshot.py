@@ -110,6 +110,56 @@ def _labels(items):
     return sorted(item.get("name", "") for item in items or [] if item.get("name"))
 
 
+def validation_run_metadata(repository: str, head_sha: str, *, runner=subprocess.run) -> dict:
+    """Collect runner identity for the CI run tied to the exact validation commit."""
+    if not head_sha:
+        return {}
+    response = run_gh(
+        f"repos/{repository}/actions/workflows/ci.yml/runs?head_sha={head_sha}&per_page=5",
+        runner=runner,
+    )
+    runs = [item for item in response.get("workflow_runs", []) if item.get("head_sha") == head_sha]
+    if not runs:
+        return {}
+    run = runs[0]
+    run_id = run.get("id")
+    if not run_id:
+        return {}
+    jobs_response = run_gh(
+        f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100",
+        runner=runner,
+    )
+    base = {
+        "workflow_run_id": run_id,
+        "workflow_run_attempt": run.get("run_attempt"),
+        "workflow": run.get("name") or "ci",
+        "event": run.get("event") or "unknown",
+        "workflow_run_url": run.get("html_url") or "",
+    }
+    result = {}
+    for job in jobs_response.get("jobs", []):
+        name = (job.get("name") or "").lower()
+        if name == "gpu":
+            kind = "gpu_runtime"
+        elif name in {"cuda-compile", "cuda compile"}:
+            kind = "cuda_compile"
+        elif name in {"cpu", "host tests", "host-tests"}:
+            kind = "host_tests"
+        else:
+            continue
+        result[kind] = {
+            **base,
+            "job_id": job.get("id"),
+            "job_name": job.get("name") or "",
+            "runner_name": job.get("runner_name"),
+            "runner_id": job.get("runner_id"),
+            "runner_group_name": job.get("runner_group_name"),
+            "runner_labels": list(job.get("labels") or []),
+            "device_identity": "not_reported",
+        }
+    return result
+
+
 def workflow_evidence(repository: str, workflow_file: str, *, runner=subprocess.run) -> dict:
     """Read the latest workflow run; this is execution evidence, not approval evidence."""
     response = run_gh(
@@ -256,6 +306,10 @@ def build_snapshot(repository: str, root: Path, *, runner=subprocess.run) -> dic
                         "details": conclusion or check.get("status") or "",
                     }
                 )
+
+    run_metadata = validation_run_metadata(repository, observed_sha, runner=runner) if observed_sha else {}
+    for item in validations:
+        item["metadata"] = run_metadata.get(item["kind"], {})
 
     integration_evidence = {
         "label_review": workflow_evidence(repository, "label-review.yml", runner=runner),

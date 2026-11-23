@@ -10,6 +10,7 @@ from engine.health import analyze_health
 from engine.readiness import evaluate_readiness
 from engine.steward import build_report
 from engine.tracking import analyze_tracking
+from engine.validation import normalize_validation
 
 
 class StewardTests(unittest.TestCase):
@@ -71,6 +72,27 @@ class StewardTests(unittest.TestCase):
         self.assertFalse(result["modules"]["release_readiness"]["ready"])
         self.assertFalse(result["modules"]["model_integration"]["enabled"])
         self.assertEqual(result["modules"]["validation"]["evidence"][0]["state"], "skipped")
+
+    def test_validation_metadata_is_preserved_in_report_contract(self):
+        evidence = normalize_validation(
+            {
+                "head_sha": "abc",
+                "validations": [
+                    {
+                        "kind": "gpu_runtime",
+                        "state": "skipped",
+                        "head_sha": "abc",
+                        "metadata": {
+                            "workflow_run_id": 42,
+                            "runner_name": None,
+                            "device_identity": "not_reported",
+                        },
+                    }
+                ],
+            }
+        )
+        self.assertEqual(evidence[0].metadata["workflow_run_id"], 42)
+        self.assertEqual(evidence[0].to_dict()["metadata"]["device_identity"], "not_reported")
 
     def test_model_summary_is_called_only_when_explicitly_requested(self):
         snapshot = {

@@ -12,6 +12,7 @@ from engine.github_snapshot import (
     issue_dependencies,
     load_benchmark_results,
     run_gh,
+    validation_run_metadata,
     workflow_evidence,
 )
 
@@ -75,6 +76,60 @@ text
 
         result = workflow_evidence("example/repo", "issue-landing.yml", runner=runner)
         self.assertEqual(result["state"], "unavailable")
+
+    def test_validation_metadata_is_bound_to_exact_commit_and_runner(self):
+        responses = [
+            {
+                "workflow_runs": [
+                    {
+                        "id": 42,
+                        "run_attempt": 2,
+                        "head_sha": "abc",
+                        "name": "ci",
+                        "event": "push",
+                        "html_url": "https://example.invalid/actions/runs/42",
+                    }
+                ]
+            },
+            {
+                "jobs": [
+                    {
+                        "id": 99,
+                        "name": "gpu",
+                        "runner_name": "ephemeral-gpu-1",
+                        "runner_id": 7,
+                        "runner_group_name": "NVIDIA",
+                        "labels": ["self-hosted", "linux", "nvidia"],
+                    }
+                ]
+            },
+        ]
+
+        def runner(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(responses.pop(0)), stderr="")
+
+        result = validation_run_metadata("example/repo", "abc", runner=runner)
+        gpu = result["gpu_runtime"]
+        self.assertEqual(gpu["workflow_run_id"], 42)
+        self.assertEqual(gpu["workflow_run_attempt"], 2)
+        self.assertEqual(gpu["runner_name"], "ephemeral-gpu-1")
+        self.assertEqual(gpu["runner_labels"], ["self-hosted", "linux", "nvidia"])
+        self.assertEqual(gpu["device_identity"], "not_reported")
+
+    def test_validation_metadata_ignores_runs_for_other_commits(self):
+        payload = {
+            "workflow_runs": [
+                {
+                    "id": 41,
+                    "head_sha": "different",
+                }
+            ]
+        }
+
+        def runner(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
+        self.assertEqual(validation_run_metadata("example/repo", "abc", runner=runner), {})
 
     def test_gh_errors_fail_closed(self):
         def runner(*args, **kwargs):
