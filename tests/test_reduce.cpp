@@ -163,6 +163,13 @@ int main() {
   run_case<float>(constant_floats(1000, 1.0f), "all-one", kTolFloat);
   run_case<float>(host::random_floats(1u << 20, -1.0f, 1.0f, 7u), "random-1Mi",
                   kTolFloat);
+
+  // Exceed the 4096-block first-pass cap by one element. This forces the
+  // reducer to increase its per-block chunk size while keeping the grid capped.
+  constexpr std::size_t kOverCapElements = 4096u * 256u + 1u;
+  run_case<float>(constant_floats(kOverCapElements, 1.0f), "over-cap-float", kTolFloat);
+  run_case<double>(std::vector<double>(kOverCapElements, 0.5), "over-cap-double",
+                   kTolDouble);
   run_case<float>(host::random_floats(1000003, -1.0e6f, 1.0e6f, 9u), "large-magnitude",
                   kTolFloat);
 
