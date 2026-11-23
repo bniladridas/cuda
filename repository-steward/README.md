@@ -95,3 +95,10 @@ The workflow does not post comments, apply labels, close issues, modify
 branches, merge pull requests, or publish releases. GPU evidence remains
 pending, skipped, or unknown unless a matching current-head validation result
 establishes otherwise.
+
+
+Model summaries record the configured model identifier, endpoint host, provider
+request ID when available, SHA-256 digests of the input report and output
+summary, and generation time. Credentials and the full endpoint URL are not
+recorded. This provenance documents the recommendation but does not make model
+output verification evidence or grant it authority over repository actions.
