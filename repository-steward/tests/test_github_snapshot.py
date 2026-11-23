@@ -12,6 +12,7 @@ from engine.github_snapshot import (
     issue_dependencies,
     load_benchmark_results,
     run_gh,
+    workflow_evidence,
 )
 
 
@@ -46,6 +47,28 @@ text
             (results / "broken.json").write_text("{", encoding="utf-8")
             with self.assertRaises(SnapshotError):
                 load_benchmark_results(root)
+
+
+    def test_workflow_run_success_is_not_approval_evidence(self):
+        payload = {"workflow_runs": [{
+            "status": "completed", "conclusion": "success", "head_sha": "abc",
+            "name": "Label Review", "html_url": "https://example.invalid/run/1",
+        }]}
+
+        def runner(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
+        result = workflow_evidence("example/repo", "label-review.yml", runner=runner)
+        self.assertEqual(result["state"], "success")
+        self.assertEqual(result["head_sha"], "abc")
+        self.assertIn("Approval is not inferred", result["details"])
+
+    def test_missing_workflow_run_is_unavailable(self):
+        def runner(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout='{"workflow_runs": []}', stderr="")
+
+        result = workflow_evidence("example/repo", "issue-landing.yml", runner=runner)
+        self.assertEqual(result["state"], "unavailable")
 
     def test_gh_errors_fail_closed(self):
         def runner(*args, **kwargs):
