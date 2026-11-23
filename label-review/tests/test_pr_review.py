@@ -184,7 +184,6 @@ class PRReviewTests(unittest.TestCase):
                 with self.assertRaisesRegex(pr_review.ReviewError, "exceeds the review limit"):
                     pr_review.snapshot(12)
 
-
     def test_unknown_taxonomy_is_rejected_and_low_confidence_abstains(self):
         data = {
             "known_labels": ["bug"],
