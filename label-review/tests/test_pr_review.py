@@ -23,17 +23,29 @@ class PRReviewTests(unittest.TestCase):
 
     def test_stale_diff_aborts_before_write(self):
         data = {
-            "repo": "owner/repo", "number": 12, "title": "new", "body": "body",
-            "head_sha": "a" * 40, "base_sha": "b" * 40, "diff": "new diff",
+            "repo": "owner/repo",
+            "number": 12,
+            "title": "new",
+            "body": "body",
+            "head_sha": "a" * 40,
+            "base_sha": "b" * 40,
+            "diff": "new diff",
             "files": [{"filename": "src/a.py", "status": "modified", "additions": 1, "deletions": 0}],
-            "labels": ["bug"], "milestone": 2, "known_labels": ["bug", "enhancement"],
+            "labels": ["bug"],
+            "milestone": 2,
+            "known_labels": ["bug", "enhancement"],
             "milestones": [{"number": 2, "title": "Current"}],
         }
         artifact = {
-            "version": 1, "repo": "owner/repo", "number": 12,
-            "identity": "stale", "metadata": pr_review.digest({"labels": ["bug"], "milestone": 2}),
-            "current_labels": ["bug"], "current_milestone": 2,
-            "add_labels": ["enhancement"], "milestone": 2,
+            "version": 1,
+            "repo": "owner/repo",
+            "number": 12,
+            "identity": "stale",
+            "metadata": pr_review.digest({"labels": ["bug"], "milestone": 2}),
+            "current_labels": ["bug"],
+            "current_milestone": 2,
+            "add_labels": ["enhancement"],
+            "milestone": 2,
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "proposal.json"
@@ -45,20 +57,39 @@ class PRReviewTests(unittest.TestCase):
 
     def test_approved_apply_preserves_existing_labels(self):
         data = {
-            "repo": "owner/repo", "number": 12, "title": "title", "body": "body",
-            "head_sha": "a" * 40, "base_sha": "b" * 40, "diff": "diff",
+            "repo": "owner/repo",
+            "number": 12,
+            "title": "title",
+            "body": "body",
+            "head_sha": "a" * 40,
+            "base_sha": "b" * 40,
+            "diff": "diff",
             "files": [{"filename": "src/a.py", "status": "modified", "additions": 1, "deletions": 0}],
-            "labels": ["bug"], "milestone": 2, "known_labels": ["bug", "enhancement"],
+            "labels": ["bug"],
+            "milestone": 2,
+            "known_labels": ["bug", "enhancement"],
             "milestones": [{"number": 2, "title": "Current"}],
         }
-        identity = pr_review.digest({"title": data["title"], "body": data["body"],
-            "head_sha": data["head_sha"], "base_sha": data["base_sha"],
-            "diff": data["diff"], "files": data["files"]})
+        identity = pr_review.digest(
+            {
+                "title": data["title"],
+                "body": data["body"],
+                "head_sha": data["head_sha"],
+                "base_sha": data["base_sha"],
+                "diff": data["diff"],
+                "files": data["files"],
+            }
+        )
         artifact = {
-            "version": 1, "repo": "owner/repo", "number": 12, "identity": identity,
+            "version": 1,
+            "repo": "owner/repo",
+            "number": 12,
+            "identity": identity,
             "metadata": pr_review.digest({"labels": ["bug"], "milestone": 2}),
-            "current_labels": ["bug"], "current_milestone": 2,
-            "add_labels": ["enhancement"], "milestone": 2,
+            "current_labels": ["bug"],
+            "current_milestone": 2,
+            "add_labels": ["enhancement"],
+            "milestone": 2,
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "proposal.json"
@@ -69,17 +100,45 @@ class PRReviewTests(unittest.TestCase):
         self.assertEqual(payload, {"labels": ["bug", "enhancement"], "milestone": 2})
 
     def test_model_evidence_must_name_a_changed_file_and_quote_diff(self):
-        data = {"known_labels": ["bug"], "milestones": [], "title": "t", "body": "b",
-                "files": [{"filename": "src/a.py"}], "diff": "+return True"}
-        response = {"choices": [{"message": {"content": json.dumps({
-            "labels": ["bug"], "milestone": None, "confidence": "high",
-            "rationale": "Supported", "evidence": [{"file": "src/a.py", "quote": "return False"}]
-        })}}]}
+        data = {
+            "known_labels": ["bug"],
+            "milestones": [],
+            "title": "t",
+            "body": "b",
+            "files": [{"filename": "src/a.py"}],
+            "diff": "+return True",
+        }
+        response = {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "labels": ["bug"],
+                                "milestone": None,
+                                "confidence": "high",
+                                "rationale": "Supported",
+                                "evidence": [{"file": "src/a.py", "quote": "return False"}],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
         class FakeResponse:
-            def __enter__(self): return self
-            def __exit__(self, *args): return False
-            def read(self): return json.dumps(response).encode()
-        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test"}), patch.object(pr_review.urllib.request, "urlopen", return_value=FakeResponse()):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps(response).encode()
+
+        with (
+            patch.dict(os.environ, {"OPENROUTER_API_KEY": "test"}),
+            patch.object(pr_review.urllib.request, "urlopen", return_value=FakeResponse()),
+        ):
             with self.assertRaisesRegex(pr_review.ReviewError, "not grounded"):
                 pr_review.ask_model(data)
 
