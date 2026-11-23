@@ -77,7 +77,9 @@ class StewardEndToEndTests(unittest.TestCase):
         self.assertEqual(report["modules"]["validation"]["evidence"][0]["state"], "success")
         gpu = next(item for item in report["modules"]["validation"]["evidence"] if item["kind"] == "gpu_runtime")
         self.assertEqual(gpu["state"], "skipped")
-        self.assertEqual(gpu["head_sha"], head_sha)
+        self.assertEqual(gpu["observed_sha"], head_sha)
+        self.assertEqual(gpu["expected_sha"], head_sha)
+        self.assertTrue(gpu["current"])
         self.assertEqual(report["modules"]["integrations"]["mode"], "read_only")
         self.assertFalse(report["modules"]["integrations"]["mutations_performed"])
         label_review = report["modules"]["integrations"]["integrations"]["label_review"]
