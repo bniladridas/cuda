@@ -22,16 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: \${{ github.workflow_sha }}
+          ref: ${{ github.workflow_sha }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Build diff-grounded proposal
         env:
-          GITHUB_REPOSITORY: \${{ github.repository }}
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          OPENROUTER_API_KEY: \${{ secrets.OPENROUTER_API_KEY }}
-          PR_NUMBER: \${{ github.event.pull_request.number || inputs.pr }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
       - uses: actions/upload-artifact@v7
         with:
@@ -53,8 +53,8 @@ jobs:
           name: pr-metadata-proposal
       - name: Post proposal
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: \${{ github.event.pull_request.number || inputs.pr }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file pr-proposal.md
   apply:
     needs: comment
@@ -67,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: \${{ github.workflow_sha }}
+          ref: ${{ github.workflow_sha }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -76,7 +76,7 @@ jobs:
           name: pr-metadata-proposal
       - name: Re-fetch and verify PR diff and metadata, then apply
         env:
-          GITHUB_REPOSITORY: \${{ github.repository }}
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: \${{ github.event.pull_request.number || inputs.pr }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" --artifact pr-proposal.json
