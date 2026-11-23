@@ -146,6 +146,7 @@ class PRReviewTests(unittest.TestCase):
     def test_workflow_keeps_proposal_read_only_and_apply_approval_gated(self):
         workflow = (ROOT / ".github" / "workflows" / "pr-label-review.yml").read_text(encoding="utf-8")
         self.assertIn("pull_request_target:", workflow)
+        self.assertIn("ready_for_review", workflow)
         self.assertIn("pull-requests: read", workflow)
         self.assertIn("issues: read", workflow)
         self.assertIn("environment: pr-label-review", workflow)
