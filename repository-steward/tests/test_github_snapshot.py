@@ -177,6 +177,7 @@ text
 
     def test_workflow_evidence_does_not_fall_back_to_an_old_success(self):
         payload = {"workflow_runs": [{"status": "completed", "conclusion": "success", "head_sha": "old"}]}
+
         def runner(*args, **kwargs):
             return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
         result = workflow_evidence("example/repo", "issue-landing.yml", "new", runner=runner)
