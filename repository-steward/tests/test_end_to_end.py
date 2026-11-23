@@ -37,9 +37,7 @@ class StewardEndToEndTests(unittest.TestCase):
                 ]
             },
             f"repos/example/cuda/actions/workflows/ci.yml/runs?head_sha={head_sha}&per_page=5": {
-                "workflow_runs": [
-                    {"id": 7, "run_attempt": 1, "head_sha": head_sha, "name": "CI", "event": "push"}
-                ]
+                "workflow_runs": [{"id": 7, "run_attempt": 1, "head_sha": head_sha, "name": "CI", "event": "push"}]
             },
             "repos/example/cuda/actions/runs/7/jobs?per_page=100": {
                 "jobs": [
@@ -67,8 +65,9 @@ class StewardEndToEndTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=json.dumps(value), stderr="")
 
         with tempfile.TemporaryDirectory() as temporary:
-            with patch("engine.github_snapshot.load_repository_files", return_value={"README.md": "# Example\n"}), patch(
-                "engine.github_snapshot.load_benchmark_results", return_value=[]
+            with (
+                patch("engine.github_snapshot.load_repository_files", return_value={"README.md": "# Example\n"}),
+                patch("engine.github_snapshot.load_benchmark_results", return_value=[]),
             ):
                 snapshot = build_snapshot("example/cuda", Path(temporary), runner=runner)
 
