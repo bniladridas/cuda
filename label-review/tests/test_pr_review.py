@@ -235,7 +235,6 @@ class PRReviewTests(unittest.TestCase):
         self.assertEqual(abstained["labels"], [])
         self.assertIsNone(abstained["milestone"])
 
-
     def test_stale_labels_and_milestone_abort_before_write(self):
         data = {
             "repo": "owner/repo",
@@ -301,7 +300,6 @@ class PRReviewTests(unittest.TestCase):
                         ):
                             pr_review.verify_and_apply(12, str(path))
                         write.assert_not_called()
-
 
 
 if __name__ == "__main__":
