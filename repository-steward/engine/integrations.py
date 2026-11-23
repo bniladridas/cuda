@@ -33,6 +33,7 @@ def integration_status(snapshot: dict) -> dict:
 
     for name, contract in INTEGRATIONS.items():
         evidence = supplied.get(name)
+        evidence_expected_sha = ""
         if not isinstance(evidence, dict):
             state = State.UNAVAILABLE
             source = ""
