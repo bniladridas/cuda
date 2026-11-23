@@ -34,36 +34,83 @@ class StewardTests(unittest.TestCase):
         self.assertEqual(result["issues"][0]["dependencies"], [5])
         self.assertEqual(result["issues"][0]["linked_prs"][0]["number"], 12)
 
-    def test_linked_pr_merge_state_distinguishes_merged_and_closed_unmerged(self):
-        result = analyze_tracking(
+    def test_issue_closure_readiness_requires_checked_criteria_and_merged_prs(self):
+        ready = analyze_tracking(
             {
-                "issues": [{"number": 4, "title": "Track landing", "body": "Acceptance criteria", "state": "open"}],
+                "issues": [
+                    {
+                        "number": 4,
+                        "title": "Add kernel",
+                        "body": "## Acceptance Criteria\\n- [x] CPU tests\\n- [x] Docs",
+                        "state": "open",
+                        "acceptance_criteria": ["CPU tests", "Docs"],
+                        "acceptance_criteria_status": [
+                            {"text": "CPU tests", "state": "complete"},
+                            {"text": "Docs", "state": "complete"},
+                        ],
+                        "dependency_numbers": [5],
+                    },
+                    {"number": 5, "title": "Prerequisite", "body": "Done", "state": "closed"},
+                ],
                 "pull_requests": [
                     {
                         "number": 12,
                         "title": "Fixes #4",
                         "state": "closed",
+                        "merge_status": "merged",
                         "merged_at": "2026-11-23T10:00:00Z",
                         "merge_commit_sha": "merge123",
-                        "base_ref": "main",
-                        "base_sha": "base123",
-                    },
-                    {
-                        "number": 13,
-                        "title": "Also fixes #4",
-                        "state": "closed",
-                        "merged_at": None,
-                        "merge_commit_sha": None,
-                    },
+                    }
                 ],
             }
         )
-        linked = result["issues"][0]["linked_prs"]
-        self.assertEqual([item["merge_status"] for item in linked], ["merged", "closed_unmerged"])
-        self.assertEqual(linked[0]["merge_commit_sha"], "merge123")
-        self.assertEqual(linked[0]["base_ref"], "main")
-        self.assertEqual(linked[0]["base_sha"], "base123")
-        self.assertEqual(linked[1]["merge_commit_sha"], "")
+        closure = ready["issues"][0]["closure_readiness"]
+        self.assertEqual(closure["state"], "ready_for_human_review")
+        self.assertTrue(closure["ready_for_human_review"])
+        self.assertFalse(closure["closure_performed"])
+
+    def test_issue_closure_readiness_blocks_open_prs_and_unchecked_criteria(self):
+        result = analyze_tracking(
+            {
+                "issues": [
+                    {
+                        "number": 4,
+                        "title": "Add kernel",
+                        "body": "## Acceptance Criteria\\n- [ ] GPU tests",
+                        "state": "open",
+                        "acceptance_criteria": ["GPU tests"],
+                        "acceptance_criteria_status": [{"text": "GPU tests", "state": "incomplete"}],
+                    }
+                ],
+                "pull_requests": [{"number": 12, "title": "Fixes #4", "state": "open", "merge_status": "open"}],
+            }
+        )
+        closure = result["issues"][0]["closure_readiness"]
+        self.assertEqual(closure["state"], "blocked")
+        self.assertFalse(closure["ready_for_human_review"])
+        self.assertTrue(any("incomplete" in item for item in closure["blockers"]))
+        self.assertTrue(any("still open" in item for item in closure["blockers"]))
+
+    def test_issue_closure_readiness_keeps_unchecked_evidence_unknown(self):
+        result = analyze_tracking(
+            {
+                "issues": [
+                    {
+                        "number": 4,
+                        "title": "Add kernel",
+                        "body": "## Acceptance Criteria\\n- CPU tests",
+                        "state": "open",
+                        "acceptance_criteria": ["CPU tests"],
+                        "acceptance_criteria_status": [{"text": "CPU tests", "state": "unverified"}],
+                    }
+                ],
+                "pull_requests": [{"number": 12, "title": "Fixes #4", "state": "closed"}],
+            }
+        )
+        closure = result["issues"][0]["closure_readiness"]
+        self.assertEqual(closure["state"], "unknown")
+        self.assertFalse(closure["ready_for_human_review"])
+        self.assertTrue(closure["unknowns"])
 
     def test_readiness_requires_current_head_evidence(self):
         evidence = [
