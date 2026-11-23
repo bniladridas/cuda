@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from engine.health import analyze_health, check_github_workflows, check_markdown_links, check_workflow_documentation_references
+from engine.health import (\n    analyze_health,\n    check_github_workflows,\n    check_markdown_links,\n    check_workflow_documentation_references,\n)
 
 
 class RepositoryHealthTests(unittest.TestCase):
