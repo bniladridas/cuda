@@ -25,8 +25,9 @@ class ReviewError(Exception):
 
 
 def gh(args, payload=None, text=False):
-    proc = subprocess.run(["gh", "api", *args], input=json.dumps(payload) if payload is not None else None,
-                          capture_output=True, text=True)
+    proc = subprocess.run(
+        ["gh", "api", *args], input=json.dumps(payload) if payload is not None else None, capture_output=True, text=True
+    )
     if proc.returncode:
         raise ReviewError("GitHub API request failed: " + (proc.stderr or proc.stdout)[:500])
     return proc.stdout if text else json.loads(proc.stdout)
@@ -58,14 +59,21 @@ def snapshot(number):
     milestones = gh(["repos/" + repo + "/milestones?state=open&per_page=100", "--paginate", "--slurp"])
     milestones = [item for page in milestones for item in page]
     return {
-        "repo": repo, "number": int(number), "title": pr.get("title") or "",
-        "body": pr.get("body") or "", "state": pr["state"],
-        "head_sha": pr["head"]["sha"], "base_sha": pr["base"]["sha"],
+        "repo": repo,
+        "number": int(number),
+        "title": pr.get("title") or "",
+        "body": pr.get("body") or "",
+        "state": pr["state"],
+        "head_sha": pr["head"]["sha"],
+        "base_sha": pr["base"]["sha"],
         "labels": sorted(x["name"] for x in pr.get("labels", [])),
         "milestone": (pr.get("milestone") or {}).get("number"),
-        "files": [{"filename": x["filename"], "status": x["status"],
-                   "additions": x["additions"], "deletions": x["deletions"]} for x in files],
-        "diff": diff, "known_labels": sorted(x["name"] for x in labels),
+        "files": [
+            {"filename": x["filename"], "status": x["status"], "additions": x["additions"], "deletions": x["deletions"]}
+            for x in files
+        ],
+        "diff": diff,
+        "known_labels": sorted(x["name"] for x in labels),
         "milestones": [{"number": x["number"], "title": x["title"]} for x in milestones],
     }
 
@@ -75,35 +83,51 @@ def ask_model(data):
     if not key:
         raise ReviewError("OPENROUTER_API_KEY is not configured; no fallback provider is used")
     schema = {
-        "type": "object", "additionalProperties": False,
+        "type": "object",
+        "additionalProperties": False,
         "required": ["labels", "milestone", "confidence", "rationale", "evidence"],
         "properties": {
             "labels": {"type": "array", "items": {"type": "string"}, "uniqueItems": True},
             "milestone": {"type": ["integer", "null"]},
             "confidence": {"enum": ["low", "medium", "high"]},
             "rationale": {"type": "string", "maxLength": 500},
-            "evidence": {"type": "array", "minItems": 1, "maxItems": 8,
-                         "items": {"type": "object", "additionalProperties": False,
-                                   "required": ["file", "quote"],
-                                   "properties": {"file": {"type": "string"}, "quote": {"type": "string"}}}},
+            "evidence": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["file", "quote"],
+                    "properties": {"file": {"type": "string"}, "quote": {"type": "string"}},
+                },
+            },
         },
     }
     context = {
-        "title": data["title"], "body": data["body"], "files": data["files"],
-        "diff": data["diff"], "allowed_labels": data["known_labels"],
+        "title": data["title"],
+        "body": data["body"],
+        "files": data["files"],
+        "diff": data["diff"],
+        "allowed_labels": data["known_labels"],
         "open_milestones": data["milestones"],
     }
     payload = {
-        "model": MODEL, "temperature": 0,
+        "model": MODEL,
+        "temperature": 0,
         "provider": {"data_collection": "deny"},
-        "messages": [{"role": "system", "content": SYSTEM},
-                     {"role": "user", "content": json.dumps(context)}],
-        "response_format": {"type": "json_schema",
-                            "json_schema": {"name": "pr_triage", "strict": True, "schema": schema}},
+        "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps(context)}],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": "pr_triage", "strict": True, "schema": schema},
+        },
     }
-    request = urllib.request.Request(URL, data=json.dumps(payload).encode(),
-        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json",
-                 "X-Title": "cuda-pr-review"}, method="POST")
+    request = urllib.request.Request(
+        URL,
+        data=json.dumps(payload).encode(),
+        headers={"Authorization": "Bearer " + key, "Content-Type": "application/json", "X-Title": "cuda-pr-review"},
+        method="POST",
+    )
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
             result = json.loads(response.read().decode())
@@ -132,26 +156,49 @@ def propose(number, output, comment):
     answer = ask_model(data)
     additions = sorted(set(answer["labels"]) - set(data["labels"]))
     artifact = {
-        "version": 1, "repo": data["repo"], "number": data["number"],
-        "identity": digest({"title": data["title"], "body": data["body"],
-                            "head_sha": data["head_sha"], "base_sha": data["base_sha"],
-                            "diff": data["diff"], "files": data["files"]}),
+        "version": 1,
+        "repo": data["repo"],
+        "number": data["number"],
+        "identity": digest(
+            {
+                "title": data["title"],
+                "body": data["body"],
+                "head_sha": data["head_sha"],
+                "base_sha": data["base_sha"],
+                "diff": data["diff"],
+                "files": data["files"],
+            }
+        ),
         "metadata": digest({"labels": data["labels"], "milestone": data["milestone"]}),
-        "current_labels": data["labels"], "current_milestone": data["milestone"],
-        "add_labels": additions, "milestone": answer["milestone"],
-        "confidence": answer["confidence"], "rationale": answer["rationale"],
-        "evidence": answer["evidence"], "model": MODEL,
+        "current_labels": data["labels"],
+        "current_milestone": data["milestone"],
+        "add_labels": additions,
+        "milestone": answer["milestone"],
+        "confidence": answer["confidence"],
+        "rationale": answer["rationale"],
+        "evidence": answer["evidence"],
+        "model": MODEL,
     }
     with open(output, "w", encoding="utf-8") as handle:
         json.dump(artifact, handle, indent=2)
-    lines = ["## PR metadata proposal", "", "Current labels: " +
-             (", ".join(data["labels"]) or "none"), "Current milestone: " +
-             str(data["milestone"] or "none"), "",
-             "Proposed label additions: " + (", ".join(additions) or "none"),
-             "Proposed milestone: " + str(answer["milestone"] or "abstain"),
-             "Confidence: " + answer["confidence"], "", answer["rationale"], "", "Evidence:"]
+    lines = [
+        "## PR metadata proposal",
+        "",
+        "Current labels: " + (", ".join(data["labels"]) or "none"),
+        "Current milestone: " + str(data["milestone"] or "none"),
+        "",
+        "Proposed label additions: " + (", ".join(additions) or "none"),
+        "Proposed milestone: " + str(answer["milestone"] or "abstain"),
+        "Confidence: " + answer["confidence"],
+        "",
+        answer["rationale"],
+        "",
+        "Evidence:",
+    ]
     lines.extend("- " + item["file"] + ": " + item["quote"] for item in answer["evidence"])
-    lines.extend(["", "No metadata has been changed. Applying requires approval in the protected pr-label-review Environment."])
+    lines.extend(
+        ["", "No metadata has been changed. Applying requires approval in the protected pr-label-review Environment."]
+    )
     with open(comment, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
 
@@ -160,9 +207,16 @@ def verify_and_apply(number, artifact_path):
     with open(artifact_path, encoding="utf-8") as handle:
         artifact = json.load(handle)
     data = snapshot(number)
-    identity = digest({"title": data["title"], "body": data["body"],
-                       "head_sha": data["head_sha"], "base_sha": data["base_sha"],
-                       "diff": data["diff"], "files": data["files"]})
+    identity = digest(
+        {
+            "title": data["title"],
+            "body": data["body"],
+            "head_sha": data["head_sha"],
+            "base_sha": data["base_sha"],
+            "diff": data["diff"],
+            "files": data["files"],
+        }
+    )
     metadata = digest({"labels": data["labels"], "milestone": data["milestone"]})
     if artifact.get("version") != 1 or artifact.get("repo") != data["repo"] or artifact.get("number") != number:
         raise ReviewError("proposal identity does not match this PR")
@@ -176,8 +230,7 @@ def verify_and_apply(number, artifact_path):
     patch = {"labels": final_labels}
     if artifact["milestone"] is not None:
         patch["milestone"] = artifact["milestone"]
-    gh(["repos/" + data["repo"] + "/issues/" + str(number), "-X", "PATCH", "--input", "-"],
-       payload=patch)
+    gh(["repos/" + data["repo"] + "/issues/" + str(number), "-X", "PATCH", "--input", "-"], payload=patch)
     print("Applied approved PR metadata proposal.")
 
 
