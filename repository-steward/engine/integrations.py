@@ -29,7 +29,6 @@ INTEGRATIONS = {
 def integration_status(snapshot: dict) -> dict:
     """Normalize externally observed workflow evidence without inferring approval."""
     supplied = snapshot.get("integration_evidence") or {}
-    expected_sha = str(snapshot.get("head_sha") or "")
     results = {}
 
     for name, contract in INTEGRATIONS.items():
