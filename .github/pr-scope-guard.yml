@@ -93,5 +93,9 @@ scopes:
     - ".github/squash-merge.json"
     - ".github/workflows/squash-merge.yml"
     - "docs/squash-merge.md"
+  steward:
+    - "repository-steward/**"
+    - ".github/workflows/repository-steward.yml"
+    - "docs/repository-steward-architecture.md"
   tests:
     - "tests/**"

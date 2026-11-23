@@ -67,6 +67,10 @@
     {
       "name": "cuda-review",
       "description": "The maintainer-triggered, model-assisted CUDA pull-request review bot."
+    },
+    {
+      "name": "steward",
+      "description": "Read-only repository steward reporting, coordination, and status adapters."
     }
   ]
 }
