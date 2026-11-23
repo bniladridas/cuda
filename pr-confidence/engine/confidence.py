@@ -979,7 +979,20 @@ def main(argv=None):
         else:
             print(summary)
         if args.evidence_out:
-            Path(args.evidence_out).write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+            # Keep the collected source fields intact and attach the evaluated
+            # rubric result so downstream read-only consumers can inspect both.
+            artifact = dict(evidence)
+            artifact.update(
+                {
+                    "check_name": result["check_name"],
+                    "score": result["score"],
+                    "categories": result["categories"],
+                    "blockers": result["blockers"],
+                    "notes": result["notes"],
+                    "observed_checks": result["observed_checks"],
+                }
+            )
+            Path(args.evidence_out).write_text(json.dumps(artifact, indent=2) + "\n", encoding="utf-8")
         print("%s: %d/5, %d hard blocker(s)" % (CHECK_NAME, result["score"], len(result["blockers"])))
         return 1 if result["blockers"] else 0
     except (ConfidenceError, OSError, ValueError, KeyError, TypeError) as exc:
