@@ -99,7 +99,9 @@ def _normalize_pr_evidence(name, pr_number, expected_sha, supplied):
             (artifact.get(key) or {}).get("available") is True
             and not (artifact.get(key) or {}).get("truncated", False)
             for key in ("files", "checks")
-        ) and (artifact.get("review") or {}).get("available") is True
+        ) and (artifact.get("review") or {}).get("available") is True and not (
+            (artifact.get("review") or {}).get("threads_truncated", False)
+        )
     else:
         observed_sha = artifact.get("head_sha")
         artifact_pr = artifact.get("pr_number")
@@ -122,9 +124,11 @@ def _normalize_pr_evidence(name, pr_number, expected_sha, supplied):
     elif artifact_pr != pr_number:
         result["state"] = "malformed"
         result["details"] = "Artifact pull request number does not match its workflow association."
-    elif not result["revision_match"]:
+    elif not result["revision_match"] or (
+        name == "pr_confidence" and (artifact.get("pr") or {}).get("head_mismatch")
+    ):
         result["state"] = "stale"
-        result["details"] = "Artifact head SHA does not match the current pull request head."
+        result["details"] = "Artifact head SHA does not match the current pull request head, or the PR moved during collection."
     elif not complete:
         result["state"] = "incomplete"
         result["details"] = "Artifact is valid but its source evidence or changed-file coverage is incomplete."
