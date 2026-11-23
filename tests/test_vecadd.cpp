@@ -135,8 +135,9 @@ int main() {
     return 1;
   }
 
-  // 0 (no-op), 1 (sub-warp), 255/256/257 (block boundary), 1Mi (grid stride),
-  // plus an odd size that is a multiple of nothing convenient.
+  // 0 (no-op), 1 (sub-warp), 255/256/257 (block boundary), 1Mi (ordinary
+  // grid stride), and one element beyond 65535 * 256 to force the launcher's
+  // maximum-grid cap and execute a second grid-stride iteration.
   run_case(0, "empty");
   run_null_zero_length_case();
   run_case(1, "single");
@@ -145,6 +146,8 @@ int main() {
   run_case(257, "block+1");
   run_case(1000003, "odd-large");
   run_case(1u << 20, "1Mi");
+  constexpr std::size_t kMaxGridElements = 65535u * 256u;
+  run_case(kMaxGridElements + 1u, "beyond-maximum-grid");
   run_non_default_stream_case();
 
   std::printf("OK [%s] all cases passed\n", kTest);
