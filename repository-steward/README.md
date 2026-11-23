@@ -38,7 +38,12 @@ for these checks.
   workflow-run/runner metadata. Device identity remains `not_reported` unless
   independently established.
 - `files{}`: repository-relative paths mapped to text content
-- optional `readiness_policy.required_kinds`
+- optional `readiness_policy.required_kinds`, `required_docs`,
+  `require_benchmark_evidence`, `require_version_consistency`, and
+  `block_on_health_warnings`
+- optional `version_evidence` with `declared_version` and
+  `release_version`. Missing version evidence is reported as unavailable,
+  never inferred from a tag or a project file alone.
 - optional `integration_evidence` entries for `label_review` and
   `issue_landing`, each carrying state, head SHA, optional expected SHA,
   source, URL and details
