@@ -295,9 +295,7 @@ class PRReviewTests(unittest.TestCase):
                         patch.object(pr_review, "snapshot", return_value=changed_data),
                         patch.object(pr_review, "gh") as write,
                     ):
-                        with self.assertRaisesRegex(
-                            pr_review.ReviewError, "changed after proposal"
-                        ):
+                        with self.assertRaisesRegex(pr_review.ReviewError, "changed after proposal"):
                             pr_review.verify_and_apply(12, str(path))
                         write.assert_not_called()
 
