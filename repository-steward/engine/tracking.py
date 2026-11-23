@@ -47,9 +47,7 @@ def analyze_tracking(snapshot: dict) -> dict:
                 continue
             state = str(pr.get("state") or "unknown").lower()
             merged_at = pr.get("merged_at") or ""
-            merge_status = pr.get("merge_status") or (
-                "merged" if merged_at else "unknown"
-            )
+            merge_status = pr.get("merge_status") or ("merged" if merged_at else "unknown")
             linked.append(
                 {
                     "number": pr_number,
