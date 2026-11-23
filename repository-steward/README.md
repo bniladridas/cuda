@@ -30,6 +30,7 @@ Snapshot fields:
 - `files{}`: repository-relative paths mapped to text content
 - optional `readiness_policy.required_kinds`
 - optional `integration_evidence` entries for `label_review` and `issue_landing`, each carrying state, head SHA, optional expected SHA, source, URL and details
+- optional `pull_request_integrations[pr_number]` entries for `pr_confidence` and `pr_scope_guard`. Each entry carries workflow state, source, URL, details and the parsed JSON artifact under `evidence`. The snapshot collector downloads only artifacts from successful `pull_request_target` runs associated with that exact PR number and head SHA.
 
 ## Trust boundaries
 
@@ -40,9 +41,12 @@ explicit current-head evidence. Model integration is disabled by default and
 cannot authorize actions.
 
 Existing Label Review, Issue Landing, PR Confidence, PR Scope Guard,
-Squash Merge and Rebase Agent remain separate engines. This coordinator records
-their integration boundaries; it does not replace their policy or workflow
-execution.
+Squash Merge and Rebase Agent remain separate engines. The report preserves
+PR Confidence scores, categories, blockers and notes, plus PR Scope Guard
+findings, as source evidence. Per-PR states distinguish current, stale,
+missing, incomplete, pending, malformed and failed artifacts. These findings
+remain advisory data: neither adapter can authorize approval or merge, and
+the coordinator does not dispatch workflows or perform mutations.
 
 ## Benchmark integrity
 

@@ -80,20 +80,6 @@ def build_report(snapshot: dict, *, include_model_summary: bool = False) -> dict
     report.modules["integrations"] = integration_status(snapshot)
     report.modules["integrations"]["integrations"].update(
         {
-            "pr_confidence": {
-                "state": "unavailable",
-                "entrypoint": ".github/workflows/pr-confidence.yml",
-                "approval_required": False,
-                "approval_status": "not_applicable",
-                "coordinator_write_performed": False,
-            },
-            "pr_scope_guard": {
-                "state": "unavailable",
-                "entrypoint": ".github/workflows/pr-scope-guard.yml",
-                "approval_required": False,
-                "approval_status": "not_applicable",
-                "coordinator_write_performed": False,
-            },
             "squash_merge": {
                 "state": "unavailable",
                 "entrypoint": ".github/workflows/squash-merge.yml",
