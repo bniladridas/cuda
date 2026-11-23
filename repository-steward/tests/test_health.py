@@ -11,10 +11,7 @@ class RepositoryHealthTests(unittest.TestCase):
     def test_markdown_links_support_titles_angles_and_directory_indexes(self):
         result = check_markdown_links(
             {
-                "README.md": (
-                    '[guide](docs/guide.md "Guide") [reference](<docs/reference page.md>) '
-                    "[section](docs)"
-                ),
+                "README.md": ('[guide](docs/guide.md "Guide") [reference](<docs/reference page.md>) [section](docs)'),
                 "docs/guide.md": "Guide",
                 "docs/reference page.md": "Reference",
                 "docs/README.md": "Index",
@@ -46,10 +43,7 @@ class RepositoryHealthTests(unittest.TestCase):
     def test_missing_local_action_reference_is_reported(self):
         result = check_github_workflows(
             {
-                ".github/workflows/ci.yml": (
-                    "name: test\njobs:\n  test:\n    steps:\n"
-                    "      - uses: ./actions/not-present\n"
-                )
+                ".github/workflows/ci.yml": ("name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/not-present\n")
             }
         )
         self.assertEqual(len(result), 1)
@@ -58,10 +52,7 @@ class RepositoryHealthTests(unittest.TestCase):
     def test_existing_local_action_metadata_is_accepted(self):
         result = check_github_workflows(
             {
-                ".github/workflows/ci.yml": (
-                    "name: test\njobs:\n  test:\n    steps:\n"
-                    "      - uses: ./actions/example\n"
-                ),
+                ".github/workflows/ci.yml": ("name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/example\n"),
                 "actions/example/action.yml": "name: Example\nruns:\n  using: composite\n",
             }
         )
