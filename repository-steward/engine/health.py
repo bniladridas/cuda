@@ -33,9 +33,7 @@ def _construct_unique_mapping(loader, node, deep=False):
     return mapping
 
 
-_UniqueKeyLoader.add_constructor(
-    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping
-)
+_UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping)
 
 
 def _reject_duplicate_json_keys(pairs):
@@ -179,11 +177,7 @@ def check_github_workflows(files: dict[str, str]) -> list[dict]:
 def analyze_health(files: dict[str, str]) -> dict:
     if not isinstance(files, dict):
         raise TypeError("files must be a mapping of repository paths to text")
-    findings = (
-        check_markdown_links(files)
-        + check_json_configs(files)
-        + check_github_workflows(files)
-    )
+    findings = check_markdown_links(files) + check_json_configs(files) + check_github_workflows(files)
     return {
         "findings": findings,
         "finding_count": len(findings),
