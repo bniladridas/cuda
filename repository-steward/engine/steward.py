@@ -9,6 +9,7 @@ from .contracts import Finding, Report, Severity
 from .model_summary import ModelSummaryError
 from .benchmark_integrity import analyze_benchmarks
 from .health import analyze_health
+from .integrations import integration_status
 from .readiness import evaluate_readiness
 from .tracking import analyze_tracking
 from .validation import normalize_validation, validation_findings
@@ -76,38 +77,37 @@ def build_report(snapshot: dict, *, include_model_summary: bool = False) -> dict
         )
 
     report.modules["release_readiness"] = evaluate_readiness(evidence, snapshot.get("readiness_policy"))
-    report.modules["integrations"] = {
-        "label_review": {
-            "status": "existing_engine",
-            "path": "label-review/engine/review.py",
-            "mode": "read-only adapter boundary",
-        },
-        "issue_landing": {
-            "status": "existing_engine",
-            "path": "issue-landing/engine/landing.py",
-            "mode": "read-only adapter boundary",
-        },
+    report.modules["integrations"] = integration_status(snapshot)
+    report.modules["integrations"]["integrations"].update({
         "pr_confidence": {
-            "status": "existing_engine",
-            "path": "pr-confidence/engine/confidence.py",
-            "mode": "read-only adapter boundary",
+            "state": "unavailable",
+            "entrypoint": ".github/workflows/pr-confidence.yml",
+            "approval_required": False,
+            "approval_status": "not_applicable",
+            "coordinator_write_performed": False,
         },
         "pr_scope_guard": {
-            "status": "existing_engine",
-            "path": "pr-scope-guard/engine/scope_guard.py",
-            "mode": "read-only adapter boundary",
+            "state": "unavailable",
+            "entrypoint": ".github/workflows/pr-scope-guard.yml",
+            "approval_required": False,
+            "approval_status": "not_applicable",
+            "coordinator_write_performed": False,
         },
         "squash_merge": {
-            "status": "existing_engine",
-            "path": "squash-merge/engine/merge_gate.py",
-            "mode": "maintainer approval remains separate",
+            "state": "unavailable",
+            "entrypoint": ".github/workflows/squash-merge.yml",
+            "approval_required": True,
+            "approval_status": "not_asserted",
+            "coordinator_write_performed": False,
         },
         "rebase_agent": {
-            "status": "existing_engine",
-            "path": "rebase-agent/engine/rebase.py",
-            "mode": "bounded repair remains authorization gated",
+            "state": "unavailable",
+            "entrypoint": ".github/workflows/rebase-approved.yml",
+            "approval_required": True,
+            "approval_status": "not_asserted",
+            "coordinator_write_performed": False,
         },
-    }
+    })
     result = report.to_dict()
     if include_model_summary:
         from .model_summary import summarize_report
