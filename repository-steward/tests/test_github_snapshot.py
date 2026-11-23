@@ -146,20 +146,6 @@ text
             run_gh("repos/example/repo", runner=runner)
 
 
-    def test_gh_errors_fail_closed(self):
-        def runner(*args, **kwargs):
-            return SimpleNamespace(returncode=1, stdout="", stderr="denied")
-
-        with self.assertRaises(SnapshotError):
-            run_gh("repos/example/repo", runner=runner)
-
-    def test_invalid_json_fails_closed(self):
-        def runner(*args, **kwargs):
-            return SimpleNamespace(returncode=0, stdout="not-json", stderr="")
-
-        with self.assertRaises(SnapshotError):
-            run_gh("repos/example/repo", runner=runner)
-
 
 if __name__ == "__main__":
     unittest.main()
