@@ -4,8 +4,8 @@ version: 1
 
 critical_checks:
   - cpu
-  - CodeQL
-  - "analyze (c-cpp)"
+  - python
+  - cuda-compile
 
 security_checks:
   - GitGuardian Security Checks
