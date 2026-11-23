@@ -82,7 +82,8 @@ def _normalize_pr_evidence(name, pr_number, expected_sha, supplied):
 
     if name == "pr_confidence":
         observed_sha = artifact.get("head_sha")
-        artifact_pr = (artifact.get("pr") or {}).get("number")
+        pr_record = artifact.get("pr")
+        artifact_pr = pr_record.get("number") if isinstance(pr_record, dict) else None
         valid_shape = (
             artifact.get("rubric_version") == 1
             and isinstance(artifact.get("score"), int)
