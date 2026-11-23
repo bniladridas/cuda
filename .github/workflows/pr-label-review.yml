@@ -1,0 +1,82 @@
+name: PR label and milestone review
+# Uses pull_request_target and never checks out or executes PR code.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to review
+        required: true
+        type: number
+permissions:
+  contents: read
+jobs:
+  propose:
+    if: vars.PR_LABEL_REVIEW_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: \${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build diff-grounded proposal
+        env:
+          GITHUB_REPOSITORY: \${{ github.repository }}
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          OPENROUTER_API_KEY: \${{ secrets.OPENROUTER_API_KEY }}
+          PR_NUMBER: \${{ github.event.pull_request.number || inputs.pr }}
+        run: python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pr-metadata-proposal
+          path: |
+            pr-proposal.json
+            pr-proposal.md
+          retention-days: 7
+  comment:
+    needs: propose
+    if: vars.PR_LABEL_REVIEW_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: pr-metadata-proposal
+      - name: Post proposal
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: \${{ github.event.pull_request.number || inputs.pr }}
+        run: gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file pr-proposal.md
+  apply:
+    needs: comment
+    if: vars.PR_LABEL_REVIEW_ENABLED == 'true' && vars.PR_LABEL_REVIEW_APPLY == 'true'
+    runs-on: ubuntu-latest
+    environment: pr-label-review
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: \${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          name: pr-metadata-proposal
+      - name: Re-fetch and verify PR diff and metadata, then apply
+        env:
+          GITHUB_REPOSITORY: \${{ github.repository }}
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: \${{ github.event.pull_request.number || inputs.pr }}
+        run: python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" --artifact pr-proposal.json
