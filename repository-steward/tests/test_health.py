@@ -38,11 +38,8 @@ class RepositoryHealthTests(unittest.TestCase):
     def test_workflow_yaml_syntax_and_duplicate_keys_are_checked(self):
         result = check_github_workflows(
             {
-                ".github/workflows/broken.yml": "name: test
-jobs: [",
-                ".github/workflows/duplicate.yaml": "name: test
-name: other
-",
+                ".github/workflows/broken.yml": "name: test\njobs: [",
+                ".github/workflows/duplicate.yaml": "name: test\nname: other\n",
             }
         )
         self.assertEqual(len(result), 2)
@@ -52,12 +49,7 @@ name: other
         result = check_github_workflows(
             {
                 ".github/workflows/ci.yml": (
-                    "name: test
-jobs:
-  test:
-    steps:
-      - uses: ./actions/not-present
-"
+                    "name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/not-present\n"
                 )
             }
         )
@@ -68,17 +60,9 @@ jobs:
         result = check_github_workflows(
             {
                 ".github/workflows/ci.yml": (
-                    "name: test
-jobs:
-  test:
-    steps:
-      - uses: ./actions/example
-"
+                    "name: test\njobs:\n  test:\n    steps:\n      - uses: ./actions/example\n"
                 ),
-                "actions/example/action.yml": "name: Example
-runs:
-  using: composite
-",
+                "actions/example/action.yml": "name: Example\nruns:\n  using: composite\n",
             }
         )
         self.assertEqual(result, [])
@@ -88,8 +72,7 @@ runs:
             {
                 "README.md": "[missing](docs/nope.md)",
                 ".github/config.json": "{broken",
-                ".github/workflows/ci.yml": "name: test
-jobs: [",
+                ".github/workflows/ci.yml": "name: test\njobs: [",
             }
         )
         codes = {item["code"] for item in result["findings"]}
