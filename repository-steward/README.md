@@ -76,6 +76,13 @@ and the device and measurement metadata emitted by the benchmark binary. A
 valid record is not, by itself, permission to publish a performance claim.
 Methodology remains documented in `docs/methodology.md`.
 
+Release Readiness now combines current-head validation evidence with required
+documentation presence, repository-health errors, benchmark provenance, and
+explicit declared-versus-release version evidence. Health warnings are
+reported but do not block by default. Missing benchmark or version evidence
+remains unavailable and blocks readiness under the default policy. This module
+only reports readiness; it never publishes a release.
+
 ## Optional model summary
 
 Model summaries are disabled unless `--model-summary` is explicitly passed and
