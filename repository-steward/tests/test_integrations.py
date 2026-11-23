@@ -35,6 +35,7 @@ class IntegrationAdapterTests(unittest.TestCase):
         landing = result["integrations"]["issue_landing"]
         self.assertEqual(label["state"], "success")
         self.assertEqual(label["approval_status"], "not_asserted")
+        self.assertIsNone(label["revision_match"])
         self.assertEqual(label["approval_environment"], "label-review")
         self.assertEqual(landing["state"], "pending")
         self.assertEqual(landing["approval_environment"], "issue-landing-close")
