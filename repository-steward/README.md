@@ -31,7 +31,9 @@ for these checks.
 
 - `repository`, `head_sha`
 - `issues[]`: number, title, body, state, labels, assignees, updated_at,
-  optional linked_pr_numbers, dependency_numbers and acceptance_criteria
+  optional linked_pr_numbers, dependency_numbers, acceptance_criteria and
+  acceptance_criteria_status. Explicit checkboxes are preserved as complete or
+  incomplete; plain bullets remain unverified.
 - `pull_requests[]`: number, title, body, state, head_sha, draft, checks,
   review_decision, url, optional linked_issue_numbers
 - `validations[]`: kind, state, head_sha, source, url, details and optional
