@@ -2,10 +2,10 @@
 
 ## Purpose
 
-CUDA Repository Steward is the proposed coordination layer for the repository's
-existing automation. It should make repository state, validation evidence,
-policy decisions, and release readiness easier to inspect without replacing
-GitHub Issues, GitHub Actions, or the tools that already perform those jobs.
+CUDA Repository Steward is the implemented read-only coordination layer for the
+repository's existing automation. It makes repository state, validation
+evidence, policy decisions, and release readiness easier to inspect without
+replacing GitHub Issues, GitHub Actions, or the tools that already perform those jobs.
 
 This document records the implemented read-only coordinator, its boundaries,
 and the remaining evolution path. It does not create a new runtime, move
