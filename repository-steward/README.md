@@ -1,41 +1,52 @@
 # CUDA Repository Steward
 
-This package is the first read-only coordination layer for issue tracking,
-repository health, validation evidence, and release-readiness reporting.
+This package is a read-only coordination layer for issue tracking, repository
+health, validation evidence, and release-readiness reporting.
 
-## Run
+## Run locally
 
-The initial interface consumes a JSON snapshot. This keeps the engine
-offline-testable and avoids requiring GitHub credentials for local reports.
+The GitHub CLI adapter collects a snapshot from repository metadata, issues,
+pull requests, checks, workflow runs, and retained PR evidence artifacts.
+Authenticate the GitHub CLI for the target repository first:
+
+```sh
+gh auth status
+PYTHONPATH=repository-steward python3 -m engine.github_snapshot \
+  --repository OWNER/REPO --root . --output steward-snapshot.json
+PYTHONPATH=repository-steward python3 -m engine.steward \
+  steward-snapshot.json --output steward-report.json
+python3 -m unittest discover -s repository-steward/tests
+```
+
+The report engine can also consume an existing JSON snapshot without network
+access. The snapshot collector uses read-only GitHub API operations and does
+not execute code from pull requests.
 
 Repository Health checks relative Markdown links, JSON and GitHub Actions YAML
 syntax, duplicate mapping keys, and local action references. It is read-only.
 The snapshot collector includes workflow files and local action metadata needed
 for these checks.
 
-```sh
-python3 -m repository-steward.engine.steward snapshot.json --output steward-report.json
-```
+## Snapshot contract
 
-Because hyphens are not valid Python package identifiers, run the module by
-adding the package directory to `PYTHONPATH`:
-
-```sh
-PYTHONPATH=repository-steward python3 -m engine.steward snapshot.json
-python3 -m unittest discover -s repository-steward/tests
-```
-
-Snapshot fields:
 - `repository`, `head_sha`
 - `issues[]`: number, title, body, state, labels, assignees, updated_at,
   optional linked_pr_numbers, dependency_numbers and acceptance_criteria
 - `pull_requests[]`: number, title, body, state, head_sha, draft, checks,
   review_decision, url, optional linked_issue_numbers
-- `validations[]`: kind, state, head_sha, source, url, details and optional workflow-run/runner metadata. Device identity remains `not_reported` unless independently established.
+- `validations[]`: kind, state, head_sha, source, url, details and optional
+  workflow-run/runner metadata. Device identity remains `not_reported` unless
+  independently established.
 - `files{}`: repository-relative paths mapped to text content
 - optional `readiness_policy.required_kinds`
-- optional `integration_evidence` entries for `label_review` and `issue_landing`, each carrying state, head SHA, optional expected SHA, source, URL and details
-- optional `pull_request_integrations[pr_number]` entries for `pr_confidence` and `pr_scope_guard`. Each entry carries workflow state, source, URL, details and the parsed JSON artifact under `evidence`. The snapshot collector downloads only artifacts from successful `pull_request_target` runs associated with that exact PR number and head SHA.
+- optional `integration_evidence` entries for `label_review` and
+  `issue_landing`, each carrying state, head SHA, optional expected SHA,
+  source, URL and details
+- optional `pull_request_integrations[pr_number]` entries for
+  `pr_confidence` and `pr_scope_guard`. Each entry carries workflow state,
+  source, URL, details and the parsed JSON artifact under `evidence`. The
+  collector downloads artifacts only from successful `pull_request_target`
+  runs associated with that exact PR number and head SHA.
 
 ## Trust boundaries
 
@@ -72,10 +83,15 @@ all three environment variables are configured:
 The model receives the generated report and returns advisory prose only. Its
 output is not evidence and cannot change readiness, checks, permissions, labels,
 branches, issues, PRs or releases.
+
 ## Scheduled report
 
-After the workflow is merged, run **Repository Steward Report** manually from
-Actions or let its daily schedule run. It uses a read-only GitHub token and
-uploads the source snapshot and JSON report as a 14-day artifact. It does not
-post comments, apply labels, close issues, modify branches, merge pull
-requests, or publish releases.
+The **Repository Steward Report** workflow runs daily or manually from
+Actions. It uses the workflow's read-only GitHub token and uploads both the
+source snapshot and JSON report as a 14-day artifact. Download the artifact to
+inspect the exact inputs and generated output for a run.
+
+The workflow does not post comments, apply labels, close issues, modify
+branches, merge pull requests, or publish releases. GPU evidence remains
+pending, skipped, or unknown unless a matching current-head validation result
+establishes otherwise.
