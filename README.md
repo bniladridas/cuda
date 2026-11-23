@@ -223,8 +223,8 @@ docs/                   hardware, methodology, C++ quality, PR confidence, label
 label-review/           reusable issue label review engine and tests
 format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
-squash-merge/            maintainer-approved squash-merge policy engine and tests
-rebase-agent/            safe PR rebase and bounded repair engines with tests
+squash-merge/           maintainer-approved squash-merge policy engine and tests
+rebase-agent/           safe PR rebase and bounded repair engines with tests
 ```
 
 ## CI
