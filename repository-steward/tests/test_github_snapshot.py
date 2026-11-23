@@ -8,9 +8,11 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from engine.github_snapshot import (
     SnapshotError,
+    acceptance_criteria_status_from_body,
     criteria_from_body,
     issue_dependencies,
     load_benchmark_results,
+    pull_request_review_decision,
     run_gh,
     validation_run_metadata,
     workflow_evidence,
@@ -145,6 +147,54 @@ text
         with self.assertRaises(SnapshotError):
             run_gh("repos/example/repo", runner=runner)
 
+
+    def test_acceptance_criteria_status_preserves_unchecked_and_unmarked_items(self):
+        body = """## Acceptance Criteria
+- [x] CPU tests
+- [ ] GPU runtime
+- ordinary documentation bullet
+## Notes
+- ignored"""
+        self.assertEqual(acceptance_criteria_status_from_body(body), [True, False, None])
+
+    def test_workflow_evidence_requires_exact_head_when_requested(self):
+        payload = {
+            "workflow_runs": [
+                {"status": "completed", "conclusion": "success", "head_sha": "old", "run_number": 9},
+                {"status": "completed", "conclusion": "failure", "head_sha": "new", "run_number": 8},
+            ]
+        }
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command[-1])
+            return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+        result = workflow_evidence("example/repo", "label-review.yml", "new", runner=runner)
+        self.assertEqual(result["head_sha"], "new")
+        self.assertEqual(result["expected_sha"], "new")
+        self.assertEqual(result["state"], "failure")
+        self.assertIn("head_sha=new", calls[0])
+
+    def test_workflow_evidence_does_not_fall_back_to_an_old_success(self):
+        payload = {"workflow_runs": [
+            {"status": "completed", "conclusion": "success", "head_sha": "old"}
+        ]}
+        def runner(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+        result = workflow_evidence("example/repo", "issue-landing.yml", "new", runner=runner)
+        self.assertEqual(result["state"], "unavailable")
+        self.assertEqual(result["expected_sha"], "new")
+
+    def test_review_decision_uses_github_graphql_and_fails_closed(self):
+        payload = {"data": {"repository": {"pullRequest": {"reviewDecision": "CHANGES_REQUESTED"}}}}
+        def runner(command, **kwargs):
+            self.assertEqual(command[2], "graphql")
+            self.assertIn("reviewDecision", command[4])
+            return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+        self.assertEqual(pull_request_review_decision("example/repo", 12, runner=runner), "changes_requested")
+
+        def denied(*args, **kwargs):
+            return SimpleNamespace(returncode=1, stdout="", stderr="denied")
+        self.assertEqual(pull_request_review_decision("example/repo", 12, runner=denied), "unknown")
 
 if __name__ == "__main__":
     unittest.main()
