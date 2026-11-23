@@ -68,6 +68,7 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
+          fetch-depth: 0
       - name: Export exact PR source snapshot and complete diff
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -76,13 +77,9 @@ jobs:
           EXPECTED_HEAD: ${{ needs.authorize.outputs.head_sha }}
           EXPECTED_BASE: ${{ needs.authorize.outputs.base_sha }}
           BASE_BRANCH: ${{ needs.authorize.outputs.base_branch }}
+          REVIEW_FEEDBACK: ${{ inputs.review_feedback }}
         run: |
           set -euo pipefail
-          python3 rebase-agent/engine/tree_inspector.py \
-            --repository "$REPOSITORY" --pull-request "$PR_NUMBER" \
-            --output tree-inspection.json
-          python3 rebase-agent/engine/verify_tree_inspection.py \
-            tree-inspection.json "$EXPECTED_HEAD" "$EXPECTED_BASE"
           git fetch --no-tags origin \
             "refs/pull/$PR_NUMBER/head:refs/remotes/origin/proposal-head" \
             "refs/heads/$BASE_BRANCH:refs/remotes/origin/proposal-base"
@@ -94,8 +91,6 @@ jobs:
           test -s pr.diff
           test -s pr-files.txt
           python3 rebase-agent/engine/write_feedback.py feedback.txt
-        env:
-          REVIEW_FEEDBACK: ${{ inputs.review_feedback }}
       - name: Prepare inert source snapshot
         run: |
           set -euo pipefail
