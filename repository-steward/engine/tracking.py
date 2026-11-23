@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from .contracts import Finding, Severity
 
-ISSUE_REF = re.compile(r"(?<![\\w/])#(\\d+)\\b")
+ISSUE_REF = re.compile(r"(?<![\w/])#(\d+)\b")
 
 
 def _numbers(text: str) -> set[int]:
@@ -62,7 +62,7 @@ def analyze_tracking(snapshot: dict, *, stale_after_days: int = 30) -> dict:
         state = str(issue.get("state", "open")).lower()
         references = set()
         for pr in prs:
-            text = (pr.get("title") or "") + "\\n" + (pr.get("body") or "")
+            text = (pr.get("title") or "") + "\n" + (pr.get("body") or "")
             if number in _numbers(text) or number in set(pr.get("linked_issue_numbers", [])):
                 references.add(int(pr["number"]))
         references |= set(int(value) for value in issue.get("linked_pr_numbers", []))
