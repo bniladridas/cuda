@@ -58,6 +58,12 @@ stale and unknown evidence as distinct states. GPU runtime success requires
 explicit current-head evidence. Model integration is disabled by default and
 cannot authorize actions.
 
+Issue Tracking reports closure readiness as a human-review candidate only
+when every acceptance criterion is explicitly checked, all linked PRs are
+verified merged, and dependencies are closed. Unchecked criteria and open PRs
+block the candidate; missing merge evidence remains unknown. It never closes
+an issue.
+
 Existing Label Review, Issue Landing, PR Confidence, PR Scope Guard,
 Squash Merge and Rebase Agent remain separate engines. The report preserves
 PR Confidence scores, categories, blockers and notes, plus PR Scope Guard
