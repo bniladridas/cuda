@@ -249,6 +249,8 @@ def verify_and_apply(number, artifact_path):
     gh(["repos/" + data["repo"] + "/issues/" + str(number), "-X", "PATCH", "--input", "-"], payload=patch)
     print("Applied approved PR metadata proposal.")
 
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["propose", "verify", "apply"])
