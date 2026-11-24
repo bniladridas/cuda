@@ -49,7 +49,7 @@ jobs:
         id: hash
         run: echo "proposal_hash=$(sha256sum pr-proposal.json | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
       - name: Upload proposal artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-label-review-proposal-${{ github.run_id }}
           path: |
@@ -83,7 +83,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Download original proposal artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: pr-label-review-proposal-${{ github.run_id }}
           path: .
@@ -131,7 +131,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Download original proposal artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: pr-label-review-proposal-${{ github.run_id }}
           path: .
