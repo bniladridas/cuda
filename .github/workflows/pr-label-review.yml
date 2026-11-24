@@ -106,7 +106,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: |
-          response="$(gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$(cat pr-proposal.md)")"
+          comment_body="$(cat pr-proposal.md)"
+          response="$(gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$comment_body")"
           echo "comment_id=$(jq -r '.id' <<<"$response")" >> "$GITHUB_OUTPUT"
   apply:
     needs: [propose, comment]
