@@ -35,7 +35,9 @@ class PRReviewTests(unittest.TestCase):
             "milestone": 4,
             "confidence": "high",
             "rationale": "The workflow change supports this classification.",
-            "evidence": [{"file": ".github/workflows/pr-label-review.yml", "quote": "actions/create-github-app-token@v2"}],
+            "evidence": [
+                {"file": ".github/workflows/pr-label-review.yml", "quote": "actions/create-github-app-token@v2"}
+            ],
         }
         with tempfile.TemporaryDirectory() as directory:
             artifact = Path(directory) / "proposal.json"
