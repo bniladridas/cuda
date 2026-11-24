@@ -250,7 +250,6 @@ def verify_and_apply(number, artifact_path):
     print("Applied approved PR metadata proposal.")
 
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["propose", "verify", "apply"])
