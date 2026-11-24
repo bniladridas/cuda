@@ -55,6 +55,40 @@ class PRReviewTests(unittest.TestCase):
                     pr_review.verify_and_apply(12, str(path))
                 write.assert_not_called()
 
+    def test_verify_accepts_original_proposal_without_applying(self):
+        data = {
+            "repo": "owner/repo",
+            "number": 12,
+            "title": "title",
+            "body": "body",
+            "head_sha": "a" * 40,
+            "base_sha": "b" * 40,
+            "diff": "diff",
+            "files": [{"filename": "src/a.py", "status": "modified", "additions": 1, "deletions": 0}],
+            "labels": ["bug"],
+            "milestone": 2,
+            "known_labels": ["bug", "enhancement"],
+            "milestones": [{"number": 2, "title": "Current"}],
+        }
+        identity = pr_review.digest({
+            "title": data["title"], "body": data["body"],
+            "head_sha": data["head_sha"], "base_sha": data["base_sha"],
+            "diff": data["diff"], "files": data["files"],
+        })
+        artifact = {
+            "version": 1, "repo": "owner/repo", "number": 12,
+            "identity": identity,
+            "metadata": pr_review.digest({"labels": ["bug"], "milestone": 2}),
+            "current_labels": ["bug"], "current_milestone": 2,
+            "add_labels": ["enhancement"], "milestone": 2,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "proposal.json"
+            path.write_text(json.dumps(artifact), encoding="utf-8")
+            with patch.object(pr_review, "snapshot", return_value=data), patch.object(pr_review, "gh") as write:
+                pr_review.verify_proposal(12, str(path))
+                write.assert_not_called()
+
     def test_approved_apply_preserves_existing_labels(self):
         data = {
             "repo": "owner/repo",
@@ -155,9 +189,11 @@ class PRReviewTests(unittest.TestCase):
         self.assertIn("proposal_hash:", workflow)
         self.assertIn("sha256sum pr-proposal.json", workflow)
         self.assertIn("EXPECTED_PROPOSAL_HASH", workflow)
+        self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn("actions/download-artifact@v4", workflow)
+        self.assertIn("pr_review.py verify --pr", workflow)
+        self.assertNotIn("Rebuild and verify proposal", workflow)
         self.assertIn("environment: pr-label-review", workflow)
-        self.assertNotIn("upload-artifact", workflow)
-        self.assertNotIn("download-artifact", workflow)
         self.assertNotIn("pr-metadata-proposal", workflow)
         self.assertNotIn("pull-requests: write", workflow)
         self.assertNotIn("contents: write", workflow)
