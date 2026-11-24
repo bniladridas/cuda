@@ -13,7 +13,6 @@ permissions:
   contents: read
 jobs:
   propose:
-    if: vars.PR_LABEL_REVIEW_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,7 +39,6 @@ jobs:
         run: echo "proposal_hash=$(sha256sum pr-proposal.json | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
   comment:
     needs: propose
-    if: vars.PR_LABEL_REVIEW_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,7 +69,7 @@ jobs:
         run: gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file pr-proposal.md
   apply:
     needs: [propose, comment]
-    if: vars.PR_LABEL_REVIEW_ENABLED == 'true' && vars.PR_LABEL_REVIEW_APPLY == 'true'
+    if: vars.PR_LABEL_REVIEW_APPLY == 'true'
     runs-on: ubuntu-latest
     environment: pr-label-review
     permissions:
