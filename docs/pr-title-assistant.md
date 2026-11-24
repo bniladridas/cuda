@@ -1,7 +1,8 @@
 # PR title assistant
 
-The title assistant uses an OpenAI API model to select the best matching scope
-from `.github/pr-scopes.json` and propose a concise action-oriented title.
+The title assistant uses the repository's configured OpenRouter model to select
+the best matching scope from `.github/pr-scopes.json` and propose a concise
+action-oriented title.
 
 ## Behavior
 
@@ -17,10 +18,12 @@ from `.github/pr-scopes.json` and propose a concise action-oriented title.
 
 ## Configuration
 
-Add an `OPENAI_API_KEY` Actions secret. The model defaults to `gpt-5-mini`;
-set the repository Actions variable `OPENAI_MODEL` to use another model
-available to the API key.
+Add the `OPENROUTER_API_KEY` Actions secret. The assistant uses the same
+`CUDA_REVIEW_MODEL` repository Actions variable as CUDA Review and CUDA title
+suggestions. If it is unset, the model defaults to `openrouter/free`.
+
+Requests use OpenRouter's `provider.data_collection=deny` setting.
 
 The workflow needs `contents: read` and `pull-requests: write`. It uses
 `pull_request_target`, so the workflow and script are loaded from the trusted
-default branch and PR content is treated only as untrusted model input.
+base branch and PR content is treated only as untrusted model input.
