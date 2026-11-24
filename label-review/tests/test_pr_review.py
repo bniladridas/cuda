@@ -58,6 +58,7 @@ class PRReviewTests(unittest.TestCase):
     def test_inline_code_uses_a_longer_fence_when_needed(self):
         self.assertEqual(pr_review.inline_code("name"), "`name`")
         self.assertEqual(pr_review.inline_code("`name`"), "`` `name` ``")
+
     def test_missing_provider_key_fails_without_fallback(self):
         data = {"known_labels": [], "milestones": [], "title": "", "body": "", "files": [], "diff": ""}
         with patch.dict(os.environ, {}, clear=True):
