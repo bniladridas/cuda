@@ -70,17 +70,26 @@ class PRReviewTests(unittest.TestCase):
             "known_labels": ["bug", "enhancement"],
             "milestones": [{"number": 2, "title": "Current"}],
         }
-        identity = pr_review.digest({
-            "title": data["title"], "body": data["body"],
-            "head_sha": data["head_sha"], "base_sha": data["base_sha"],
-            "diff": data["diff"], "files": data["files"],
-        })
+        identity = pr_review.digest(
+            {
+                "title": data["title"],
+                "body": data["body"],
+                "head_sha": data["head_sha"],
+                "base_sha": data["base_sha"],
+                "diff": data["diff"],
+                "files": data["files"],
+            }
+        )
         artifact = {
-            "version": 1, "repo": "owner/repo", "number": 12,
+            "version": 1,
+            "repo": "owner/repo",
+            "number": 12,
             "identity": identity,
             "metadata": pr_review.digest({"labels": ["bug"], "milestone": 2}),
-            "current_labels": ["bug"], "current_milestone": 2,
-            "add_labels": ["enhancement"], "milestone": 2,
+            "current_labels": ["bug"],
+            "current_milestone": 2,
+            "add_labels": ["enhancement"],
+            "milestone": 2,
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "proposal.json"
