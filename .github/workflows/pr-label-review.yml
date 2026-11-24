@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
       issues: write
     steps:
       - name: Create CUDA Actions token
@@ -74,7 +74,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: read
-          permission-pull-requests: read
+          permission-pull-requests: write
           permission-issues: write
       - uses: actions/checkout@v7
         with:
