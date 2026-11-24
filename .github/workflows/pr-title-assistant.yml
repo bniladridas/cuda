@@ -39,6 +39,6 @@ jobs:
           GH_TOKEN: "${{ github.token }}"
           GITHUB_REPOSITORY: "${{ github.repository }}"
           PR_NUMBER: "${{ github.event.pull_request.number }}"
-          OPENAI_API_KEY: "${{ secrets.OPENAI_API_KEY }}"
-          OPENAI_MODEL: "${{ vars.OPENAI_MODEL || 'gpt-5-mini' }}"
+          OPENROUTER_API_KEY: "${{ secrets.OPENROUTER_API_KEY }}"
+          OPENROUTER_MODEL: "${{ vars.CUDA_REVIEW_MODEL }}"
         run: python pr-title/engine/title_assistant.py
