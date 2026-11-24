@@ -15,6 +15,47 @@ class PRReviewTests(unittest.TestCase):
     def test_digest_is_order_independent_for_mapping_keys(self):
         self.assertEqual(pr_review.digest({"a": 1, "b": 2}), pr_review.digest({"b": 2, "a": 1}))
 
+    def test_proposal_comment_formats_identifiers_as_inline_code(self):
+        data = {
+            "repo": "owner/repo",
+            "number": 12,
+            "title": "title",
+            "body": "body",
+            "head_sha": "a" * 40,
+            "base_sha": "b" * 40,
+            "diff": "diff",
+            "files": [{"filename": ".github/workflows/pr-label-review.yml"}],
+            "labels": ["bug"],
+            "milestone": None,
+            "known_labels": ["bug", "github_actions"],
+            "milestones": [{"number": 4, "title": "Automation"}],
+        }
+        answer = {
+            "labels": ["bug", "github_actions"],
+            "milestone": 4,
+            "confidence": "high",
+            "rationale": "The workflow change supports this classification.",
+            "evidence": [{"file": ".github/workflows/pr-label-review.yml", "quote": "actions/create-github-app-token@v2"}],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            artifact = Path(directory) / "proposal.json"
+            comment = Path(directory) / "proposal.md"
+            with (
+                patch.object(pr_review, "snapshot", return_value=data),
+                patch.object(pr_review, "ask_model", return_value=answer),
+            ):
+                pr_review.propose(12, str(artifact), str(comment))
+            body = comment.read_text(encoding="utf-8")
+
+        self.assertIn("Current labels: `bug`", body)
+        self.assertIn("Proposed label additions: `github_actions`", body)
+        self.assertIn("Proposed milestone: 4", body)
+        self.assertIn("- `.github/workflows/pr-label-review.yml`:", body)
+        self.assertIn("protected `pr-label-review` Environment", body)
+
+    def test_inline_code_uses_a_longer_fence_when_needed(self):
+        self.assertEqual(pr_review.inline_code("name"), "`name`")
+        self.assertEqual(pr_review.inline_code("`name`"), "`` `name` ``")
     def test_missing_provider_key_fails_without_fallback(self):
         data = {"known_labels": [], "milestones": [], "title": "", "body": "", "files": [], "diff": ""}
         with patch.dict(os.environ, {}, clear=True):
