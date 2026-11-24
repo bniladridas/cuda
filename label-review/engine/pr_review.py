@@ -152,6 +152,14 @@ def ask_model(data):
     return answer
 
 
+def inline_code(value):
+    """Format an identifier or path as safe GitHub inline code."""
+    value = str(value)
+    fence = "`" * (max((len(run) for run in __import__("re").findall(r"`+", value)), default=0) + 1)
+    padding = " " if value.startswith("`") or value.endswith("`") else ""
+    return fence + padding + value + padding + fence
+
+
 def propose(number, output, comment):
     data = snapshot(number)
     answer = ask_model(data)
@@ -185,10 +193,10 @@ def propose(number, output, comment):
     lines = [
         "## PR metadata proposal",
         "",
-        "Current labels: " + (", ".join(data["labels"]) or "none"),
+        "Current labels: " + (", ".join(inline_code(label) for label in data["labels"]) or "none"),
         "Current milestone: " + str(data["milestone"] or "none"),
         "",
-        "Proposed label additions: " + (", ".join(additions) or "none"),
+        "Proposed label additions: " + (", ".join(inline_code(label) for label in additions) or "none"),
         "Proposed milestone: " + str(answer["milestone"] or "abstain"),
         "Confidence: " + answer["confidence"],
         "",
@@ -196,9 +204,9 @@ def propose(number, output, comment):
         "",
         "Evidence:",
     ]
-    lines.extend("- " + item["file"] + ": " + item["quote"] for item in answer["evidence"])
+    lines.extend("- " + inline_code(item["file"]) + ": " + item["quote"] for item in answer["evidence"])
     lines.extend(
-        ["", "No metadata has been changed. Applying requires approval in the protected pr-label-review Environment."]
+        ["", "No metadata has been changed. Applying requires approval in the protected " + inline_code("pr-label-review") + " Environment."]
     )
     with open(comment, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
