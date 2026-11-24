@@ -235,6 +235,70 @@ class PRReviewTests(unittest.TestCase):
         self.assertEqual(abstained["labels"], [])
         self.assertIsNone(abstained["milestone"])
 
+    def test_stale_labels_and_milestone_abort_before_write(self):
+        data = {
+            "repo": "owner/repo",
+            "number": 12,
+            "title": "title",
+            "body": "body",
+            "head_sha": "a" * 40,
+            "base_sha": "b" * 40,
+            "diff": "diff",
+            "files": [
+                {
+                    "filename": "src/a.py",
+                    "status": "modified",
+                    "additions": 1,
+                    "deletions": 0,
+                }
+            ],
+            "labels": ["bug"],
+            "milestone": 2,
+            "known_labels": ["bug", "enhancement"],
+            "milestones": [
+                {"number": 2, "title": "Current"},
+                {"number": 3, "title": "Next"},
+            ],
+        }
+        identity = pr_review.digest(
+            {
+                "title": data["title"],
+                "body": data["body"],
+                "head_sha": data["head_sha"],
+                "base_sha": data["base_sha"],
+                "diff": data["diff"],
+                "files": data["files"],
+            }
+        )
+        artifact = {
+            "version": 1,
+            "repo": "owner/repo",
+            "number": 12,
+            "identity": identity,
+            "metadata": pr_review.digest({"labels": ["bug"], "milestone": 2}),
+            "current_labels": ["bug"],
+            "current_milestone": 2,
+            "add_labels": ["enhancement"],
+            "milestone": 3,
+        }
+
+        for changed_field, changed_value in (
+            ("labels", ["bug", "documentation"]),
+            ("milestone", 3),
+        ):
+            with self.subTest(changed_field=changed_field):
+                changed_data = {**data, changed_field: changed_value}
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "proposal.json"
+                    path.write_text(json.dumps(artifact), encoding="utf-8")
+                    with (
+                        patch.object(pr_review, "snapshot", return_value=changed_data),
+                        patch.object(pr_review, "gh") as write,
+                    ):
+                        with self.assertRaisesRegex(pr_review.ReviewError, "changed after proposal"):
+                            pr_review.verify_and_apply(12, str(path))
+                        write.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
