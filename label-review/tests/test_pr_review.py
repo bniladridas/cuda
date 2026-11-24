@@ -204,7 +204,11 @@ class PRReviewTests(unittest.TestCase):
         self.assertNotIn("Rebuild and verify proposal", workflow)
         self.assertIn("environment: pr-label-review", workflow)
         self.assertNotIn("pr-metadata-proposal", workflow)
-        self.assertNotIn("pull-requests: write", workflow)
+        propose_job, remaining_jobs = workflow.split("  comment:", 1)
+        comment_job, apply_job = remaining_jobs.split("  apply:", 1)
+        self.assertNotIn("pull-requests: write", propose_job)
+        self.assertIn("pull-requests: write", comment_job)
+        self.assertNotIn("pull-requests: write", apply_job)
         self.assertNotIn("contents: write", workflow)
 
     def test_snapshot_rejects_malformed_diff(self):
