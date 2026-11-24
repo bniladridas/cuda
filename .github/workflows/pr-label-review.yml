@@ -112,9 +112,25 @@ jobs:
             comment_body="$(printf '%s\\n\\n%s' "$comment_body" "$marker")"
           fi
           endpoint="repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments"
-          existing_id="$(gh api "$endpoint?per_page=100" --jq '[.[] | select(.user.login == "cuda-actions[bot]" and (((.body // "") | contains("<!-- cuda-pr-label-review-proposal -->")) or ((.body // "") | startswith("## PR metadata proposal"))))] | sort_by(.created_at) | last | .id // empty')"
+          existing_id="$(gh api "$endpoint?per_page=100" --jq '
+            [
+              .[]
+              | select(
+                  .user.login == "cuda-actions[bot]"
+                  and (
+                    ((.body // "") | contains("<!-- cuda-pr-label-review-proposal -->"))
+                    or ((.body // "") | startswith("## PR metadata proposal"))
+                  )
+                )
+            ]
+            | sort_by(.created_at)
+            | last
+            | .id // empty
+          ')"
           if [ -n "$existing_id" ]; then
-            response="$(gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing_id" -f body="$comment_body")"
+            response="$(gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/comments/$existing_id" \
+              -f body="$comment_body")"
           else
             response="$(gh api --method POST "$endpoint" -f body="$comment_body")"
           fi
