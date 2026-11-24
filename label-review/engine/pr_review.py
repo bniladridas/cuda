@@ -207,7 +207,12 @@ def propose(number, output, comment):
     ]
     lines.extend("- " + inline_code(item["file"]) + ": " + item["quote"] for item in answer["evidence"])
     lines.extend(
-        ["", "No metadata has been changed. Applying requires approval in the protected " + inline_code("pr-label-review") + " Environment."]
+        [
+            "",
+            "No metadata has been changed. Applying requires approval in the protected "
+            + inline_code("pr-label-review")
+            + " Environment.",
+        ]
     )
     with open(comment, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
