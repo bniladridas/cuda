@@ -15,6 +15,50 @@ class PRReviewTests(unittest.TestCase):
     def test_digest_is_order_independent_for_mapping_keys(self):
         self.assertEqual(pr_review.digest({"a": 1, "b": 2}), pr_review.digest({"b": 2, "a": 1}))
 
+    def test_proposal_comment_formats_identifiers_as_inline_code(self):
+        data = {
+            "repo": "owner/repo",
+            "number": 12,
+            "title": "title",
+            "body": "body",
+            "head_sha": "a" * 40,
+            "base_sha": "b" * 40,
+            "diff": "diff",
+            "files": [{"filename": ".github/workflows/pr-label-review.yml"}],
+            "labels": ["bug"],
+            "milestone": None,
+            "known_labels": ["bug", "github_actions"],
+            "milestones": [{"number": 4, "title": "Automation"}],
+        }
+        answer = {
+            "labels": ["bug", "github_actions"],
+            "milestone": 4,
+            "confidence": "high",
+            "rationale": "The workflow change supports this classification.",
+            "evidence": [
+                {"file": ".github/workflows/pr-label-review.yml", "quote": "actions/create-github-app-token@v2"}
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            artifact = Path(directory) / "proposal.json"
+            comment = Path(directory) / "proposal.md"
+            with (
+                patch.object(pr_review, "snapshot", return_value=data),
+                patch.object(pr_review, "ask_model", return_value=answer),
+            ):
+                pr_review.propose(12, str(artifact), str(comment))
+            body = comment.read_text(encoding="utf-8")
+
+        self.assertIn("Current labels: `bug`", body)
+        self.assertIn("Proposed label additions: `github_actions`", body)
+        self.assertIn("Proposed milestone: 4", body)
+        self.assertIn("- `.github/workflows/pr-label-review.yml`:", body)
+        self.assertIn("protected `pr-label-review` Environment", body)
+
+    def test_inline_code_uses_a_longer_fence_when_needed(self):
+        self.assertEqual(pr_review.inline_code("name"), "`name`")
+        self.assertEqual(pr_review.inline_code("`name`"), "`` `name` ``")
+
     def test_missing_provider_key_fails_without_fallback(self):
         data = {"known_labels": [], "milestones": [], "title": "", "body": "", "files": [], "diff": ""}
         with patch.dict(os.environ, {}, clear=True):
@@ -53,6 +97,49 @@ class PRReviewTests(unittest.TestCase):
             with patch.object(pr_review, "snapshot", return_value=data), patch.object(pr_review, "gh") as write:
                 with self.assertRaisesRegex(pr_review.ReviewError, "changed after proposal"):
                     pr_review.verify_and_apply(12, str(path))
+                write.assert_not_called()
+
+    def test_verify_accepts_original_proposal_without_applying(self):
+        data = {
+            "repo": "owner/repo",
+            "number": 12,
+            "title": "title",
+            "body": "body",
+            "head_sha": "a" * 40,
+            "base_sha": "b" * 40,
+            "diff": "diff",
+            "files": [{"filename": "src/a.py", "status": "modified", "additions": 1, "deletions": 0}],
+            "labels": ["bug"],
+            "milestone": 2,
+            "known_labels": ["bug", "enhancement"],
+            "milestones": [{"number": 2, "title": "Current"}],
+        }
+        identity = pr_review.digest(
+            {
+                "title": data["title"],
+                "body": data["body"],
+                "head_sha": data["head_sha"],
+                "base_sha": data["base_sha"],
+                "diff": data["diff"],
+                "files": data["files"],
+            }
+        )
+        artifact = {
+            "version": 1,
+            "repo": "owner/repo",
+            "number": 12,
+            "identity": identity,
+            "metadata": pr_review.digest({"labels": ["bug"], "milestone": 2}),
+            "current_labels": ["bug"],
+            "current_milestone": 2,
+            "add_labels": ["enhancement"],
+            "milestone": 2,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "proposal.json"
+            path.write_text(json.dumps(artifact), encoding="utf-8")
+            with patch.object(pr_review, "snapshot", return_value=data), patch.object(pr_review, "gh") as write:
+                pr_review.verify_proposal(12, str(path))
                 write.assert_not_called()
 
     def test_approved_apply_preserves_existing_labels(self):
@@ -155,11 +242,25 @@ class PRReviewTests(unittest.TestCase):
         self.assertIn("proposal_hash:", workflow)
         self.assertIn("sha256sum pr-proposal.json", workflow)
         self.assertIn("EXPECTED_PROPOSAL_HASH", workflow)
+        self.assertIn("actions/upload-artifact@v7", workflow)
+        self.assertIn("actions/download-artifact@v7", workflow)
+        self.assertIn("pr_review.py verify --pr", workflow)
+        self.assertIn("comment_id: ${{ steps.post.outputs.comment_id }}", workflow)
+        self.assertIn("<!-- cuda-pr-label-review-proposal -->", workflow)
+        self.assertIn("existing_id=", workflow)
+        self.assertIn("gh api --method POST", workflow)
+        self.assertIn("gh api --method PATCH", workflow)
+        self.assertIn("needs.comment.outputs.comment_id", workflow)
+        self.assertIn("Applied label additions:", workflow)
+        self.assertIn("Applied milestone:", workflow)
+        self.assertNotIn("Rebuild and verify proposal", workflow)
         self.assertIn("environment: pr-label-review", workflow)
-        self.assertNotIn("upload-artifact", workflow)
-        self.assertNotIn("download-artifact", workflow)
         self.assertNotIn("pr-metadata-proposal", workflow)
-        self.assertNotIn("pull-requests: write", workflow)
+        propose_job, remaining_jobs = workflow.split("  comment:", 1)
+        comment_job, apply_job = remaining_jobs.split("  apply:", 1)
+        self.assertNotIn("pull-requests: write", propose_job)
+        self.assertIn("pull-requests: write", comment_job)
+        self.assertNotIn("pull-requests: write", apply_job)
         self.assertNotIn("contents: write", workflow)
 
     def test_snapshot_rejects_malformed_diff(self):

@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -152,6 +153,14 @@ def ask_model(data):
     return answer
 
 
+def inline_code(value):
+    """Format an identifier or path as safe GitHub inline code."""
+    value = str(value)
+    fence = "`" * (max((len(run) for run in re.findall(r"`+", value)), default=0) + 1)
+    padding = " " if value.startswith("`") or value.endswith("`") else ""
+    return fence + padding + value + padding + fence
+
+
 def propose(number, output, comment):
     data = snapshot(number)
     answer = ask_model(data)
@@ -185,10 +194,10 @@ def propose(number, output, comment):
     lines = [
         "## PR metadata proposal",
         "",
-        "Current labels: " + (", ".join(data["labels"]) or "none"),
+        "Current labels: " + (", ".join(inline_code(label) for label in data["labels"]) or "none"),
         "Current milestone: " + str(data["milestone"] or "none"),
         "",
-        "Proposed label additions: " + (", ".join(additions) or "none"),
+        "Proposed label additions: " + (", ".join(inline_code(label) for label in additions) or "none"),
         "Proposed milestone: " + str(answer["milestone"] or "abstain"),
         "Confidence: " + answer["confidence"],
         "",
@@ -196,15 +205,20 @@ def propose(number, output, comment):
         "",
         "Evidence:",
     ]
-    lines.extend("- " + item["file"] + ": " + item["quote"] for item in answer["evidence"])
+    lines.extend("- " + inline_code(item["file"]) + ": " + item["quote"] for item in answer["evidence"])
     lines.extend(
-        ["", "No metadata has been changed. Applying requires approval in the protected pr-label-review Environment."]
+        [
+            "",
+            "No metadata has been changed. Applying requires approval in the protected "
+            + inline_code("pr-label-review")
+            + " Environment.",
+        ]
     )
     with open(comment, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
 
 
-def verify_and_apply(number, artifact_path):
+def load_and_verify_proposal(number, artifact_path):
     with open(artifact_path, encoding="utf-8") as handle:
         artifact = json.load(handle)
     data = snapshot(number)
@@ -223,10 +237,25 @@ def verify_and_apply(number, artifact_path):
         raise ReviewError("proposal identity does not match this PR")
     if artifact.get("identity") != identity or artifact.get("metadata") != metadata:
         raise ReviewError("PR diff or metadata changed after proposal; regenerate it")
-    if not set(artifact["add_labels"]) <= set(data["known_labels"]):
-        raise ReviewError("a proposed label no longer exists")
+    additions = artifact.get("add_labels")
+    if not isinstance(additions, list) or not all(isinstance(label, str) for label in additions):
+        raise ReviewError("proposal labels are malformed")
+    if len(additions) != len(set(additions)) or not set(additions) <= set(data["known_labels"]):
+        raise ReviewError("a proposed label no longer exists or is duplicated")
+    if "milestone" not in artifact:
+        raise ReviewError("proposal milestone is missing")
     if artifact["milestone"] is not None and artifact["milestone"] not in {x["number"] for x in data["milestones"]}:
         raise ReviewError("proposed milestone is no longer open")
+    return data, artifact
+
+
+def verify_proposal(number, artifact_path):
+    load_and_verify_proposal(number, artifact_path)
+    print("Verified proposal against the current PR diff and metadata.")
+
+
+def verify_and_apply(number, artifact_path):
+    data, artifact = load_and_verify_proposal(number, artifact_path)
     final_labels = sorted(set(data["labels"]) | set(artifact["add_labels"]))
     patch = {"labels": final_labels}
     if artifact["milestone"] is not None:
@@ -237,7 +266,7 @@ def verify_and_apply(number, artifact_path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["propose", "apply"])
+    parser.add_argument("mode", choices=["propose", "verify", "apply"])
     parser.add_argument("--pr", type=int, required=True)
     parser.add_argument("--artifact", default="pr-proposal.json")
     parser.add_argument("--comment", default="pr-proposal.md")
@@ -245,6 +274,8 @@ def main():
     try:
         if args.mode == "propose":
             propose(args.pr, args.artifact, args.comment)
+        elif args.mode == "verify":
+            verify_proposal(args.pr, args.artifact)
         else:
             verify_and_apply(args.pr, args.artifact)
     except (ReviewError, OSError, ValueError, KeyError) as exc:

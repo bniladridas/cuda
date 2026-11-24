@@ -13,7 +13,6 @@ permissions:
   contents: read
 jobs:
   propose:
-    if: vars.PR_LABEL_REVIEW_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,6 +21,17 @@ jobs:
     outputs:
       proposal_hash: ${{ steps.hash.outputs.proposal_hash }}
     steps:
+      - name: Create CUDA Actions token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CUDA_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.CUDA_ACTIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: read
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
@@ -31,47 +41,103 @@ jobs:
       - name: Build diff-grounded proposal
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
       - name: Export proposal digest
         id: hash
         run: echo "proposal_hash=$(sha256sum pr-proposal.json | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Upload proposal artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-label-review-proposal-${{ github.run_id }}
+          path: |
+            pr-proposal.json
+            pr-proposal.md
+          if-no-files-found: error
+          retention-days: 1
   comment:
     needs: propose
-    if: vars.PR_LABEL_REVIEW_ENABLED == 'true'
+    outputs:
+      comment_id: ${{ steps.post.outputs.comment_id }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
       issues: write
     steps:
+      - name: Create CUDA Actions token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CUDA_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.CUDA_ACTIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: write
+          permission-issues: write
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Rebuild and verify proposal before commenting
+      - name: Download original proposal artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: pr-label-review-proposal-${{ github.run_id }}
+          path: .
+      - name: Verify proposal integrity and current PR state
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           EXPECTED_PROPOSAL_HASH: ${{ needs.propose.outputs.proposal_hash }}
         run: |
-          python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
           actual="$(sha256sum pr-proposal.json | cut -d ' ' -f1)"
           test "$actual" = "$EXPECTED_PROPOSAL_HASH"
-      - name: Post verified proposal
+          python3 label-review/engine/pr_review.py verify --pr "$PR_NUMBER"
+      - name: Create or update the verified proposal comment
+        id: post
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-        run: gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file pr-proposal.md
+        run: |
+          marker="<!-- cuda-pr-label-review-proposal -->"
+          comment_body="$(cat pr-proposal.md)"
+          if ! grep -Fq "$marker" <<<"$comment_body"; then
+            comment_body="$(printf '%s\\n\\n%s' "$comment_body" "$marker")"
+          fi
+          endpoint="repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments"
+          existing_id="$(gh api "$endpoint?per_page=100" --jq '
+            [
+              .[]
+              | select(
+                  .user.login == "cuda-actions[bot]"
+                  and (
+                    ((.body // "") | contains("<!-- cuda-pr-label-review-proposal -->"))
+                    or ((.body // "") | startswith("## PR metadata proposal"))
+                  )
+                )
+            ]
+            | sort_by(.created_at)
+            | last
+            | .id // empty
+          ')"
+          if [ -n "$existing_id" ]; then
+            response="$(gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/comments/$existing_id" \
+              -f body="$comment_body")"
+          else
+            response="$(gh api --method POST "$endpoint" -f body="$comment_body")"
+          fi
+          echo "comment_id=$(jq -r '.id' <<<"$response")" >> "$GITHUB_OUTPUT"
   apply:
     needs: [propose, comment]
-    if: vars.PR_LABEL_REVIEW_ENABLED == 'true' && vars.PR_LABEL_REVIEW_APPLY == 'true'
+    if: vars.PR_LABEL_REVIEW_APPLY == 'true'
     runs-on: ubuntu-latest
     environment: pr-label-review
     permissions:
@@ -79,26 +145,60 @@ jobs:
       pull-requests: read
       issues: write
     steps:
+      - name: Create CUDA Actions token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CUDA_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.CUDA_ACTIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: write
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Rebuild and verify approved proposal
+      - name: Download original proposal artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: pr-label-review-proposal-${{ github.run_id }}
+          path: .
+      - name: Verify approved proposal integrity
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           EXPECTED_PROPOSAL_HASH: ${{ needs.propose.outputs.proposal_hash }}
         run: |
-          python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
           actual="$(sha256sum pr-proposal.json | cut -d ' ' -f1)"
           test "$actual" = "$EXPECTED_PROPOSAL_HASH"
+          python3 label-review/engine/pr_review.py verify --pr "$PR_NUMBER"
       - name: Re-fetch and verify PR diff and metadata, then apply
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" --artifact pr-proposal.json
+      - name: Update the original proposal comment
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          COMMENT_ID: ${{ needs.comment.outputs.comment_id }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          body = Path("pr-proposal.md").read_text(encoding="utf-8")
+          body = body.replace("Proposed label additions:", "Applied label additions:")
+          body = body.replace("Proposed milestone:", "Applied milestone:")
+          body = body.replace(
+              "No metadata has been changed. Applying requires approval in the protected pr-label-review Environment.",
+              "Metadata update completed successfully.",
+          )
+          Path("pr-proposal.md").write_text(body, encoding="utf-8")
+          PY
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID" -f body="$(cat pr-proposal.md)"
