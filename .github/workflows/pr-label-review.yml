@@ -59,6 +59,8 @@ jobs:
           retention-days: 1
   comment:
     needs: propose
+    outputs:
+      comment_id: ${{ steps.post.outputs.comment_id }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -98,11 +100,14 @@ jobs:
           test "$actual" = "$EXPECTED_PROPOSAL_HASH"
           python3 label-review/engine/pr_review.py verify --pr "$PR_NUMBER"
       - name: Post verified proposal
+        id: post
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-        run: gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file pr-proposal.md
+        run: |
+          response="$(gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$(cat pr-proposal.md)")"
+          echo "comment_id=$(jq -r '.id' <<<"$response")" >> "$GITHUB_OUTPUT"
   apply:
     needs: [propose, comment]
     if: vars.PR_LABEL_REVIEW_APPLY == 'true'
@@ -151,3 +156,22 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" --artifact pr-proposal.json
+      - name: Update the original proposal comment
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          COMMENT_ID: ${{ needs.comment.outputs.comment_id }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          body = Path("pr-proposal.md").read_text(encoding="utf-8")
+          body = body.replace("Proposed label additions:", "Applied label additions:")
+          body = body.replace("Proposed milestone:", "Applied milestone:")
+          body = body.replace(
+              "No metadata has been changed. Applying requires approval in the protected pr-label-review Environment.",
+              "Metadata update completed successfully.",
+          )
+          Path("pr-proposal.md").write_text(body, encoding="utf-8")
+          PY
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID" -f body="$(cat pr-proposal.md)"
