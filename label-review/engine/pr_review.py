@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.request
@@ -155,7 +156,7 @@ def ask_model(data):
 def inline_code(value):
     """Format an identifier or path as safe GitHub inline code."""
     value = str(value)
-    fence = "`" * (max((len(run) for run in __import__("re").findall(r"`+", value)), default=0) + 1)
+    fence = "`" * (max((len(run) for run in re.findall(r"`+", value)), default=0) + 1)
     padding = " " if value.startswith("`") or value.endswith("`") else ""
     return fence + padding + value + padding + fence
 
