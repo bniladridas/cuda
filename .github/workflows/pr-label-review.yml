@@ -21,6 +21,17 @@ jobs:
     outputs:
       proposal_hash: ${{ steps.hash.outputs.proposal_hash }}
     steps:
+      - name: Create CUDA Actions token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CUDA_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.CUDA_ACTIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: read
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
@@ -30,7 +41,7 @@ jobs:
       - name: Build diff-grounded proposal
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
@@ -45,6 +56,17 @@ jobs:
       pull-requests: read
       issues: write
     steps:
+      - name: Create CUDA Actions token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CUDA_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.CUDA_ACTIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: write
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
@@ -54,7 +76,7 @@ jobs:
       - name: Rebuild and verify proposal before commenting
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           EXPECTED_PROPOSAL_HASH: ${{ needs.propose.outputs.proposal_hash }}
@@ -64,7 +86,8 @@ jobs:
           test "$actual" = "$EXPECTED_PROPOSAL_HASH"
       - name: Post verified proposal
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: gh issue comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file pr-proposal.md
   apply:
@@ -77,6 +100,17 @@ jobs:
       pull-requests: read
       issues: write
     steps:
+      - name: Create CUDA Actions token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CUDA_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.CUDA_ACTIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: write
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.workflow_sha }}
@@ -86,7 +120,7 @@ jobs:
       - name: Rebuild and verify approved proposal
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           EXPECTED_PROPOSAL_HASH: ${{ needs.propose.outputs.proposal_hash }}
@@ -97,6 +131,6 @@ jobs:
       - name: Re-fetch and verify PR diff and metadata, then apply
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" --artifact pr-proposal.json
