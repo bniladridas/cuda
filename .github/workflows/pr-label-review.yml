@@ -99,16 +99,25 @@ jobs:
           actual="$(sha256sum pr-proposal.json | cut -d ' ' -f1)"
           test "$actual" = "$EXPECTED_PROPOSAL_HASH"
           python3 label-review/engine/pr_review.py verify --pr "$PR_NUMBER"
-      - name: Post verified proposal
+      - name: Create or update the verified proposal comment
         id: post
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: |
+          marker="<!-- cuda-pr-label-review-proposal -->"
           comment_body="$(cat pr-proposal.md)"
+          if ! grep -Fq "$marker" <<<"$comment_body"; then
+            comment_body="$(printf '%s\\n\\n%s' "$comment_body" "$marker")"
+          fi
           endpoint="repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments"
-          response="$(gh api --method POST "$endpoint" -f body="$comment_body")"
+          existing_id="$(gh api "$endpoint?per_page=100" --jq '[.[] | select(.user.login == "cuda-actions[bot]" and (((.body // "") | contains("<!-- cuda-pr-label-review-proposal -->")) or ((.body // "") | startswith("## PR metadata proposal"))))] | sort_by(.created_at) | last | .id // empty')"
+          if [ -n "$existing_id" ]; then
+            response="$(gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing_id" -f body="$comment_body")"
+          else
+            response="$(gh api --method POST "$endpoint" -f body="$comment_body")"
+          fi
           echo "comment_id=$(jq -r '.id' <<<"$response")" >> "$GITHUB_OUTPUT"
   apply:
     needs: [propose, comment]
