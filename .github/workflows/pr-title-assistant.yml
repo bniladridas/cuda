@@ -8,9 +8,15 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to process
+        required: true
+        type: number
 
 concurrency:
-  group: "pr-title-assistant-${{ github.event.pull_request.number }}"
+  group: "pr-title-assistant-${{ github.event.pull_request.number || inputs.pr }}"
   cancel-in-progress: true
 
 permissions:
@@ -26,7 +32,7 @@ jobs:
       - name: Check out trusted default-branch code
         uses: actions/checkout@v7
         with:
-          ref: "${{ github.event.pull_request.base.ref }}"
+          ref: "${{ github.event.pull_request.base.ref || github.event.repository.default_branch }}"
           persist-credentials: false
 
       - name: Set up Python
@@ -38,7 +44,7 @@ jobs:
         env:
           GH_TOKEN: "${{ github.token }}"
           GITHUB_REPOSITORY: "${{ github.repository }}"
-          PR_NUMBER: "${{ github.event.pull_request.number }}"
-          OPENAI_API_KEY: "${{ secrets.OPENAI_API_KEY }}"
-          OPENAI_MODEL: "${{ vars.OPENAI_MODEL || 'gpt-5-mini' }}"
+          PR_NUMBER: "${{ github.event.pull_request.number || inputs.pr }}"
+          OPENROUTER_API_KEY: "${{ secrets.OPENROUTER_API_KEY }}"
+          OPENROUTER_MODEL: "${{ vars.CUDA_REVIEW_MODEL }}"
         run: python pr-title/engine/title_assistant.py

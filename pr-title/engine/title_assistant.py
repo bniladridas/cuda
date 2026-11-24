@@ -12,7 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 API = "https://api.github.com"
-OPENAI_API = "https://api.openai.com/v1/chat/completions"
+OPENROUTER_API = "https://openrouter.ai/api/v1/chat/completions"
 ACTION_VERBS = {
     "add",
     "allow",
@@ -99,6 +99,7 @@ def call_model(pr: dict, files: list[dict], scopes: list[dict], model: str, key:
     payload = {
         "model": model,
         "response_format": {"type": "json_object"},
+        "provider": {"data_collection": "deny"},
         "messages": [
             {
                 "role": "system",
@@ -127,11 +128,13 @@ def call_model(pr: dict, files: list[dict], scopes: list[dict], model: str, key:
         ],
     }
     request = Request(
-        OPENAI_API,
+        OPENROUTER_API,
         data=json.dumps(payload).encode(),
         headers={
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/bniladridas/cuda",
+            "X-Title": "CUDA PR Title Assistant",
         },
         method="POST",
     )
@@ -144,8 +147,10 @@ def main() -> int:
     repo = os.environ["GITHUB_REPOSITORY"]
     number = int(os.environ["PR_NUMBER"])
     gh_token = os.environ["GH_TOKEN"]
-    api_key = os.environ["OPENAI_API_KEY"]
-    model = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+    api_key = os.environ["OPENROUTER_API_KEY"]
+    model = (os.environ.get("OPENROUTER_MODEL") or "openrouter/free").strip()
+    if not model or len(model) > 200:
+        raise ValueError("configured model must be a non-empty model identifier")
     registry = json.loads(Path(".github/pr-scopes.json").read_text())
     scopes = registry["scopes"]
     names = {item["name"] for item in scopes}
