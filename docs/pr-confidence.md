@@ -200,7 +200,7 @@ blocker still passes. Keep the underlying checks required in their own right.
 - API lists are read up to 100 items and marked `unassessed` when truncated.
 - The run waits for checks that are configured at the time it starts. A check
   rerun after `pr-evidence` has already finished does not emit a pull request
-  event, so re-run the `pr-confidence` workflow manually with the pull request
+  event, so re-run the `pr-evidence` workflow manually with the pull request
   number.
 - Review submissions and thread resolution do not trigger this workflow. Use
   manual dispatch after a review.
