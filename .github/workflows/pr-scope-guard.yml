@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   scope-guard:
-    name: PR Scope Guard
+    name: pr-scope-check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
