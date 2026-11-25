@@ -1,4 +1,4 @@
-name: pr-confidence
+name: pr-evidence
 
 # pull_request_target loads this workflow and the engine from the base branch,
 # so a pull request cannot alter the code that scores it. Review submissions are
@@ -31,7 +31,7 @@ permissions:
 
 jobs:
   confidence:
-    name: PR Confidence
+    name: PR evidence
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
