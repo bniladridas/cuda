@@ -1,4 +1,4 @@
-name: pr-rebase
+name: Rebase on Approval
 
 on:
   pull_request_target:
