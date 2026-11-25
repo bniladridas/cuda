@@ -1,4 +1,4 @@
-name: format-repair
+name: Format Repair
 
 on:
   pull_request_target:
