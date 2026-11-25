@@ -1,4 +1,4 @@
-name: CUDA bot PR body refresh
+name: pr-body-refresh
 
 on:
   pull_request_target:
