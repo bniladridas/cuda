@@ -202,8 +202,8 @@ def main():
     else:
         device_identity = "legacy result without device identifier"
     ax.set_title(
-        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\\n"
-        f"{device_identity}\\nachieved versus peak memory bandwidth\\n{provenance}",
+        f"{data['gpu']} (sm_{data.get('compute_capability', '?')})\n"
+        f"{device_identity}\nachieved versus peak memory bandwidth\n{provenance}",
         fontsize=9,
     )
     fig.tight_layout()
