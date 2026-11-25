@@ -1,4 +1,4 @@
-name: pr-lock
+name: Lock Merged PRs
 
 # pull_request_target loads this workflow from the base branch, so a pull
 # request cannot alter the code that runs with the token. The job runs only for
