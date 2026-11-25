@@ -76,6 +76,11 @@ def get_pr_files(repo: str, number: int, token: str) -> list[dict]:
     return files
 
 
+def provider_unavailable(exc: HTTPError) -> bool:
+    """Return whether an upstream rate limit or outage should be non-blocking."""
+    return exc.code == 429 or 500 <= exc.code < 600
+
+
 def valid_title(title: str, scope_names: set[str]) -> bool:
     if not isinstance(title, str) or len(title) > 100 or "\n" in title:
         return False
@@ -157,7 +162,19 @@ def main() -> int:
 
     pr = request_json(f"{API}/repos/{repo}/pulls/{number}", gh_token)
     files = get_pr_files(repo, number, gh_token)
-    result = call_model(pr, files, scopes, model, api_key)
+    summary = Path(os.environ.get("GITHUB_STEP_SUMMARY", "/tmp/title-summary.md"))
+    try:
+        result = call_model(pr, files, scopes, model, api_key)
+    except HTTPError as exc:
+        if not provider_unavailable(exc):
+            raise
+        text = (
+            f"Title suggestion skipped because OpenRouter returned HTTP {exc.code}. "
+            "The PR title was not changed. This optional suggestion check is non-blocking."
+        )
+        summary.write_text(text + "\n")
+        print(text)
+        return 0
 
     scope = result.get("scope")
     description = result.get("description", "")
@@ -166,7 +183,6 @@ def main() -> int:
     except (TypeError, ValueError):
         confidence = 0.0
     proposal = result.get("new_scope_proposal")
-    summary = Path(os.environ.get("GITHUB_STEP_SUMMARY", "/tmp/title-summary.md"))
 
     if not isinstance(scope, str) or scope not in names:
         text = "No registered scope was selected with sufficient certainty."

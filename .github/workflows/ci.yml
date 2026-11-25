@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   workflow_call:
@@ -37,8 +37,9 @@ jobs:
   # the host references are correct, C++ and CUDA sources are formatted, host
   # C++ passes clang-tidy, the CUDA test binaries are absent rather than
   # silently passing, the workflow and repository YAML pass actionlint and
-  # yamllint, and the label-review, PR confidence, PR Scope Guard, formatting repair,
-  # squash-merge, rebase safety, and CUDA Review engines pass their tests.
+  # yamllint, and the label-review, PR confidence, PR Scope Guard, formatting
+  # repair, squash-merge, rebase safety, and CUDA Review engines pass their tests.
+  # Python-only PR title and PR creation suites run in the separate Python job.
   cpu:
     runs-on: ubuntu-latest
     steps:
@@ -227,7 +228,7 @@ jobs:
           coverage erase
           ran=0
           for suite in pr-confidence label-review pr-scope-guard pr-title \
-            format-repair squash-merge rebase-agent benchmarks repository-steward; do
+            format-repair squash-merge rebase-agent benchmarks repository-steward pr-create; do
             if [ ! -d "$suite/tests" ]; then
               echo "Skipping $suite: tests directory not present"
               continue

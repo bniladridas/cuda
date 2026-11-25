@@ -1,4 +1,4 @@
-name: cuda-title
+name: CUDA Title
 on:
   issue_comment:
     types: [created]

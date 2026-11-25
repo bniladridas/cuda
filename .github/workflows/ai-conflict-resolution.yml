@@ -1,4 +1,4 @@
-name: AI-assisted conflict resolution
+name: Conflict Resolution
 
 on:
   pull_request_target:

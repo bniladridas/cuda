@@ -1,4 +1,4 @@
-name: PR repair integration
+name: PR Repair
 
 on:
   workflow_dispatch:

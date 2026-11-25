@@ -1,4 +1,4 @@
-name: label-review
+name: Issue Labels
 
 # The only caller in this repository. It proposes on a newly opened issue and,
 # when dispatched by hand, proposes a correction for an existing issue. Applying

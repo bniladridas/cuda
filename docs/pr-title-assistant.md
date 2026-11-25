@@ -1,4 +1,4 @@
-# PR title assistant
+# PR title check
 
 The title assistant uses the repository's configured OpenRouter model to select
 the best matching scope from `.github/pr-scopes.json` and propose a concise

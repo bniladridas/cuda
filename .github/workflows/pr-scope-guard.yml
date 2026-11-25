@@ -1,4 +1,4 @@
-name: pr-scope-guard
+name: PR Scope
 
 # pull_request_target loads this workflow and the engine from the default
 # branch, so a pull request cannot alter the code that reads it. The job is
@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   scope-guard:
-    name: PR Scope Guard
+    name: pr-scope-check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

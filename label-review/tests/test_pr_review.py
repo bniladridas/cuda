@@ -277,6 +277,22 @@ class PRReviewTests(unittest.TestCase):
                 with self.assertRaisesRegex(pr_review.ReviewError, "malformed"):
                     pr_review.snapshot(12)
 
+    def test_snapshot_accepts_diff_above_previous_limit(self):
+        pull_request = {
+            "state": "open",
+            "draft": False,
+            "head": {"sha": "a" * 40},
+            "base": {"sha": "b" * 40},
+            "labels": [],
+            "milestone": None,
+        }
+        accepted = "diff --git a/a b/a\\n" + ("x" * 45_500)
+        pages = [[{"filename": "a", "status": "modified", "additions": 1, "deletions": 0}]]
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}):
+            with patch.object(pr_review, "gh", side_effect=[pull_request, pages, accepted, [[]], [[]]]):
+                data = pr_review.snapshot(12)
+        self.assertEqual(data["diff"], accepted)
+
     def test_snapshot_rejects_oversized_diff(self):
         pull_request = {
             "state": "open",

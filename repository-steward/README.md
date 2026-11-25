@@ -1,4 +1,4 @@
-# CUDA Repository Steward
+# Repository report
 
 This package is a read-only coordination layer for issue tracking, repository
 health, validation evidence, and release-readiness reporting.
@@ -75,9 +75,9 @@ stale and unknown evidence as distinct states. GPU runtime success requires
 explicit current-head evidence. Model integration is disabled by default and
 cannot authorize actions.
 
-Existing Label Review, Issue Landing, PR Confidence, PR Scope Guard,
+Existing Label Review, Issue Landing, PR evidence, PR scope check,
 Squash Merge and Rebase Agent remain separate engines. The report preserves
-PR Confidence scores, categories, blockers and notes, plus PR Scope Guard
+PR evidence scores, categories, blockers and notes, plus PR scope check
 findings, as source evidence. Per-PR states distinguish current, stale,
 missing, incomplete, pending, malformed and failed artifacts. These findings
 remain advisory data: neither adapter can authorize approval or merge, and
@@ -112,7 +112,7 @@ branches, issues, PRs or releases.
 
 ## Scheduled report
 
-The **Repository Steward Report** workflow runs daily or manually from
+The **repo-report** workflow runs daily or manually from
 Actions. It uses the workflow's read-only GitHub token and uploads both the
 source snapshot and JSON report as a 14-day artifact. Download the artifact to
 inspect the exact inputs and generated output for a run.
@@ -150,10 +150,10 @@ request ID when available, SHA-256 digests of the input report and output
 summary, and generation time. Credentials and the full endpoint URL are not
 recorded. This provenance documents the recommendation but does not make model
 output verification evidence or grant it authority over repository actions.
-## Steward pull-request metadata
+## PR metadata sync
 
-The separate `.github/workflows/steward-pr-metadata.yml` workflow adds the
-`documentation` and `enhancement` labels to open Steward PRs and assigns
+The `pr-metadata-sync` workflow (`.github/workflows/steward-pr-metadata.yml`) adds the
+`documentation` and `enhancement` labels to matching open PRs and assigns
 milestone 4 when no milestone is already set. It recognizes PRs with a
 `[steward]` title prefix or a `steward/` head branch.
 
@@ -162,6 +162,6 @@ events. It can also be run manually with a PR number to backfill metadata.
 Labels are added without replacing existing labels. An existing milestone is
 preserved, including when it differs from milestone 4.
 
-This is repository metadata automation, separate from the read-only Steward
+This is repository metadata automation, separate from the read-only repository
 report engine. It does not modify PR code, approve, merge, or close anything.
 

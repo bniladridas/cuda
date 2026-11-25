@@ -1,6 +1,6 @@
-# PR Scope Guard
+# PR scope check
 
-The PR Scope Guard is a read-only, advisory check that compares the scope in a
+The PR scope check is a read-only, advisory check that compares the scope in a
 pull request title with the files the pull request changes. It does not replace
 review, required checks or branch protection.
 
@@ -49,7 +49,7 @@ fails configuration validation, so drift is caught before the report runs.
 
 ## Running by hand
 
-Use Actions, `pr-scope-guard`, Run workflow, and enter a pull request number.
+Use Actions, **PR Scope**, Run workflow, and enter a pull request number.
 The report appears in the run summary and as the `pr-scope-guard-evidence`
 artifact.
 
@@ -80,5 +80,5 @@ CI runs both with `python3 -m unittest discover -s pr-scope-guard/tests`.
 
 ## Turning it off
 
-Disable the `pr-scope-guard` workflow in the Actions UI or remove
+Disable **PR Scope** in the Actions UI or remove
 `.github/workflows/pr-scope-guard.yml`. Nothing else depends on it.

@@ -216,10 +216,12 @@ src/                    kernel implementations
 kernels/                library target
 tests/                  host reference checks + GPU correctness tests
 benchmarks/             timing harness and benchmark binaries
-pr-confidence/          PR Confidence engine and its offline tests
+pr-confidence/          PR evidence engine and its offline tests
 pr-scope-guard/         read-only PR title scope and changed-file check
+pr-title/               optional PR title suggestion engine and tests
+pr-create/              diff-grounded PR creation and body-refresh engines
 runners/                build / test / benchmark scripts
-docs/                   hardware, methodology, C++ quality, PR confidence, label review, PR Scope Guard and Repository Steward architecture
+docs/                   hardware, methodology, C++ quality, PR evidence, label review, PR creation, scope check and repository report architecture
 label-review/           reusable issue label review engine and tests
 format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
@@ -234,13 +236,13 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
   host-only CMake build and reference tests, verifies GPU binaries are absent,
   checks runner skip handling, formats C++/CUDA sources, and runs host-side
   clang-tidy. It also runs offline tests for label review, issue landing, PR
-  confidence, PR Scope Guard, format repair, squash-merge policy, and the
+  evidence, pr-scope-check, format repair, squash-merge policy, and the
   rebase safety, merge integration, tree inspection, and bounded repair engines.
   CUDA sources are formatted but not compiled or analyzed here.
 - `python`: GitHub-hosted, runs Ruff lint and format checks, coverage, and the
-  selected Python suites: PR confidence, label review, PR Scope Guard, format
-  repair, squash-merge, rebase-agent, and benchmarks. Issue-landing tests run in
-  the CPU job. Dependency versions are pinned in
+  selected Python suites: PR evidence, label review, pr-scope-check, PR title,
+  PR creation, format repair, squash-merge, rebase-agent, repository report,
+  and benchmarks. Issue-landing tests run in the CPU job. Dependency versions are pinned in
   `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
   toolkit is required.
 - `cuda-compile`: GitHub-hosted Ubuntu 22.04 container using the pinned
@@ -248,8 +250,8 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
   kernel library, all GPU test executables, and the benchmark for architectures
   70, 75, 80, 86, 89, and 90. It does not execute tests or require an NVIDIA
   device. This is compile evidence only, not GPU runtime validation.
-- `pr-confidence`: triggered by pull request activity, waits for the configured
-  checks, and publishes a read-only `PR Confidence` summary in the Checks UI. It
+- `pr-evidence`: triggered by pull request activity, waits for the configured
+  checks, and publishes a read-only `pr-evidence` summary in the Checks UI. It
   uses `pull_request_target`, so the workflow and engine come from the base
   branch; it never checks out pull request code and uses a read-only token with
   no secrets. Treat the score as advisory alongside the checks it reads. The
@@ -259,14 +261,20 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
   formatting commits require the `format-fix:approved` label from an
   authorized maintainer. Fork PRs remain report-only. It never approves or
   merges a pull request. Details in `docs/format-repair.md`.
-- `pr-scope-guard`: read-only and advisory. On pull request activity it
+- `pr-scope-check`: read-only and advisory. On pull request activity it
   compares the title's declared scope with the changed files using
   `.github/pr-scopes.json` and `.github/pr-scope-guard.yml`, then writes a
   summary and JSON artifact. It never comments, labels, approves, blocks or
   merges. Findings do not fail the check.
+- `pr-create`: a manual workflow creates a pull request from an existing
+  same-repository branch using a scoped title and diff-grounded description.
+  On later pushes to a same-repository PR targeting `main`, `pr-body-refresh`
+  regenerates the description. Both use the CUDA Actions GitHub App and
+  trusted default-branch code. Setup and smoke tests are in
+  [`docs/pr-creation.md`](docs/pr-creation.md).
 - `squash-merge`: explicit maintainer approval via `squash-merge:approved` triggers a guarded squash-only merge attempt. It validates the maintainer, same-repository target, exact head SHA, independent reviewer approval, and observed checks. GitHub remains authoritative for branch protection and required checks. Formatting approval never authorizes a merge. Setup in [`docs/squash-merge.md`](docs/squash-merge.md).
 
-- `lock-merged-pr`: runs when a pull request closes and locks the conversation
+- `pr-lock`: runs when a pull request closes and locks the conversation
   with reason `resolved` only when the pull request was merged. It uses
   `pull_request_target` so the workflow comes from the base branch, needs only
   `issues: write`, and checks out no code. Unmerged closed pull requests remain
@@ -290,8 +298,8 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
 ## Review automation
 
 - `codex-review`: apply `codex:review` to request a Codex PR review. The workflow posts `@codex review` and consumes the label after posting. Codex must be connected and enabled; confirm that it responds to a bot-authored command comment during the first smoke test. Setup in [`docs/codex-review.md`](docs/codex-review.md).
-- `rebase-approved`: an authorized maintainer can apply `rebase:approved` to update an open, non-draft, same-repository PR targeting `main`. The workflow verifies the exact PR head and base state, then asks GitHub to update the branch. It uses a write-scoped rebase token and GitHub's signed update commit; it does not merge the PR.
-- `issue-landing`: after a PR is merged, generates an auditable report for linked issues and posts it as an issue comment. A manual dispatch can generate a report for one issue. Closing is a separate, optional path requiring the repository variable, an approved report digest, and the protected `issue-landing-close` environment. See [`issue-landing/`](issue-landing/).
+- `pr-rebase`: an authorized maintainer can apply `rebase:approved` to update an open, non-draft, same-repository PR targeting `main`. The workflow verifies the exact PR head and base state, then asks GitHub to update the branch. It uses a write-scoped rebase token and GitHub's signed update commit; it does not merge the PR.
+- `issue-report`: after a PR is merged, generates an auditable report for linked issues and posts it as an issue comment. A manual dispatch can generate a report for one issue. Closing is a separate, optional path requiring the repository variable, an approved report digest, and the protected `issue-landing-close` environment. See [`issue-landing/`](issue-landing/).
 
 ## Roadmap
 

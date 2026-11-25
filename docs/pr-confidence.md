@@ -1,6 +1,6 @@
-# PR Confidence
+# PR evidence
 
-`PR Confidence` is a GitHub Actions check that scores the evidence available
+`pr-evidence` is a GitHub Actions check that scores the evidence available
 for a pull request from 0 to 5. It publishes the score in the Actions job
 summary, so it appears in the pull request's Checks UI without a conversation
 comment. The check is read-only: it does not post comments, labels, statuses,
@@ -12,7 +12,7 @@ reads.
 
 ## Check contract
 
-- Stable check name: `PR Confidence`. The numeric score is in the summary, not
+- Stable check name: `pr-evidence`. The numeric score is in the summary, not
   in the name.
 - Job: `.github/workflows/pr-confidence.yml`.
 - Recompute triggers: `pull_request_target` opened, synchronize, reopened,
@@ -180,7 +180,7 @@ python pr-confidence/engine/confidence.py \
 ## Requiring the check
 
 In the repository settings, open Branches, edit the rule for `main`, enable
-"Require status checks to pass before merging", and add `PR Confidence` alongside
+"Require status checks to pass before merging", and add `pr-evidence` alongside
 the checks it summarizes, such as `cpu`, `CodeQL` and `analyze (c-cpp)`.
 
 The name is stable because it is the job name. Requiring it makes hard blockers
@@ -199,8 +199,8 @@ blocker still passes. Keep the underlying checks required in their own right.
 - Test presence and diff size are heuristics. They do not measure test quality.
 - API lists are read up to 100 items and marked `unassessed` when truncated.
 - The run waits for checks that are configured at the time it starts. A check
-  rerun after `PR Confidence` has already finished does not emit a pull request
-  event, so re-run the `pr-confidence` workflow manually with the pull request
+  rerun after `pr-evidence` has already finished does not emit a pull request
+  event, so re-run the `pr-evidence` workflow manually with the pull request
   number.
 - Review submissions and thread resolution do not trigger this workflow. Use
   manual dispatch after a review.

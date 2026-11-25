@@ -30,8 +30,8 @@ checks block the merge. Required commit-status contexts can be listed separately
 The combined commit status must always be successful, including when its status
 list is empty. Optional checks may be skipped when their policy permits it.
 
-The current policy requires `cpu`, `python`, `PR Confidence`,
-`PR Scope Guard`, `analyze (c-cpp)`, and `CodeQL`. Update this trusted list
+The current policy requires `cpu`, `python`, `pr-evidence`,
+`pr-scope-check`, `analyze (c-cpp)`, and `CodeQL`. Update this trusted list
 when repository CI policy changes. GitHub's merge API remains authoritative for
 branch protection, required reviews, required status checks, and repository
 rulesets. The workflow does not claim to replace those controls. If GitHub

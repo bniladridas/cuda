@@ -1,8 +1,8 @@
-# CUDA Repository Steward architecture
+# Repository report architecture
 
 ## Purpose
 
-CUDA Repository Steward is the implemented read-only coordination layer for the
+Repository report is the implemented read-only coordination layer for the
 repository's existing automation. It makes repository state, validation
 evidence, policy decisions, and release readiness easier to inspect without
 replacing GitHub Issues, GitHub Actions, or the tools that already perform those jobs.
@@ -20,7 +20,7 @@ source of truth for their own behavior:
 | --- | --- | --- |
 | Issue labels | `label-review/`, `.github/workflows/label-review.yml` | Propose issue labels; apply only through the configured approval gate |
 | Issue landing | `issue-landing/`, `.github/workflows/issue-landing.yml` | Report linked-PR evidence; issue closure is a separate approved operation |
-| PR confidence | `pr-confidence/`, `.github/workflows/pr-confidence.yml` | Read-only evidence score and blocker report |
+| PR evidence | `pr-confidence/`, `.github/workflows/pr-confidence.yml` | Read-only evidence score and blocker report |
 | PR scope | `pr-scope-guard/`, `.github/workflows/pr-scope-guard.yml` | Read-only, advisory title-to-file scope report |
 | Formatting | `format-repair/`, `.github/workflows/format-repair.yml` | Report formatting findings; repair requires maintainer authorization |
 | PR review | `cuda-review/`, `.github/workflows/cuda-review.yml` | Maintainer-triggered model-assisted review |
@@ -95,7 +95,7 @@ merely because another module needs it.
 
 | Class | Allowed behavior | Examples |
 | --- | --- | --- |
-| Read-only | Read repository metadata and produce reports | Issue tracking, PR confidence, scope guard, repository health |
+| Read-only | Read repository metadata and produce reports | Issue tracking, PR evidence, scope guard, repository health |
 | Approval-gated | Perform only the exact action covered by a trusted approval, after re-fetching state | Label application, formatting repair, approved branch update |
 | Human-only | Require a human to perform the action directly | PR approval, issue closure outside the existing approved workflow, release publication |
 
@@ -124,7 +124,7 @@ workflow.
   benchmark provenance checks, release-readiness evaluation, and optional
   model summaries.
 - **Read-only adapters:** Label Review and Issue Landing workflow status, plus
-  per-PR PR Confidence and PR Scope Guard artifacts. Source findings and
+  per-PR pr-evidence and pr-scope-check artifacts. Source findings and
   confidence data are preserved as evidence, not authorization.
 - **Operational report:** the workflow uploads the input snapshot and JSON
   report as a 14-day artifact. It runs with read-only repository permissions.
