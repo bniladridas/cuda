@@ -291,7 +291,7 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
 
 - `codex-review`: apply `codex:review` to request a Codex PR review. The workflow posts `@codex review` and consumes the label after posting. Codex must be connected and enabled; confirm that it responds to a bot-authored command comment during the first smoke test. Setup in [`docs/codex-review.md`](docs/codex-review.md).
 - `pr-rebase`: an authorized maintainer can apply `rebase:approved` to update an open, non-draft, same-repository PR targeting `main`. The workflow verifies the exact PR head and base state, then asks GitHub to update the branch. It uses a write-scoped rebase token and GitHub's signed update commit; it does not merge the PR.
-- `issue-close`: after a PR is merged, generates an auditable report for linked issues and posts it as an issue comment. A manual dispatch can generate a report for one issue. Closing is a separate, optional path requiring the repository variable, an approved report digest, and the protected `issue-landing-close` environment. See [`issue-landing/`](issue-landing/).
+- `issue-report`: after a PR is merged, generates an auditable report for linked issues and posts it as an issue comment. A manual dispatch can generate a report for one issue. Closing is a separate, optional path requiring the repository variable, an approved report digest, and the protected `issue-landing-close` environment. See [`issue-landing/`](issue-landing/).
 
 ## Roadmap
 
