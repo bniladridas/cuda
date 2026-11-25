@@ -1,4 +1,4 @@
-name: cuda-review
+name: CUDA Review
 
 on:
   issue_comment:
