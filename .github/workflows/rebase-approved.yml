@@ -1,4 +1,4 @@
-name: Rebase PR on approval label
+name: pr-rebase
 
 on:
   pull_request_target:
