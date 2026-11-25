@@ -200,7 +200,7 @@ into its optional `review_feedback` input. The model treats that text as
 untrusted context and must still inspect the full diff and every changed text
 file. The final protected-environment approval remains mandatory.
 
-## AI-assisted conflict resolution
+## Conflict resolution
 
 The `conflict:resolve` label starts
 `.github/workflows/ai-conflict-resolution.yml`. It is separate from
