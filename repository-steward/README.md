@@ -150,10 +150,10 @@ request ID when available, SHA-256 digests of the input report and output
 summary, and generation time. Credentials and the full endpoint URL are not
 recorded. This provenance documents the recommendation but does not make model
 output verification evidence or grant it authority over repository actions.
-## Steward pull-request metadata
+## PR metadata sync
 
-The separate `.github/workflows/steward-pr-metadata.yml` workflow adds the
-`documentation` and `enhancement` labels to open Steward PRs and assigns
+The `pr-metadata-sync` workflow (`.github/workflows/steward-pr-metadata.yml`) adds the
+`documentation` and `enhancement` labels to matching open PRs and assigns
 milestone 4 when no milestone is already set. It recognizes PRs with a
 `[steward]` title prefix or a `steward/` head branch.
 
@@ -162,6 +162,6 @@ events. It can also be run manually with a PR number to backfill metadata.
 Labels are added without replacing existing labels. An existing milestone is
 preserved, including when it differs from milestone 4.
 
-This is repository metadata automation, separate from the read-only Steward
+This is repository metadata automation, separate from the read-only repository
 report engine. It does not modify PR code, approve, merge, or close anything.
 
