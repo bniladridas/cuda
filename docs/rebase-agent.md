@@ -101,7 +101,7 @@ distinguishes tree inventory from actual Git rebase/merge outcomes.
 
 ## Maintainer-dispatched repair workflow
 
-The end-to-end caller is the `pr-repair` workflow (`.github/workflows/pr-repair-integration.yml`).
+The end-to-end caller is the `pr-repair` workflow (`.github/workflows/pr-repair.yml`).
 It is a manual workflow and is available for dispatch only after the workflow
 has landed on the repository's default branch.
 
@@ -195,7 +195,7 @@ the bounded repair agent for a patch proposal. The result is uploaded as a
 `review-feedback-proposal` artifact. It does not push, approve, or merge.
 
 For a controlled branch update, a maintainer can dispatch
-`pr-repair-integration.yml` with the exact SHAs and copy the review request
+`pr-repair.yml` with the exact SHAs and copy the review request
 into its optional `review_feedback` input. The model treats that text as
 untrusted context and must still inspect the full diff and every changed text
 file. The final protected-environment approval remains mandatory.

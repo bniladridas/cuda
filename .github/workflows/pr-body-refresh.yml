@@ -1,33 +1,21 @@
-name: pr-create
+name: pr-body-refresh
 
 on:
-  workflow_dispatch:
-    inputs:
-      head:
-        description: Existing branch containing the commits to propose
-        required: true
-        type: string
-      base:
-        description: Target branch
-        required: true
-        default: main
-        type: string
-      draft:
-        description: Open the pull request as a draft
-        required: true
-        default: false
-        type: boolean
+  pull_request_target:
+    types: [synchronize]
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: cuda-bot-pr-${{ inputs.head }}-${{ inputs.base }}
-  cancel-in-progress: false
+  group: pr-body-refresh-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  create:
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+  refresh:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -45,10 +33,10 @@ jobs:
           permission-contents: read
           permission-pull-requests: write
 
-      - name: Check out trusted PR creation code
+      - name: Check out trusted base-branch code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.workflow_sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Set up Python
@@ -56,13 +44,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Generate and open the pull request as CUDA Actions
+      - name: Regenerate the PR body from the latest diff
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          HEAD_BRANCH: ${{ inputs.head }}
-          BASE_BRANCH: ${{ inputs.base }}
-          DRAFT: ${{ inputs.draft }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ vars.CUDA_REVIEW_MODEL }}
-        run: python3 pr-create/engine/create_pr.py
+        run: python3 pr-create/engine/refresh_pr.py
