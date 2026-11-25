@@ -216,10 +216,12 @@ src/                    kernel implementations
 kernels/                library target
 tests/                  host reference checks + GPU correctness tests
 benchmarks/             timing harness and benchmark binaries
-pr-confidence/          pr-evidence engine and its offline tests
+pr-confidence/          PR evidence engine and its offline tests
 pr-scope-guard/         read-only PR title scope and changed-file check
+pr-title/               optional PR title suggestion engine and tests
+pr-create/              diff-grounded PR creation and body-refresh engines
 runners/                build / test / benchmark scripts
-docs/                   hardware, methodology, C++ quality, PR evidence, label review, pr-scope-check and repository report architecture
+docs/                   hardware, methodology, C++ quality, PR evidence, label review, PR creation, scope check and repository report architecture
 label-review/           reusable issue label review engine and tests
 format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
@@ -238,9 +240,9 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
   rebase safety, merge integration, tree inspection, and bounded repair engines.
   CUDA sources are formatted but not compiled or analyzed here.
 - `python`: GitHub-hosted, runs Ruff lint and format checks, coverage, and the
-  selected Python suites: PR evidence, label review, pr-scope-check, format
-  repair, squash-merge, rebase-agent, and benchmarks. Issue-landing tests run in
-  the CPU job. Dependency versions are pinned in
+  selected Python suites: PR evidence, label review, pr-scope-check, PR title,
+  PR creation, format repair, squash-merge, rebase-agent, repository report,
+  and benchmarks. Issue-landing tests run in the CPU job. Dependency versions are pinned in
   `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
   toolkit is required.
 - `cuda-compile`: GitHub-hosted Ubuntu 22.04 container using the pinned
@@ -264,6 +266,12 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
   `.github/pr-scopes.json` and `.github/pr-scope-guard.yml`, then writes a
   summary and JSON artifact. It never comments, labels, approves, blocks or
   merges. Findings do not fail the check.
+- `pr-create`: a manual workflow creates a pull request from an existing
+  same-repository branch using a scoped title and diff-grounded description.
+  On later pushes to a same-repository PR targeting `main`, `pr-body-refresh`
+  regenerates the description. Both use the CUDA Actions GitHub App and
+  trusted default-branch code. Setup and smoke tests are in
+  [`docs/pr-creation.md`](docs/pr-creation.md).
 - `squash-merge`: explicit maintainer approval via `squash-merge:approved` triggers a guarded squash-only merge attempt. It validates the maintainer, same-repository target, exact head SHA, independent reviewer approval, and observed checks. GitHub remains authoritative for branch protection and required checks. Formatting approval never authorizes a merge. Setup in [`docs/squash-merge.md`](docs/squash-merge.md).
 
 - `pr-lock`: runs when a pull request closes and locks the conversation
