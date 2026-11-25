@@ -1,4 +1,4 @@
-name: pr-metadata-sync
+name: PR Metadata
 
 on:
   pull_request_target:
