@@ -15,12 +15,14 @@ class TitleValidationTests(unittest.TestCase):
     def test_rate_limit_and_server_errors_are_non_blocking(self):
         for code in (429, 500, 502, 503):
             with self.subTest(code=code):
-                self.assertTrue(title_assistant.provider_unavailable(HTTPError("https://example.test", code, "error", {}, None)))
+                error = HTTPError("https://example.test", code, "error", {}, None)
+                self.assertTrue(title_assistant.provider_unavailable(error))
 
     def test_other_provider_http_errors_remain_failures(self):
         for code in (400, 401, 403):
             with self.subTest(code=code):
-                self.assertFalse(title_assistant.provider_unavailable(HTTPError("https://example.test", code, "error", {}, None)))
+                error = HTTPError("https://example.test", code, "error", {}, None)
+                self.assertFalse(title_assistant.provider_unavailable(error))
 
     def test_accepts_registered_scope_and_action_verb(self):
         self.assertTrue(valid_title("[kernels] Add vectorized reduction", self.scopes))
