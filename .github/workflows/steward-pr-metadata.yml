@@ -1,4 +1,4 @@
-name: steward-pr-metadata
+name: pr-metadata-sync
 
 on:
   pull_request_target:
