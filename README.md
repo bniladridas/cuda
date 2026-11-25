@@ -219,7 +219,7 @@ benchmarks/             timing harness and benchmark binaries
 pr-confidence/          pr-evidence engine and its offline tests
 pr-scope-guard/         read-only PR title scope and changed-file check
 runners/                build / test / benchmark scripts
-docs/                   hardware, methodology, C++ quality, PR confidence, label review, pr-scope-check and repository report architecture
+docs/                   hardware, methodology, C++ quality, PR evidence, label review, pr-scope-check and repository report architecture
 label-review/           reusable issue label review engine and tests
 format-repair/          approval-gated C/C++/CUDA and Python formatting repair
 issue-landing/          issue landing report engine and offline tests
@@ -234,11 +234,11 @@ rebase-agent/           safe PR rebase and bounded repair engines with tests
   host-only CMake build and reference tests, verifies GPU binaries are absent,
   checks runner skip handling, formats C++/CUDA sources, and runs host-side
   clang-tidy. It also runs offline tests for label review, issue landing, PR
-  confidence, pr-scope-check, format repair, squash-merge policy, and the
+  evidence, pr-scope-check, format repair, squash-merge policy, and the
   rebase safety, merge integration, tree inspection, and bounded repair engines.
   CUDA sources are formatted but not compiled or analyzed here.
 - `python`: GitHub-hosted, runs Ruff lint and format checks, coverage, and the
-  selected Python suites: PR confidence, label review, pr-scope-check, format
+  selected Python suites: PR evidence, label review, pr-scope-check, format
   repair, squash-merge, rebase-agent, and benchmarks. Issue-landing tests run in
   the CPU job. Dependency versions are pinned in
   `requirements-dev.txt`; coverage is reported without a pass threshold. No CUDA
