@@ -1,4 +1,4 @@
-name: pr-title-check
+name: PR Title Helper
 
 on:
   pull_request_target:
