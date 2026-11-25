@@ -36,4 +36,5 @@ void launch_vecadd(const float* a, const float* b, float* c, std::size_t n,
   CUDA_CHECK_LAST_ERROR();
 }
 
+// Live validation change for PR label review.
 }  // namespace cuda_kernels
