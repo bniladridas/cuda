@@ -1,4 +1,4 @@
-# PR Scope Guard
+# PR scope check
 
 Read-only check that compares the scope declared in a pull request title with
 the files the pull request changes. It is advisory: findings never fail the
