@@ -1,4 +1,4 @@
-name: issue-report
+name: Issue Landing
 
 # pull_request_target loads this workflow from the base branch. Both jobs that
 # execute repository code check out the default branch explicitly.
