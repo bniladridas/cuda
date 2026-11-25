@@ -153,7 +153,6 @@ whether the failure is a compile error, a wrong result, or a crash. A wrong
 result is far more useful with the input size and the expected versus actual
 sum.
 
-
 ## Opening pull requests with CUDA Actions
 
 Push your commits to a branch in this repository, then run the **CUDA bot PR
@@ -174,9 +173,12 @@ does not rebase or modify the source branch. CI and hardware validation results
 are reported separately and are not represented as local test results in the
 generated description.
 
-
 When new commits are pushed to a bot-created pull request, the **CUDA bot PR
 body refresh** workflow regenerates the description from the latest base-to-head
 diff. It preserves the PR title and commit authorship. The refresh runs only for
 same-repository branches, uses the GitHub App identity, and refuses to update
 if the PR head changes while the description is being generated.
+
+The refresh uses `pull_request_target` and checks out only the trusted default
+branch. It must not check out the pull request head or execute pull-request
+scripts while the GitHub App token or OpenRouter key is available.
