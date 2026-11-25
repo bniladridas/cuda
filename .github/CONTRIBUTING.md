@@ -173,3 +173,10 @@ model output, oversized diffs, and branches that move during generation. It
 does not rebase or modify the source branch. CI and hardware validation results
 are reported separately and are not represented as local test results in the
 generated description.
+
+
+When new commits are pushed to a bot-created pull request, the **CUDA bot PR
+body refresh** workflow regenerates the description from the latest base-to-head
+diff. It preserves the PR title and commit authorship. The refresh runs only for
+same-repository branches, uses the GitHub App identity, and refuses to update
+if the PR head changes while the description is being generated.
