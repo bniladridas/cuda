@@ -1,4 +1,4 @@
-name: PR Repair Proposal
+name: Repair Proposal
 
 on:
   workflow_dispatch:
