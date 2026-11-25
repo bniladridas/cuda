@@ -1,4 +1,4 @@
-name: repo-report
+name: Repository Steward
 
 on:
   workflow_dispatch:
