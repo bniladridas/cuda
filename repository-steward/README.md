@@ -1,4 +1,4 @@
-# CUDA Repository Steward
+# Repository report
 
 This package is a read-only coordination layer for issue tracking, repository
 health, validation evidence, and release-readiness reporting.
@@ -75,9 +75,9 @@ stale and unknown evidence as distinct states. GPU runtime success requires
 explicit current-head evidence. Model integration is disabled by default and
 cannot authorize actions.
 
-Existing Label Review, Issue Landing, PR Confidence, PR Scope Guard,
+Existing Label Review, Issue Landing, PR evidence, PR scope check,
 Squash Merge and Rebase Agent remain separate engines. The report preserves
-PR Confidence scores, categories, blockers and notes, plus PR Scope Guard
+PR evidence scores, categories, blockers and notes, plus PR scope check
 findings, as source evidence. Per-PR states distinguish current, stale,
 missing, incomplete, pending, malformed and failed artifacts. These findings
 remain advisory data: neither adapter can authorize approval or merge, and
@@ -112,7 +112,7 @@ branches, issues, PRs or releases.
 
 ## Scheduled report
 
-The **Repository Steward Report** workflow runs daily or manually from
+The **repo-report** workflow runs daily or manually from
 Actions. It uses the workflow's read-only GitHub token and uploads both the
 source snapshot and JSON report as a 14-day artifact. Download the artifact to
 inspect the exact inputs and generated output for a run.
