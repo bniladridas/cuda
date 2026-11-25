@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 
 MODEL = "openrouter/free"
@@ -134,6 +135,9 @@ def ask_model(data):
             result = json.loads(response.read().decode())
         raw = result["choices"][0]["message"]["content"]
         answer = json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode(errors="replace")[:300]
+        raise ReviewError("model request failed: HTTP " + str(exc.code) + " " + detail)
     except Exception as exc:
         raise ReviewError("model request or response failed: " + type(exc).__name__)
     allowed_labels = set(data["known_labels"])
