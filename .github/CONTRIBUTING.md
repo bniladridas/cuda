@@ -152,3 +152,24 @@ Include the GPU, driver, toolkit, compute capability, the exact command, and
 whether the failure is a compile error, a wrong result, or a crash. A wrong
 result is far more useful with the input size and the expected versus actual
 sum.
+
+
+## Opening pull requests with CUDA Actions
+
+Push your commits to a branch in this repository, then run the **CUDA bot PR
+creation** workflow from the Actions tab on the default branch. Supply the head
+branch and target branch (normally `main`), and choose whether the pull request
+should be a draft.
+
+The workflow compares the branch with its target, asks the configured model for
+a scoped title and a diff-grounded description, validates the title against
+`.github/pr-scopes.json`, and opens the pull request using the CUDA Actions
+GitHub App. The pull request creator is `cuda-actions[bot]`; commit authorship
+is unchanged. The existing PR review workflows then run, including the separate
+CUDA bot metadata proposal. The creator does not apply labels or milestones.
+
+The workflow refuses empty comparisons, duplicate open pull requests, invalid
+model output, oversized diffs, and branches that move during generation. It
+does not rebase or modify the source branch. CI and hardware validation results
+are reported separately and are not represented as local test results in the
+generated description.

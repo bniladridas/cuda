@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Create a diff-grounded pull request using the CUDA GitHub App identity."""
 import json
+import math
 import os
 import re
 import sys
@@ -150,7 +151,8 @@ def main():
     scope = result.get("scope")
     title = f"[{scope}] {str(result.get('description', '')).strip()}"
     allowed = {x["name"] for x in registry["scopes"]}
-    if float(result.get("confidence", 0)) < 0.85 or not valid_title(title, allowed):
+    confidence = float(result.get("confidence", 0))
+    if not math.isfinite(confidence) or confidence < 0.85 or not valid_title(title, allowed):
         raise ValueError("Model did not return a sufficiently confident, valid scoped title")
     messages = [c.get("commit", {}).get("message", "") for c in compare.get("commits", [])]
     body = render_body(result, linked_references(messages))
