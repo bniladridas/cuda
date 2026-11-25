@@ -1,6 +1,6 @@
-# PR Scope Guard
+# PR scope check
 
-The PR Scope Guard is a read-only, advisory check that compares the scope in a
+The PR scope check is a read-only, advisory check that compares the scope in a
 pull request title with the files the pull request changes. It does not replace
 review, required checks or branch protection.
 
