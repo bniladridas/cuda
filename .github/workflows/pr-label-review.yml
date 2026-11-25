@@ -1,4 +1,4 @@
-name: PR Label Review
+name: PR Labels
 # Uses pull_request_target and never checks out or executes PR code.
 on:
   pull_request_target:
