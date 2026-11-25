@@ -172,7 +172,7 @@ def main() -> int:
             f"Title suggestion skipped because OpenRouter returned HTTP {exc.code}. "
             "The PR title was not changed. This optional suggestion check is non-blocking."
         )
-        summary.write_text(text + "\\n")
+        summary.write_text(text + "\n")
         print(text)
         return 0
 
