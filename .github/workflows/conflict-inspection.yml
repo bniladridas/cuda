@@ -1,4 +1,4 @@
-name: merge-conflict-check
+name: PR Conflict Inspection
 
 on:
   workflow_dispatch:
