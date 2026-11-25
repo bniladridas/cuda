@@ -1,4 +1,4 @@
-name: pr-create
+name: PR Creation
 
 on:
   workflow_dispatch:
