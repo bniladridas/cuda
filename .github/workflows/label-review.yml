@@ -1,4 +1,4 @@
-name: Labels
+name: Label Review
 
 # Reusable workflow. A caller passes an issue number, a mode and its
 # configuration path; this workflow reads the issue, posts a proposal, and
