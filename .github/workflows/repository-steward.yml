@@ -1,4 +1,4 @@
-name: Repository Steward
+name: Steward
 
 on:
   workflow_dispatch:
