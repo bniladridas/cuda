@@ -50,7 +50,7 @@ Use `[pr-confidence]`, `[label-review]` or `[pr-scope-guard]` for changes
 specific to those systems, and `[automation]` for repository automation that
 does not fit a more specific scope.
 
-The `pr-scope-guard` check is advisory. It reports when the declared scope does
+The `pr-scope-check` check is advisory. It reports when the declared scope does
 not match the changed files, but it does not block a pull request. Fix a
 mismatch or explain the cross-scope change in the pull request.
 
