@@ -1,0 +1,68 @@
+name: CUDA bot PR creation
+
+on:
+  workflow_dispatch:
+    inputs:
+      head:
+        description: Existing branch containing the commits to propose
+        required: true
+        type: string
+      base:
+        description: Target branch
+        required: true
+        default: main
+        type: string
+      draft:
+        description: Open the pull request as a draft
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cuda-bot-pr-${{ inputs.head }}-${{ inputs.base }}
+  cancel-in-progress: false
+
+jobs:
+  create:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create CUDA Actions token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CUDA_ACTIONS_APP_ID }}
+          private-key: ${{ secrets.CUDA_ACTIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: write
+
+      - name: Check out trusted PR creation code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Generate and open the pull request as CUDA Actions
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEAD_BRANCH: ${{ inputs.head }}
+          BASE_BRANCH: ${{ inputs.base }}
+          DRAFT: ${{ inputs.draft }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.CUDA_REVIEW_MODEL }}
+        run: python3 pr-create/engine/create_pr.py
