@@ -155,7 +155,7 @@ sum.
 
 ## Opening pull requests with CUDA Actions
 
-Push your commits to a branch in this repository, then run the **CUDA bot PR
+Push your commits to a branch in this repository, then run the **PR
 creation** workflow from the Actions tab on the default branch. Supply the head
 branch and target branch (normally `main`), and choose whether the pull request
 should be a draft.
@@ -165,7 +165,7 @@ a scoped title and a diff-grounded description, validates the title against
 `.github/pr-scopes.json`, and opens the pull request using the CUDA Actions
 GitHub App. The pull request creator is `cuda-actions[bot]`; commit authorship
 is unchanged. The existing PR review workflows then run, including the separate
-CUDA bot metadata proposal. The creator does not apply labels or milestones.
+PR metadata proposal. The creator does not apply labels or milestones.
 
 The workflow refuses empty comparisons, duplicate open pull requests, invalid
 model output, oversized diffs, and branches that move during generation. It
@@ -173,7 +173,7 @@ does not rebase or modify the source branch. CI and hardware validation results
 are reported separately and are not represented as local test results in the
 generated description.
 
-When new commits are pushed to a bot-created pull request, the **CUDA bot PR
+When new commits are pushed to a workflow-created pull request, the **PR
 body refresh** workflow regenerates the description from the latest base-to-head
 diff. It preserves the PR title and commit authorship. The refresh runs only for
 same-repository branches, uses the GitHub App identity, and refuses to update
