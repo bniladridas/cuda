@@ -44,10 +44,12 @@ def main():
     result = generate_metadata(compare, registry["scopes"], head, base, api_key, model)
     body = render_body(
         result,
-        linked_references([
-            commit.get("commit", {}).get("message", "")
-            for commit in compare.get("commits", [])
-        ]),
+        linked_references(
+            [
+                commit.get("commit", {}).get("message", "")
+                for commit in compare.get("commits", [])
+            ]
+        ),
     )
     current = request_json(pr_url, token)
     if current.get("state") != "open" or current["head"]["sha"] != head_sha:
