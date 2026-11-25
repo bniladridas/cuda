@@ -1,4 +1,4 @@
-name: PR Conflict Inspection
+name: Conflict Inspection
 
 on:
   workflow_dispatch:
