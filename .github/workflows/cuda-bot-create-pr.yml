@@ -1,4 +1,4 @@
-name: CUDA bot PR creation
+name: pr-create
 
 on:
   workflow_dispatch:
