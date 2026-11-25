@@ -91,7 +91,7 @@ Run it with a read-only token:
       --repository owner/repo --pull-request 123 \
       --output conflict-inspection.json
 
-The read-only `.github/workflows/conflict-inspection.yml` workflow remains
+The read-only `merge-conflict-check` workflow (`.github/workflows/conflict-inspection.yml`) remains
 available through manual `workflow_dispatch`. It checks out only the trusted
 base SHA, has read-only repository permissions, executes no PR code, and
 uploads the JSON report as an artifact. It does not update a branch.
@@ -101,7 +101,7 @@ distinguishes tree inventory from actual Git rebase/merge outcomes.
 
 ## Maintainer-dispatched repair workflow
 
-The end-to-end caller is `.github/workflows/pr-repair-integration.yml`.
+The end-to-end caller is the `pr-repair` workflow (`.github/workflows/pr-repair-integration.yml`).
 It is a manual workflow and is available for dispatch only after the workflow
 has landed on the repository's default branch.
 
@@ -187,7 +187,7 @@ necessary. The first successful run should be on a low-risk CPU-only PR.
 
 ## Review-comment feedback proposals
 
-`.github/workflows/review-feedback.yml` runs on submitted PR reviews and
+The `review-feedback` workflow (`.github/workflows/review-feedback.yml`) runs on submitted PR reviews and
 new inline review comments for same-repository, non-draft PRs. It snapshots the
 exact event head/base SHAs without executing PR code, extracts the reviewer
 text and inline diff context, verifies the live Git Trees API state, and asks
@@ -202,8 +202,8 @@ file. The final protected-environment approval remains mandatory.
 
 ## Conflict resolution
 
-The `conflict:resolve` label starts
-`.github/workflows/ai-conflict-resolution.yml`. It is separate from
+The `conflict:resolve` label starts the `conflict-resolution` workflow
+(`.github/workflows/ai-conflict-resolution.yml`). It is separate from
 `rebase:approved`: the latter performs a normal Git rebase and aborts on
 conflict, while the former explicitly authorizes a bounded model-assisted
 attempt to resolve textual conflicts during a rebase.
