@@ -75,7 +75,7 @@ reach the write step.
 
 ## Correction run
 
-1. Actions > `label-review` > Run workflow, entering the issue number.
+1. Actions > `issue-label-review` > Run workflow, entering the issue number.
 2. Read the proposal comment: current labels, proposed labels, each change with
    a reason, and a short hash of the current label set.
 3. Approve or reject the waiting run. After approval the labels are read again,
