@@ -12,9 +12,7 @@ SPEC.loader.exec_module(create_pr)
 class CreatePrTests(unittest.TestCase):
     def test_title_requires_registered_scope_and_action_verb(self):
         scopes = {"automation", "docs"}
-        self.assertTrue(
-            create_pr.valid_title("[automation] Create pull requests as the bot", scopes)
-        )
+        self.assertTrue(create_pr.valid_title("[automation] Create pull requests as the bot", scopes))
         self.assertFalse(create_pr.valid_title("[unknown] Create pull requests", scopes))
         self.assertFalse(create_pr.valid_title("[docs] Better PR descriptions", scopes))
 

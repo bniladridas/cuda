@@ -174,11 +174,7 @@ def main():
     branch_pattern = r"[A-Za-z0-9._/-]{1,200}"
 
     for name, value in (("HEAD_BRANCH", head), ("BASE_BRANCH", base)):
-        invalid = (
-            not re.fullmatch(branch_pattern, value)
-            or value.startswith("/")
-            or ".." in value.split("/")
-        )
+        invalid = not re.fullmatch(branch_pattern, value) or value.startswith("/") or ".." in value.split("/")
         if invalid:
             raise ValueError(f"{name} is not a valid branch name")
     if head == base:
@@ -229,10 +225,7 @@ def main():
     if not math.isfinite(confidence) or confidence < 0.85 or not valid_title(title, allowed):
         raise ValueError("Model did not return a sufficiently confident, valid scoped title")
 
-    messages = [
-        commit.get("commit", {}).get("message", "")
-        for commit in compare.get("commits", [])
-    ]
+    messages = [commit.get("commit", {}).get("message", "") for commit in compare.get("commits", [])]
     body = render_body(result, linked_references(messages))
 
     if request_json(branch_url, token)["object"]["sha"] != head_sha:
