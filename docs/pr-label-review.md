@@ -1,4 +1,4 @@
-# PR label and milestone review
+# PR metadata review
 
 The PR reviewer extends the existing Label Review system without changing the
 issue-review path. It reads the live PR title, body, changed files and diff,
