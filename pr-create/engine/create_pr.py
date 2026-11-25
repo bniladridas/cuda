@@ -20,6 +20,7 @@ ACTION_VERBS = {
     "clarify",
     "clean",
     "cover",
+    "create",
     "document",
     "enable",
     "enforce",
