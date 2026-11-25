@@ -1,4 +1,4 @@
-name: format-review
+name: format-suggestions
 
 on:
   pull_request_target:
