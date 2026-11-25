@@ -1,4 +1,4 @@
-name: pr-evidence
+name: PR Confidence
 
 # pull_request_target loads this workflow and the engine from the base branch,
 # so a pull request cannot alter the code that scores it. Review submissions are
