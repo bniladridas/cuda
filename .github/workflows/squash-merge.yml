@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   squash:
-    name: squash-merge approval gate
+    name: squash-merge
     if: >-
       github.event.action == 'labeled' &&
       github.event.label.name == 'squash-merge:approved'
