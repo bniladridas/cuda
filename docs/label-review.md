@@ -19,7 +19,7 @@ This page covers the deployment in this repository.
 Existing issues are not processed automatically. A correction is only produced
 when someone dispatches it, and a pull request number entered there is rejected
 before the issue is read. Pull requests use a separate diff-aware reviewer,
-documented in [PR label and milestone review](pr-label-review.md).
+documented in [PR metadata review](pr-label-review.md).
 
 The workflow is inert until the setup below is complete. The pull request that
 adds it does not create the environment, the secret or the variables; those are
