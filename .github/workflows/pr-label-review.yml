@@ -109,7 +109,7 @@ jobs:
           marker="<!-- cuda-pr-label-review-proposal -->"
           comment_body="$(cat pr-proposal.md)"
           if ! grep -Fq "$marker" <<<"$comment_body"; then
-            comment_body="$(printf '%s\\n\\n%s' "$comment_body" "$marker")"
+            comment_body="$(printf '%s\n\n%s' "$comment_body" "$marker")"
           fi
           endpoint="repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments"
           existing_id="$(gh api "$endpoint?per_page=100" --jq '
