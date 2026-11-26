@@ -83,7 +83,6 @@ class RepositoryHealthTests(unittest.TestCase):
         self.assertFalse(result["mutations_performed"])
         self.assertEqual(result["finding_count"], 3)
 
-
     def test_stale_workflow_paths_in_markdown_are_reported(self):
         result = check_workflow_documentation_references(
             {
