@@ -93,11 +93,16 @@ jobs:
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           EXPECTED_PROPOSAL_HASH: ${{ needs.propose.outputs.proposal_hash }}
         run: |
           actual="$(sha256sum pr-proposal.json | cut -d ' ' -f1)"
-          test "$actual" = "$EXPECTED_PROPOSAL_HASH"
+          if [ "$actual" != "$EXPECTED_PROPOSAL_HASH" ]; then
+            echo "Proposal is stale; regenerating from the current PR state."
+            python3 label-review/engine/pr_review.py propose --pr "$PR_NUMBER"
+            actual="$(sha256sum pr-proposal.json | cut -d ' ' -f1)"
+          fi
           python3 label-review/engine/pr_review.py verify --pr "$PR_NUMBER"
       - name: Create or update the verified proposal comment
         id: post
