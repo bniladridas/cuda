@@ -195,7 +195,7 @@ jobs:
       - name: Re-fetch and verify PR diff and metadata, then apply
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
         run: python3 label-review/engine/pr_review.py apply --pr "$PR_NUMBER" --artifact pr-proposal.json
       - name: Update the original proposal comment
